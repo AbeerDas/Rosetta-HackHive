@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from app.api.deps import RAGServiceDep, TranscriptServiceDep, get_rag_service, get_transcript_service
 from app.core.database import get_async_session
 from app.schemas.transcript import SegmentCreate, TranscriptResponse
-from app.services.transcript import SlidingWindowBuffer
+from app.services.transcript import SegmentBuffer
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ async def transcription_websocket(
     """
     await websocket.accept()
 
-    # Initialize sliding window buffer
-    window_buffer = SlidingWindowBuffer(target_sentences=3)
+    # Initialize segment buffer (processes each segment individually for RAG)
+    segment_buffer = SegmentBuffer()
 
     try:
         # Get fresh database session for each request
@@ -132,25 +132,24 @@ async def transcription_websocket(
                             "frontend_id": frontend_id,  # So frontend can update its store
                         })
 
-                        # Add to window buffer (create a simple object for the buffer)
+                        # Add segment to buffer for RAG processing
                         class SegmentWrapper:
                             def __init__(self, id, text):
                                 self.id = id
                                 self.text = text
 
-                        window_buffer.add(SegmentWrapper(saved_segment.id, segment.text))
-                        logger.debug(f"[Transcribe] Buffer now has {len(window_buffer.segments)} segments, text: {window_buffer.get_text()[:50]}...")
+                        segment_buffer.add(SegmentWrapper(saved_segment.id, segment.text))
+                        logger.debug(f"[Transcribe] Processing segment: '{segment_buffer.get_text()[:50]}...'")
 
-                        # Check if RAG should trigger
-                        if window_buffer.is_complete():
-                            logger.info(f"[Transcribe] Window complete, triggering RAG query (window {window_buffer.index})")
-                            # Execute RAG query
-                            window_text = window_buffer.get_text()
+                        # Each segment triggers RAG individually
+                        if segment_buffer.is_complete():
+                            logger.info(f"[Transcribe] Triggering RAG for segment {segment_buffer.index}")
+                            segment_text = segment_buffer.get_text()
                             try:
                                 rag_result = await rag_service.query(
                                     session_id=session_id,
-                                    transcript_text=window_text,
-                                    window_index=window_buffer.index,
+                                    transcript_text=segment_text,
+                                    window_index=segment_buffer.index,
                                     transcript_id=saved_segment.id,
                                 )
                                 
@@ -170,19 +169,18 @@ async def transcription_websocket(
                                                 "document_name": c.document_name,
                                                 "page_number": c.page_number,
                                                 "snippet": c.snippet,
+                                                "relevance_score": c.relevance_score,
                                             }
                                             for c in rag_result.citations
                                         ],
                                     })
                                 else:
-                                    logger.info(f"[Transcribe] No citations found for window {window_buffer.index}")
+                                    logger.info(f"[Transcribe] No citations found for segment {segment_buffer.index}")
                             except Exception as rag_error:
                                 logger.error(f"[Transcribe] RAG query failed: {rag_error}")
 
-                            # Advance window
-                            window_buffer.advance()
-                        else:
-                            logger.debug(f"[Transcribe] Window not complete yet, need more sentences")
+                            # Advance to next segment
+                            segment_buffer.advance()
 
                     elif msg_type == "ping":
                         await websocket.send_json({"type": "pong"})

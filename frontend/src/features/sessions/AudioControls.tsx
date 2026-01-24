@@ -322,6 +322,17 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
         }
       }
     } else if (msg.type === 'citations' && msg.citations && msg.segment_id) {
+      // Log the top retrieved document and its similarity score for debugging
+      if (msg.citations.length > 0) {
+        const topCitation = msg.citations[0];
+        console.log(
+          `[RAG] Top retrieved document: "${topCitation.document_name}" (page ${topCitation.page_number}) | Similarity score: ${topCitation.relevance_score?.toFixed(4) ?? 'N/A'}`
+        );
+        console.log(`[RAG] Snippet: "${topCitation.snippet.substring(0, 100)}..."`);
+      } else {
+        console.log('[RAG] No citations returned for this segment');
+      }
+      
       const frontendId = segmentIdMapRef.current.get(msg.segment_id) || msg.segment_id;
       attachCitations(frontendId, msg.citations);
     }

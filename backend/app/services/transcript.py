@@ -117,142 +117,64 @@ class TranscriptService:
         )
 
 
-class SlidingWindowBuffer:
-    """Buffer for accumulating transcript segments into sliding windows.
+class SegmentBuffer:
+    """Buffer for processing individual transcript segments for RAG.
     
-    Per FRD-05 Sliding Window Logic:
-    - Trigger after 2-3 complete sentences OR sufficient content
-    - Minimum window size: 30 words
-    - Maximum window size: 150 words
-    - New window starts from last sentence of previous window (overlap)
+    Changed from sliding window to per-segment processing for greater
+    flexibility and more granular citation matching.
     
-    Note: Web Speech API typically doesn't add punctuation, so we also
-    trigger based on segment count and word count as fallback.
+    Each segment triggers its own RAG query independently.
     """
 
-    # FRD-05 constants - lowered MIN_WORDS for better triggering with speech
-    MIN_WORDS = 15  # Lowered from 30 - speech segments are often short
-    MAX_WORDS = 150
-    MIN_SEGMENTS = 2  # Fallback: trigger after N segments if no punctuation
-    
-    # Common abbreviations that don't end sentences
-    ABBREVIATIONS = {
-        "dr.", "prof.", "mr.", "mrs.", "ms.", "jr.", "sr.",
-        "etc.", "e.g.", "i.e.", "vs.", "fig.", "eq.", "ch.",
-        "vol.", "no.", "p.", "pp.", "ed.", "eds."
-    }
-
-    def __init__(self, target_sentences: int = 3):
-        self.segments: list = []
-        self.target_sentences = target_sentences
+    def __init__(self):
+        self.current_segment = None
         self.index = 0
 
     def add(self, segment) -> None:
         """Add a segment to the buffer."""
-        self.segments.append(segment)
-
-    def _count_sentences(self, text: str) -> int:
-        """Count sentences with abbreviation awareness.
-        
-        Handles:
-        - Standard sentence endings: . ! ?
-        - Ignores abbreviations: Dr., Prof., etc.
-        - Ignores ellipsis: ...
-        """
-        import re
-        
-        # Normalize text
-        text_lower = text.lower()
-        
-        # Find all potential sentence endings
-        endings = list(re.finditer(r'[.!?]+', text))
-        
-        sentence_count = 0
-        for match in endings:
-            pos = match.start()
-            ending_char = match.group()
-            
-            # Skip ellipsis (... or more)
-            if ending_char == '...' or len(ending_char) > 2:
-                continue
-            
-            # Check if this is an abbreviation
-            is_abbreviation = False
-            if ending_char == '.':
-                # Look backwards for a word
-                before = text_lower[:pos + 1]
-                words_before = before.split()
-                if words_before:
-                    last_word = words_before[-1]
-                    if last_word in self.ABBREVIATIONS:
-                        is_abbreviation = True
-            
-            if not is_abbreviation:
-                sentence_count += 1
-        
-        return sentence_count
-
-    def _count_words(self, text: str) -> int:
-        """Count words in text."""
-        return len(text.split())
+        self.current_segment = segment
 
     def is_complete(self) -> bool:
-        """Check if the window meets trigger criteria.
+        """Check if there's a segment ready for RAG processing.
         
-        Returns True if ANY of these conditions are met:
-        1. Has enough sentences (target_sentences) AND minimum words
-        2. Max words exceeded (150) - force trigger
-        3. Enough segments (2+) AND minimum words - fallback for speech
-           recognition which doesn't add punctuation
-        
-        This ensures RAG triggers for both:
-        - Text with punctuation (traditional sentence detection)
-        - Speech recognition output (no punctuation, uses segment count)
+        Returns True if there's a segment with non-empty text.
+        Each segment is processed individually for maximum flexibility.
         """
         import logging
         logger = logging.getLogger(__name__)
         
+        if self.current_segment is None:
+            return False
+        
         text = self.get_text()
-        word_count = self._count_words(text)
-        sentence_count = self._count_sentences(text)
-        segment_count = len(self.segments)
+        has_content = len(text.strip()) > 0
         
-        logger.info(f"[SlidingWindow] Check complete: words={word_count}, sentences={sentence_count}, segments={segment_count}")
+        if has_content:
+            logger.info(f"[SegmentBuffer] Triggering RAG for segment {self.index}: '{text[:50]}...'")
         
-        # Force trigger if max words exceeded
-        if word_count >= self.MAX_WORDS:
-            logger.info(f"[SlidingWindow] Triggering: max words exceeded ({word_count} >= {self.MAX_WORDS})")
-            return True
-        
-        # Standard trigger: enough sentences AND minimum words
-        if sentence_count >= self.target_sentences and word_count >= self.MIN_WORDS:
-            logger.info(f"[SlidingWindow] Triggering: sentences={sentence_count}, words={word_count}")
-            return True
-        
-        # Fallback for speech recognition (no punctuation):
-        # Trigger after MIN_SEGMENTS segments with enough words
-        # Each speech segment is roughly a phrase/clause
-        if segment_count >= self.MIN_SEGMENTS and word_count >= self.MIN_WORDS:
-            logger.info(f"[SlidingWindow] Triggering: segments={segment_count}, words={word_count}")
-            return True
-        
-        logger.debug(f"[SlidingWindow] Not triggering yet: need {self.MIN_WORDS} words with {self.MIN_SEGMENTS} segments")
-        return False
+        return has_content
 
     def get_text(self) -> str:
-        """Get concatenated text from buffer."""
-        return " ".join(s.text for s in self.segments)
+        """Get the current segment text."""
+        if self.current_segment is None:
+            return ""
+        return self.current_segment.text
+
+    def get_segment_id(self):
+        """Get the current segment's ID."""
+        if self.current_segment is None:
+            return None
+        return self.current_segment.id
 
     def advance(self) -> None:
-        """Advance to next window, keeping last segment for overlap.
-        
-        Per FRD-05: New window starts from last sentence of previous window
-        to ensure context continuity across queries.
-        """
-        if self.segments:
-            self.segments = [self.segments[-1]]
+        """Advance to next segment, clearing the current one."""
+        self.current_segment = None
         self.index += 1
 
     def clear(self) -> None:
         """Clear the buffer."""
-        self.segments = []
+        self.current_segment = None
+
+
+# Keep alias for backward compatibility
+SlidingWindowBuffer = SegmentBuffer

@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # RAG pipeline settings
     rag_top_k_candidates: int = Field(default=5)  # Candidates for re-ranking
     rag_top_k_results: int = Field(default=3)  # Final results to return
-    rag_relevance_threshold: float = Field(default=0.5)  # Minimum re-ranker score
+    rag_relevance_threshold: float = Field(default=0.4)  # Minimum re-ranker score
     rag_distance_threshold: float = Field(default=1.5)  # Max L2 distance for early exit
     
     # LLM models (still used for other features like translation, notes)

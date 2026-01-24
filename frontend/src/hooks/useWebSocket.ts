@@ -226,6 +226,7 @@ export interface TranscriptionMessage {
     document_name: string;
     page_number: number;
     snippet: string;
+    relevance_score: number;
   }>;
   code?: string;
   message?: string;
