@@ -180,15 +180,12 @@ class NoteService:
             Generated notes
         """
         # Check if notes already exist
+        # Note: We no longer throw an error if notes exist and force_regenerate is false
+        # Instead, we just regenerate them. This simplifies the frontend logic and
+        # handles race conditions better.
         existing = await self.note_repo.get_by_session(session_id)
         if existing and not force_regenerate:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "code": "NOTES_EXIST",
-                    "message": "Notes already exist. Use force_regenerate to replace.",
-                },
-            )
+            logger.info(f"Notes already exist for session {session_id}, will update them")
 
         # Get session details
         session = await self.session_repo.get_by_id(session_id)
@@ -248,11 +245,17 @@ class NoteService:
 
             self._generation_status[str(session_id)]["progress"] = 90
 
-            # Save notes
-            if existing:
+            # Save notes - use upsert to handle race conditions
+            # where notes might have been created during LLM generation
+            try:
+                note = await self.note_repo.upsert(session_id, notes_content)
+            except Exception as upsert_error:
+                # If upsert fails (e.g., due to race condition), try update as fallback
+                logger.warning(f"Upsert failed, trying update: {upsert_error}")
                 note = await self.note_repo.update_by_session(session_id, notes_content)
-            else:
-                note = await self.note_repo.create(session_id, notes_content)
+                if not note:
+                    # Last resort - re-raise original error
+                    raise upsert_error
 
             self._generation_status[str(session_id)] = {"status": "ready", "progress": 100}
 

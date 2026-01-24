@@ -10,12 +10,16 @@ import {
   Button,
   Fab,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import PauseIcon from '@mui/icons-material/Pause';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import { useQuery } from '@tanstack/react-query';
 import { useTranscriptionStore } from '../../stores/transcriptionStore';
+import { transcriptApi } from '../../services/api';
+import type { TranscriptSegment } from '../../types';
 
 // Check if browser supports Web Speech API (types declared in AudioControls.tsx)
 const isSpeechRecognitionSupported = () => {
@@ -23,13 +27,19 @@ const isSpeechRecognitionSupported = () => {
             (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
 };
 
-export function TranscriptionPanel() {
+interface TranscriptionPanelProps {
+  sessionId: string;
+  isActive: boolean;
+}
+
+export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
   const [fontSizeAnchor, setFontSizeAnchor] = useState<HTMLButtonElement | null>(null);
   
+  // For active sessions: use live store data
   const {
-    segments,
+    segments: liveSegments,
     currentSegment,
     isTranscribing,
     isPaused,
@@ -40,6 +50,18 @@ export function TranscriptionPanel() {
     togglePause,
     setFontSize,
   } = useTranscriptionStore();
+
+  // For ended sessions: fetch from database
+  const { data: savedTranscript, isLoading: isLoadingTranscript } = useQuery({
+    queryKey: ['transcript', sessionId],
+    queryFn: () => transcriptApi.get(sessionId),
+    enabled: !isActive, // Only fetch when session is ended
+  });
+
+  // Use live segments for active sessions, saved segments for ended sessions
+  const segments: TranscriptSegment[] = isActive 
+    ? liveSegments 
+    : (savedTranscript?.segments ?? []) as TranscriptSegment[];
 
   const browserSupported = isSpeechRecognitionSupported();
 
@@ -161,7 +183,24 @@ export function TranscriptionPanel() {
           bgcolor: highContrast ? 'background.default' : 'transparent',
         }}
       >
-        {segments.length === 0 && !currentSegment ? (
+        {/* Loading state for ended sessions */}
+        {!isActive && isLoadingTranscript ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              color: 'text.secondary',
+            }}
+          >
+            <CircularProgress size={32} sx={{ mb: 2 }} />
+            <Typography variant="body1">
+              Loading transcript...
+            </Typography>
+          </Box>
+        ) : segments.length === 0 && !currentSegment ? (
           <Box
             sx={{
               display: 'flex',
@@ -173,11 +212,15 @@ export function TranscriptionPanel() {
             }}
           >
             <Typography variant="body1">
-              Transcription will appear here when you start the session
+              {isActive 
+                ? 'Transcription will appear here when you start the session'
+                : 'No transcript available for this session'}
             </Typography>
-            <Typography variant="caption" sx={{ mt: 1 }}>
-              Make sure your microphone is enabled
-            </Typography>
+            {isActive && (
+              <Typography variant="caption" sx={{ mt: 1 }}>
+                Make sure your microphone is enabled
+              </Typography>
+            )}
           </Box>
         ) : (
           <Box sx={{ fontSize }}>

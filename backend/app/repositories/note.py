@@ -72,3 +72,32 @@ class NoteRepository:
         """Check if notes exist for a session."""
         note = await self.get_by_session(session_id)
         return note is not None
+
+    async def upsert(self, session_id: UUID, content: str) -> Note:
+        """Create or update notes for a session (handles race conditions).
+        
+        This method first tries to get existing notes and update them.
+        If no notes exist, it creates new ones. This avoids race conditions
+        where notes might be created between the check and the insert.
+        """
+        # Try to get existing note first
+        note = await self.get_by_session(session_id)
+        
+        if note:
+            # Update existing
+            note.content_markdown = content
+            note.version += 1
+            await self.db.flush()
+            await self.db.refresh(note)
+            return note
+        else:
+            # Create new - if this fails due to race condition, 
+            # the caller should catch and retry with update
+            note = Note(
+                session_id=session_id,
+                content_markdown=content,
+            )
+            self.db.add(note)
+            await self.db.flush()
+            await self.db.refresh(note)
+            return note

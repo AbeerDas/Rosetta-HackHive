@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -20,6 +20,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import TranslateIcon from '@mui/icons-material/Translate';
 import DescriptionIcon from '@mui/icons-material/Description';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
@@ -40,24 +41,55 @@ export function SessionPage() {
   const [showNotesPanel, setShowNotesPanel] = useState(false);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(false);
   const audioControlsRef = useRef<AudioControlsHandle | null>(null);
+  
+  // Track current sessionId to detect changes
+  const currentSessionIdRef = useRef<string | undefined>(sessionId);
 
   const isTranscribing = useTranscriptionStore((s) => s.isTranscribing);
   const setTranscribing = useTranscriptionStore((s) => s.setTranscribing);
+  const clearSegments = useTranscriptionStore((s) => s.clearSegments);
+
+  // Reset UI state when sessionId changes (switching between sessions)
+  useEffect(() => {
+    const previousSessionId = currentSessionIdRef.current;
+    
+    // Only clear and reset if we're switching to a DIFFERENT session
+    if (previousSessionId && previousSessionId !== sessionId) {
+      console.log('[SessionPage] Session changed from', previousSessionId, 'to', sessionId);
+      
+      // Reset UI state for new session
+      setShowNotesPanel(false);
+      setAutoGenerateNotes(false);
+      setQuestionPanelOpen(false);
+      setEndSessionDialogOpen(false);
+      
+      // Clear live transcription data when switching sessions
+      clearSegments();
+    }
+    
+    // Always update the ref to current sessionId
+    currentSessionIdRef.current = sessionId;
+  }, [sessionId, clearSegments]);
 
   // End session mutation
   const endSessionMutation = useMutation({
     mutationFn: (generateNotes: boolean) =>
       sessionApi.end(sessionId!, { generate_notes: generateNotes }),
-    onSuccess: (_, generateNotes) => {
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      
-      // Stop transcribing but DON'T clear segments - we want to keep them for viewing
+    onSuccess: async (_, generateNotes) => {
+      // Stop transcribing
       setTranscribing(false);
       
       // Close dialog
       setEndSessionDialogOpen(false);
+      
+      // Invalidate and refetch session to update isActive status
+      // This will cause TranscriptionPanel to switch from live to saved mode
+      await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+      await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      
+      // Invalidate transcript cache so TranscriptionPanel fetches fresh data
+      queryClient.invalidateQueries({ queryKey: ['transcript', sessionId] });
       
       // Show notes panel if generating notes
       if (generateNotes) {
@@ -154,7 +186,7 @@ export function SessionPage() {
               <SettingsIcon />
             </IconButton>
           </Tooltip>
-          {isActive && (
+          {isActive ? (
             <Button
               variant="contained"
               color="error"
@@ -163,6 +195,15 @@ export function SessionPage() {
               onClick={() => setEndSessionDialogOpen(true)}
             >
               End Session
+            </Button>
+          ) : (
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ArrowBackIcon />}
+              onClick={() => navigate('/')}
+            >
+              Back to Sessions
             </Button>
           )}
         </Box>
@@ -173,8 +214,12 @@ export function SessionPage() {
         open={endSessionDialogOpen}
         onClose={() => !endSessionMutation.isPending && setEndSessionDialogOpen(false)}
       >
-        <DialogTitle>End Session</DialogTitle>
+        <DialogTitle sx={{ color: 'warning.main' }}>⚠️ End Session?</DialogTitle>
         <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            <strong>Warning:</strong> Once you end the session, you will no longer be able to record 
+            new transcriptions. This action cannot be undone.
+          </DialogContentText>
           <DialogContentText>
             Would you like to generate structured notes from the transcription, or save the transcript only?
           </DialogContentText>
@@ -189,6 +234,7 @@ export function SessionPage() {
           <Button
             onClick={() => handleEndSession(false)}
             disabled={endSessionMutation.isPending}
+            color="inherit"
           >
             {endSessionMutation.isPending ? 'Ending...' : 'Save Transcript Only'}
           </Button>
@@ -197,7 +243,7 @@ export function SessionPage() {
             variant="contained"
             disabled={endSessionMutation.isPending}
           >
-            {endSessionMutation.isPending ? 'Ending...' : 'Generate Notes'}
+            {endSessionMutation.isPending ? 'Ending...' : 'End & Generate Notes'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -313,7 +359,7 @@ export function SessionPage() {
               autoGenerate={autoGenerateNotes}
             />
           ) : (
-            <TranscriptionPanel />
+            <TranscriptionPanel sessionId={sessionId!} isActive={isActive} />
           )}
         </Paper>
 

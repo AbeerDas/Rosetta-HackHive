@@ -48,13 +48,41 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
   
   // Ref for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track current sessionId to detect changes
+  const currentSessionIdRef = useRef<string>(sessionId);
+
+  // Reset state when sessionId changes
+  useEffect(() => {
+    if (currentSessionIdRef.current !== sessionId) {
+      console.log('[NotesPanel] Session changed from', currentSessionIdRef.current, 'to', sessionId);
+      currentSessionIdRef.current = sessionId;
+      
+      // Reset all state for new session
+      setContent('');
+      setHasChanges(false);
+      setHasTriggeredGenerate(false);
+      setLastSavedAt(null);
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      setConfirmRegenerateOpen(false);
+      setAnchorEl(null);
+      
+      // Clear any pending auto-save timer
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    }
+  }, [sessionId]);
 
   // Fetch existing note
-  const { data: note, isLoading: noteLoading } = useQuery({
+  const { data: note, isLoading: noteLoading, isError: noteError } = useQuery({
     queryKey: ['note', sessionId],
     queryFn: () => notesApi.get(sessionId),
     enabled: !!sessionId,
     retry: false, // Don't retry if note doesn't exist
+    staleTime: 0, // Always refetch when sessionId changes
   });
 
   // Poll generation status when generating
@@ -79,13 +107,19 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
     }
   }, [noteStatus, sessionId, queryClient]);
 
-  // Set content when note is loaded
+  // Set content when note is loaded, or clear when no note exists
   useEffect(() => {
     if (note?.content_markdown) {
+      console.log('[NotesPanel] Note loaded for session:', sessionId, 'length:', note.content_markdown.length);
       setContent(note.content_markdown);
       setHasChanges(false);
+    } else if (!noteLoading && (noteError || !note)) {
+      // No note exists for this session - clear content
+      console.log('[NotesPanel] No note found for session:', sessionId, 'clearing content');
+      setContent('');
+      setHasChanges(false);
     }
-  }, [note]);
+  }, [note, noteLoading, noteError, sessionId]);
 
   // Auto-save functionality
   const saveNotes = useCallback(async (contentToSave: string) => {
@@ -140,13 +174,17 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
 
   // Generate note mutation
   const generateMutation = useMutation({
-    mutationFn: (forceRegenerate: boolean = false) => 
-      notesApi.generate(sessionId, { force_regenerate: forceRegenerate }),
+    mutationFn: (forceRegenerate: boolean = false) => {
+      console.log('[NotesPanel] Starting note generation for session:', sessionId, 'forceRegenerate:', forceRegenerate);
+      return notesApi.generate(sessionId, { force_regenerate: forceRegenerate });
+    },
     onMutate: () => {
+      console.log('[NotesPanel] Generation started, setting isGenerating=true');
       setIsGenerating(true);
       setGenerationProgress(0);
     },
     onSuccess: (generatedNote) => {
+      console.log('[NotesPanel] Generation successful for session:', sessionId);
       setContent(generatedNote.content_markdown);
       setHasChanges(false);
       setIsGenerating(false);
@@ -156,7 +194,7 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
     },
     onError: (error) => {
       setIsGenerating(false);
-      console.error('Note generation failed:', error);
+      console.error('[NotesPanel] Note generation failed for session:', sessionId, error);
       // Show error to user
       alert(`Note generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
@@ -164,11 +202,17 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
 
   // Auto-generate on mount if requested and no note exists
   useEffect(() => {
+    // Only auto-generate if:
+    // 1. autoGenerate is enabled
+    // 2. We haven't already triggered for THIS session
+    // 3. Note loading is complete
+    // 4. No existing note content
     if (autoGenerate && !hasTriggeredGenerate && !noteLoading && !note?.content_markdown) {
+      console.log('[NotesPanel] Auto-generating notes for session:', sessionId);
       setHasTriggeredGenerate(true);
       generateMutation.mutate(false);
     }
-  }, [autoGenerate, hasTriggeredGenerate, noteLoading, note]);
+  }, [autoGenerate, hasTriggeredGenerate, noteLoading, note, sessionId]);
 
   // Save note mutation (for manual save)
   const saveMutation = useMutation({

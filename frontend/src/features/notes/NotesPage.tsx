@@ -46,6 +46,32 @@ export function NotesPage() {
 
   // Ref for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Track current sessionId to detect changes
+  const currentSessionIdRef = useRef<string | undefined>(sessionId);
+
+  // Reset state when sessionId changes (e.g., navigating between sessions)
+  useEffect(() => {
+    if (currentSessionIdRef.current !== sessionId) {
+      console.log('[NotesPage] Session changed from', currentSessionIdRef.current, 'to', sessionId);
+      currentSessionIdRef.current = sessionId;
+      
+      // Reset all state for new session
+      setContent('');
+      setHasChanges(false);
+      setLastSavedAt(null);
+      setIsGenerating(false);
+      setGenerationProgress(0);
+      setConfirmRegenerateOpen(false);
+      setAnchorEl(null);
+      
+      // Clear any pending auto-save timer
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    }
+  }, [sessionId]);
 
   // Fetch session details
   const { data: session, isLoading: sessionLoading } = useQuery({
@@ -55,11 +81,12 @@ export function NotesPage() {
   });
 
   // Fetch existing note
-  const { data: note, isLoading: noteLoading } = useQuery({
+  const { data: note, isLoading: noteLoading, isError: noteError } = useQuery({
     queryKey: ['note', sessionId],
     queryFn: () => notesApi.get(sessionId!),
     enabled: !!sessionId,
     retry: false,
+    staleTime: 0, // Always refetch when sessionId changes
   });
 
   // Poll generation status when generating
@@ -83,13 +110,19 @@ export function NotesPage() {
     }
   }, [noteStatus, sessionId, queryClient]);
 
-  // Set content when note is loaded
+  // Set content when note is loaded, or clear when no note exists
   useEffect(() => {
     if (note?.content_markdown) {
+      console.log('[NotesPage] Note loaded for session:', sessionId, 'length:', note.content_markdown.length);
       setContent(note.content_markdown);
       setHasChanges(false);
+    } else if (!noteLoading && (noteError || !note)) {
+      // No note exists for this session - clear content
+      console.log('[NotesPage] No note found for session:', sessionId, 'clearing content');
+      setContent('');
+      setHasChanges(false);
     }
-  }, [note]);
+  }, [note, noteLoading, noteError, sessionId]);
 
   // Auto-save functionality
   const saveNotes = useCallback(async (contentToSave: string) => {

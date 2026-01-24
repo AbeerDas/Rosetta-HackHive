@@ -16,6 +16,7 @@ interface TranscriptionState {
   
   // Actions
   addSegment: (segment: TranscriptSegment) => void;
+  setSegments: (segments: TranscriptSegment[]) => void;  // Load segments from backend
   updateCurrentSegment: (text: string) => void;
   updateSegmentId: (frontendId: string, backendId: string) => void;
   updateSegmentText: (segmentId: string, translatedText: string) => void;
@@ -46,6 +47,12 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
       segments: [...state.segments, segment],
       currentSegment: '',
     })),
+
+  setSegments: (segments) =>
+    set({
+      segments,
+      currentSegment: '',
+    }),
 
   updateCurrentSegment: (text) => set({ currentSegment: text }),
 
