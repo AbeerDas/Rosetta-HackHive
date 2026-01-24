@@ -1,4 +1,5 @@
-import { Box, Card, CardContent, Typography, Chip, alpha } from '@mui/material';
+import { useRef, useEffect } from 'react';
+import { Box, Card, CardContent, Typography, Chip, alpha, keyframes } from '@mui/material';
 import DescriptionIcon from '@mui/icons-material/Description';
 import { useTranscriptionStore } from '../../stores/transcriptionStore';
 
@@ -6,30 +7,52 @@ interface CitationPanelProps {
   sessionId: string;
 }
 
+// Generate a unique key for a citation (for deduplication)
+const getCitationKey = (citation: { document_name: string; page_number: number }) => 
+  `${citation.document_name}-p${citation.page_number}`;
+
+// Pulse animation for highlighted citation
+const pulseAnimation = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+`;
+
 export function CitationPanel({ sessionId }: CitationPanelProps) {
   const segments = useTranscriptionStore((s) => s.segments);
+  const highlightedCitationKey = useTranscriptionStore((s) => s.highlightedCitationKey);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Collect all citations from segments
   const allCitations = segments.flatMap((segment) =>
     segment.citations.map((citation) => ({
       ...citation,
       segmentId: segment.id,
+      key: getCitationKey(citation),
     }))
   );
 
-  // Group by window/segment for display
-  const groupedCitations = allCitations.reduce((acc, citation) => {
-    const key = citation.segmentId;
-    if (!acc[key]) {
-      acc[key] = [];
+  // Deduplicate citations - keep only the first occurrence of each document+page combo
+  const seenKeys = new Set<string>();
+  const uniqueCitations = allCitations.filter((citation) => {
+    if (seenKeys.has(citation.key)) {
+      return false;
     }
-    acc[key].push(citation);
-    return acc;
-  }, {} as Record<string, typeof allCitations>);
+    seenKeys.add(citation.key);
+    return true;
+  });
 
-  const citationGroups = Object.entries(groupedCitations).reverse(); // Newest first
+  // Scroll to highlighted citation
+  useEffect(() => {
+    if (highlightedCitationKey && containerRef.current) {
+      const element = containerRef.current.querySelector(`[data-citation-key="${highlightedCitationKey}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [highlightedCitationKey]);
 
-  if (allCitations.length === 0) {
+  if (uniqueCitations.length === 0) {
     return (
       <Box
         sx={{
@@ -51,13 +74,13 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
   }
 
   return (
-    <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-      {citationGroups.map(([segmentId, citations]) => (
-        <Box key={segmentId} sx={{ mb: 3 }}>
-          {citations.map((citation, idx) => (
-            <CitationCard key={idx} citation={citation} />
-          ))}
-        </Box>
+    <Box ref={containerRef} sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+      {uniqueCitations.map((citation) => (
+        <CitationCard 
+          key={citation.key} 
+          citation={citation} 
+          isHighlighted={highlightedCitationKey === citation.key}
+        />
       ))}
     </Box>
   );
@@ -69,11 +92,14 @@ interface CitationCardProps {
     document_name: string;
     page_number: number;
     snippet: string;
+    key: string;
   };
+  isHighlighted: boolean;
 }
 
-function CitationCard({ citation }: CitationCardProps) {
-  const getOpacity = (rank: number) => {
+function CitationCard({ citation, isHighlighted }: CitationCardProps) {
+  const getOpacity = (rank: number, highlighted: boolean) => {
+    if (highlighted) return 1;
     switch (rank) {
       case 1:
         return 1;
@@ -88,10 +114,18 @@ function CitationCard({ citation }: CitationCardProps) {
 
   return (
     <Card
+      data-citation-key={citation.key}
       sx={{
         mb: 1.5,
-        opacity: getOpacity(citation.rank),
-        transition: 'opacity 0.2s, transform 0.2s',
+        opacity: getOpacity(citation.rank, isHighlighted),
+        transition: 'opacity 0.2s, transform 0.2s, box-shadow 0.2s',
+        cursor: 'pointer',
+        ...(isHighlighted && {
+          animation: `${pulseAnimation} 0.6s ease-out`,
+          borderColor: 'primary.main',
+          borderWidth: 2,
+          borderStyle: 'solid',
+        }),
         '&:hover': {
           opacity: 1,
           transform: 'translateX(4px)',

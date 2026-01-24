@@ -679,7 +679,7 @@ Based on research into available tools and hackathon constraints:
 |-----------|----------------|-----------|
 | Vector DB | Chroma | Python-native, lightweight, easy local setup, no external dependencies |
 | LLM Access | OpenRouter | Single API for multiple models (GPT-4, Claude, Llama), flexible pricing |
-| Real-time Embedding | text-embedding-3-small (via OpenRouter) | Low latency, sufficient quality for semantic search |
+| RAG Query Embedding | text-embedding-3-large (via OpenRouter) | Must match document indexing model for vector search compatibility |
 | Course Doc Embedding | text-embedding-3-large (via OpenRouter) | Higher quality, no latency constraint during indexing |
 | Re-ranker | Cross-encoder MiniLM | Fast (~12ms per comparison), high accuracy, runs locally |
 | Note Generation | Claude 3 Haiku / GPT-4o-mini (via OpenRouter) | Fast inference, cost-effective, excellent at structured formatting |

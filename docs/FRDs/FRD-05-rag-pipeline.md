@@ -16,6 +16,8 @@ The Real-Time RAG (Retrieval-Augmented Generation) Pipeline continuously analyze
 
 5. **Async Non-Blocking** — RAG queries run asynchronously and never block the transcription or translation pipelines.
 
+6. **Unified Embedding Model** — Query embeddings MUST use the same model as document indexing (`text-embedding-3-large` per FRD-02). Vector search requires matching dimensions between query and index embeddings.
+
 ---
 
 ## User Stories
@@ -94,7 +96,7 @@ The student can scroll through all citations from the lecture, building a compre
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    Embed Query                               │
-│  OpenRouter text-embedding-3-small (fast)                   │
+│  OpenRouter text-embedding-3-large (must match indexing)    │
 └──────────────────────────┬──────────────────────────────────┘
                            │
                            ▼
@@ -162,7 +164,7 @@ The student can scroll through all citations from the lecture, building a compre
 ### Retrieval Configuration
 
 **Vector Search:**
-- Embedding model: `text-embedding-3-small` (1536 dimensions)
+- Embedding model: `text-embedding-3-large` (3072 dimensions) — must match indexing model from FRD-02
 - Similarity metric: Cosine similarity
 - Filter: session_id matches current session
 - Top-k: 10 candidates

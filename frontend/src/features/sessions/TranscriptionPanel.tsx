@@ -283,32 +283,49 @@ interface Citation {
   snippet: string;
 }
 
+// Generate same key as CitationPanel for cross-referencing
+const getCitationKey = (citation: Citation) => 
+  `${citation.document_name}-p${citation.page_number}`;
+
 function CitationMarkers({ citations }: { citations: Citation[] }) {
+  const highlightCitation = useTranscriptionStore((s) => s.highlightCitation);
+  
   // Sort by rank and map to superscript numbers
   const sortedCitations = [...citations].sort((a, b) => a.rank - b.rank);
+
+  const handleCitationClick = (citation: Citation) => {
+    const key = getCitationKey(citation);
+    highlightCitation(key);
+  };
 
   return (
     <Box component="span" sx={{ ml: 0.5 }}>
       {sortedCitations.map((citation, idx) => (
-        <Typography
+        <Tooltip 
           key={idx}
-          component="sup"
-          sx={{
-            cursor: 'pointer',
-            mx: 0.25,
-            fontSize: '0.75em',
-            fontWeight: 600,
-            color: 'primary.main',
-            opacity: 1 - (citation.rank - 1) * 0.25, // Rank 1 = 100%, Rank 2 = 75%, Rank 3 = 50%
-            '&:hover': {
-              color: 'primary.light',
-              textDecoration: 'underline',
-            },
-          }}
-          title={`${citation.document_name}, p. ${citation.page_number}`}
+          title={`${citation.document_name}, page ${citation.page_number}`}
+          arrow
+          enterDelay={200}
         >
-          {citation.rank}
-        </Typography>
+          <Typography
+            component="sup"
+            onClick={() => handleCitationClick(citation)}
+            sx={{
+              cursor: 'pointer',
+              mx: 0.25,
+              fontSize: '0.75em',
+              fontWeight: 600,
+              color: 'primary.main',
+              opacity: 1 - (citation.rank - 1) * 0.25, // Rank 1 = 100%, Rank 2 = 75%, Rank 3 = 50%
+              '&:hover': {
+                color: 'primary.light',
+                textDecoration: 'underline',
+              },
+            }}
+          >
+            {citation.rank}
+          </Typography>
+        </Tooltip>
       ))}
     </Box>
   );

@@ -74,7 +74,8 @@ class Settings(BaseSettings):
     # ===========================================
     # Model Configuration
     # ===========================================
-    embedding_model_realtime: str = Field(default="openai/text-embedding-3-small")
+    # Note: Both embedding models MUST match for RAG vector search compatibility
+    embedding_model_realtime: str = Field(default="openai/text-embedding-3-large")
     embedding_model_indexing: str = Field(default="openai/text-embedding-3-large")
     llm_model: str = Field(default="anthropic/claude-3-haiku-20240307")
     llm_model_fallback: str = Field(default="openai/gpt-4o-mini")

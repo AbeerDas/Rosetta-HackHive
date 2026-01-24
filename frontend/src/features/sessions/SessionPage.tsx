@@ -15,7 +15,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import TranslateIcon from '@mui/icons-material/Translate';
 import { useQuery } from '@tanstack/react-query';
 
-import { sessionApi, documentApi } from '../../services/api';
+import { sessionApi } from '../../services/api';
 import { useTranscriptionStore } from '../../stores/transcriptionStore';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { CitationPanel } from './CitationPanel';
@@ -34,18 +34,6 @@ export function SessionPage() {
     queryKey: ['session', sessionId],
     queryFn: () => sessionApi.get(sessionId!),
     enabled: !!sessionId,
-  });
-
-  // Fetch documents
-  const { data: documents = [] } = useQuery({
-    queryKey: ['documents', sessionId],
-    queryFn: () => documentApi.list(sessionId!),
-    enabled: !!sessionId,
-    refetchInterval: (query) => {
-      // Refetch if any document is processing
-      const docs = query.state.data || [];
-      return docs.some((d) => d.status === 'processing') ? 2000 : false;
-    },
   });
 
   if (isLoading) {
@@ -147,7 +135,7 @@ export function SessionPage() {
               Documents
             </Typography>
           </Box>
-          <DocumentPanel sessionId={sessionId!} documents={documents} />
+          <DocumentPanel sessionId={sessionId!} />
         </Paper>
 
         {/* Center Panel - Transcription */}

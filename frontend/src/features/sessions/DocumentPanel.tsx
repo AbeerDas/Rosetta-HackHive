@@ -19,24 +19,41 @@ import ErrorIcon from '@mui/icons-material/Error';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useDropzone } from 'react-dropzone';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { documentApi } from '../../services/api';
 import type { Document } from '../../types';
 
 interface DocumentPanelProps {
   sessionId: string;
-  documents: Document[];
 }
 
-export function DocumentPanel({ sessionId, documents }: DocumentPanelProps) {
+export function DocumentPanel({ sessionId }: DocumentPanelProps) {
   const queryClient = useQueryClient();
+
+  // Fetch documents directly in this component
+  const { data: documents = [] } = useQuery({
+    queryKey: ['documents', sessionId],
+    queryFn: () => documentApi.list(sessionId),
+    refetchInterval: (query) => {
+      // Refetch if any document is pending or processing
+      const docs = query.state.data || [];
+      return docs.some((d) => d.status === 'pending' || d.status === 'processing') ? 2000 : false;
+    },
+  });
 
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: (file: File) => documentApi.upload(sessionId, file),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents', sessionId] });
+    onSuccess: (newDocument) => {
+      // Optimistically add the new document to the cache immediately
+      queryClient.setQueryData<Document[]>(['documents', sessionId], (oldDocuments) => {
+        if (!oldDocuments) return [newDocument];
+        // Add new document at the beginning if it doesn't already exist
+        const exists = oldDocuments.some((doc) => doc.id === newDocument.id);
+        if (exists) return oldDocuments;
+        return [newDocument, ...oldDocuments];
+      });
     },
   });
 

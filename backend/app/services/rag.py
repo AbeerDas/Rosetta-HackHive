@@ -60,11 +60,18 @@ class RerankerService:
             Re-ranked and filtered candidates
         """
         if not candidates:
+            logger.debug("[Reranker] No candidates to rerank")
             return []
 
         if self.model is None:
             # Fallback: return candidates as-is based on original order
-            logger.warning("Cross-encoder not available, using original ranking")
+            logger.warning("[Reranker] Cross-encoder not available, using vector similarity fallback")
+            # For fallback, use inverse distance as score (distance is lower = better)
+            for c in candidates:
+                distance = c.get("distance", 1.0)
+                # Convert distance to similarity score (0-1 range)
+                # Chroma uses L2 distance by default, smaller = more similar
+                c["relevance_score"] = max(0, 1.0 - (distance / 2.0))
             return candidates[:top_k]
 
         try:
@@ -73,6 +80,8 @@ class RerankerService:
 
             # Get scores from cross-encoder
             scores = self.model.predict(pairs)
+            
+            logger.debug(f"[Reranker] Raw scores from cross-encoder: {scores[:5]}...")
 
             # Combine candidates with scores
             scored_candidates = list(zip(candidates, scores))
@@ -83,15 +92,20 @@ class RerankerService:
             # Filter by threshold and take top_k
             results = []
             for candidate, score in scored_candidates[:top_k]:
+                logger.debug(f"[Reranker] Candidate score: {score:.3f} (threshold: {RELEVANCE_THRESHOLD})")
                 if score >= RELEVANCE_THRESHOLD:
                     candidate["relevance_score"] = float(score)
                     results.append(candidate)
 
+            logger.info(f"[Reranker] {len(results)}/{len(candidates)} candidates passed threshold {RELEVANCE_THRESHOLD}")
             return results
 
         except Exception as e:
-            logger.error(f"Re-ranking failed: {e}")
-            # Fallback: return candidates as-is
+            logger.error(f"[Reranker] Re-ranking failed: {e}")
+            # Fallback: return candidates as-is with distance-based scores
+            for c in candidates:
+                distance = c.get("distance", 1.0)
+                c["relevance_score"] = max(0, 1.0 - (distance / 2.0))
             return candidates[:top_k]
 
 
@@ -192,33 +206,57 @@ class RAGService:
             RAG query response with citations
         """
         start_time = time.time()
+        logger.info(f"[RAG] Starting query for session {session_id}, window {window_index}")
+        logger.debug(f"[RAG] Transcript text: {transcript_text[:100]}...")
 
         # Enrich query
         enrichment = await self.query_enrichment.enrich_query(transcript_text)
         enriched_query = enrichment["enriched_query"]
+        logger.debug(f"[RAG] Keywords: {enrichment['keywords']}, Concepts: {enrichment['concepts']}")
 
-        # Generate query embedding
+        # Generate query embedding using the SAME model as indexing for dimension match
+        # Documents are indexed with embedding_model_indexing (text-embedding-3-large)
+        # so we must query with the same model to match dimensions
         query_embedding = await self.openrouter_client.create_embedding(
             text=enriched_query,
-            model=settings.embedding_model_realtime,
+            model=settings.embedding_model_indexing,
         )
+        logger.debug(f"[RAG] Generated embedding with {len(query_embedding)} dimensions")
 
         # Search Chroma for candidates
+        # Note: ChromaClient.query expects:
+        # - collection_name: the collection to query
+        # - query_embeddings: a LIST of embedding vectors (not a single vector)
+        # - n_results: number of results per query
+        # - where: metadata filter
         search_results = await self.chroma_client.query(
-            query_embedding=query_embedding,
+            collection_name="documents",
+            query_embeddings=[query_embedding],  # Wrap in list - Chroma expects list of vectors
             n_results=10,
             where={"session_id": str(session_id)},
         )
 
         # Build candidate list
+        # Note: Chroma returns results as lists of lists (one list per query)
+        # Since we only have one query, we access index [0] for all result arrays
         candidates = []
-        for i in range(len(search_results["ids"])):
+        result_ids = search_results.get("ids", [[]])[0]
+        result_docs = search_results.get("documents", [[]])[0] if search_results.get("documents") else []
+        result_metas = search_results.get("metadatas", [[]])[0] if search_results.get("metadatas") else []
+        result_dists = search_results.get("distances", [[]])[0] if search_results.get("distances") else []
+        
+        logger.info(f"[RAG] Chroma returned {len(result_ids)} candidates for session {session_id}")
+        
+        for i in range(len(result_ids)):
             candidates.append({
-                "id": search_results["ids"][i],
-                "text": search_results["documents"][i] if search_results["documents"] else "",
-                "metadata": search_results["metadatas"][i] if search_results["metadatas"] else {},
-                "distance": search_results["distances"][i] if search_results["distances"] else 1.0,
+                "id": result_ids[i],
+                "text": result_docs[i] if i < len(result_docs) else "",
+                "metadata": result_metas[i] if i < len(result_metas) else {},
+                "distance": result_dists[i] if i < len(result_dists) else 1.0,
             })
+            if i < 3:  # Log first 3 candidates for debugging
+                logger.debug(f"[RAG] Candidate {i}: distance={result_dists[i] if i < len(result_dists) else 'N/A'}, "
+                           f"doc={result_metas[i].get('document_name', 'N/A') if i < len(result_metas) else 'N/A'}")
 
         # Re-rank candidates
         reranked = self.reranker.rerank(
@@ -226,6 +264,7 @@ class RAGService:
             candidates=candidates,
             top_k=3,
         )
+        logger.info(f"[RAG] Re-ranked to {len(reranked)} citations above threshold")
 
         # Build citations
         citations = []
@@ -233,27 +272,41 @@ class RAGService:
             metadata = candidate.get("metadata", {})
             relevance_score = candidate.get("relevance_score", 1.0 - candidate.get("distance", 0))
 
+            # Look up the actual chunk by embedding_id (Chroma ID = embedding_id)
+            # Format is {document_id}_{chunk_index}
+            embedding_id = candidate["id"]
+            chunk = await self.chunk_repo.get_by_embedding_id(embedding_id)
+            
+            if not chunk:
+                logger.warning(f"[RAG] Could not find chunk for embedding_id: {embedding_id}")
+                continue
+
             # Create citation record in database
-            citation = await self.citation_repo.create(
-                session_id=session_id,
-                transcript_id=transcript_id,
-                document_id=UUID(metadata.get("document_id")) if metadata.get("document_id") else None,
-                chunk_id=UUID(candidate["id"].split("_")[0]) if "_" in candidate["id"] else None,
-                window_index=window_index,
-                rank=rank,
-                page_number=metadata.get("page_number", 1),
-                section_heading=metadata.get("section_heading"),
-                snippet=candidate.get("text", "")[:200],
-                relevance_score=relevance_score,
-            ) if metadata.get("document_id") else None
+            try:
+                citation = await self.citation_repo.create(
+                    session_id=session_id,
+                    transcript_id=transcript_id,
+                    document_id=chunk.document_id,
+                    chunk_id=chunk.id,
+                    window_index=window_index,
+                    rank=rank,
+                    page_number=chunk.page_number,
+                    section_heading=chunk.section_heading,
+                    snippet=candidate.get("text", "")[:200],
+                    relevance_score=relevance_score,
+                )
+                logger.debug(f"[RAG] Created citation {citation.id} for chunk {chunk.id}")
+            except Exception as e:
+                logger.error(f"[RAG] Failed to create citation: {e}")
+                continue
 
             citations.append(
                 CitationResult(
                     rank=rank,
-                    document_id=UUID(metadata.get("document_id")) if metadata.get("document_id") else UUID(int=0),
+                    document_id=chunk.document_id,
                     document_name=metadata.get("document_name", "Unknown"),
-                    page_number=metadata.get("page_number", 1),
-                    section_heading=metadata.get("section_heading"),
+                    page_number=chunk.page_number,
+                    section_heading=chunk.section_heading,
                     snippet=candidate.get("text", "")[:200],
                     relevance_score=relevance_score,
                 )

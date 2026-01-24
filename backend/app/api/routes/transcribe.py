@@ -83,6 +83,7 @@ async def transcription_websocket(
 
                     if msg_type == "segment":
                         segment_data = data.get("segment", {})
+                        frontend_id = segment_data.get("id")  # Capture frontend's segment ID
 
                         # Create segment
                         segment = SegmentCreate(
@@ -98,10 +99,11 @@ async def transcription_websocket(
                             segment=segment,
                         )
 
-                        # Confirm save
+                        # Confirm save - include frontend_id for ID mapping
                         await websocket.send_json({
                             "type": "segment_saved",
                             "segment_id": str(saved_segment.id),
+                            "frontend_id": frontend_id,  # So frontend can update its store
                         })
 
                         # Add to window buffer (create a simple object for the buffer)
@@ -111,37 +113,47 @@ async def transcription_websocket(
                                 self.text = text
 
                         window_buffer.add(SegmentWrapper(saved_segment.id, segment.text))
+                        logger.debug(f"[Transcribe] Buffer now has {len(window_buffer.segments)} segments, text: {window_buffer.get_text()[:50]}...")
 
                         # Check if RAG should trigger
                         if window_buffer.is_complete():
+                            logger.info(f"[Transcribe] Window complete, triggering RAG query (window {window_buffer.index})")
                             # Execute RAG query
                             window_text = window_buffer.get_text()
-                            rag_result = await rag_service.query(
-                                session_id=session_id,
-                                transcript_text=window_text,
-                                window_index=window_buffer.index,
-                                transcript_id=saved_segment.id,
-                            )
+                            try:
+                                rag_result = await rag_service.query(
+                                    session_id=session_id,
+                                    transcript_text=window_text,
+                                    window_index=window_buffer.index,
+                                    transcript_id=saved_segment.id,
+                                )
 
-                            # Send citations
-                            if rag_result.citations:
-                                await websocket.send_json({
-                                    "type": "citations",
-                                    "window_index": rag_result.window_index,
-                                    "segment_id": str(saved_segment.id),
-                                    "citations": [
-                                        {
-                                            "rank": c.rank,
-                                            "document_name": c.document_name,
-                                            "page_number": c.page_number,
-                                            "snippet": c.snippet,
-                                        }
-                                        for c in rag_result.citations
-                                    ],
-                                })
+                                # Send citations
+                                if rag_result.citations:
+                                    logger.info(f"[Transcribe] Sending {len(rag_result.citations)} citations to client")
+                                    await websocket.send_json({
+                                        "type": "citations",
+                                        "window_index": rag_result.window_index,
+                                        "segment_id": str(saved_segment.id),
+                                        "citations": [
+                                            {
+                                                "rank": c.rank,
+                                                "document_name": c.document_name,
+                                                "page_number": c.page_number,
+                                                "snippet": c.snippet,
+                                            }
+                                            for c in rag_result.citations
+                                        ],
+                                    })
+                                else:
+                                    logger.info(f"[Transcribe] No citations found for window {window_buffer.index}")
+                            except Exception as rag_error:
+                                logger.error(f"[Transcribe] RAG query failed: {rag_error}")
 
                             # Advance window
                             window_buffer.advance()
+                        else:
+                            logger.debug(f"[Transcribe] Window not complete yet, need more sentences")
 
                     elif msg_type == "ping":
                         await websocket.send_json({"type": "pong"})

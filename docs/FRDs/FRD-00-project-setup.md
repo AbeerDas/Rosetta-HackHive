@@ -369,7 +369,7 @@ documents (1) ──── (n) session_documents
 | `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins |
 | `DEBUG` | `true` | Enable debug mode |
 | `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `EMBEDDING_MODEL_REALTIME` | `openai/text-embedding-3-small` | Model for real-time embeddings |
+| `EMBEDDING_MODEL_REALTIME` | `openai/text-embedding-3-large` | Model for real-time RAG queries (must match indexing) |
 | `EMBEDDING_MODEL_INDEXING` | `openai/text-embedding-3-large` | Model for document indexing |
 
 ---

@@ -98,17 +98,41 @@ class ChromaClient:
         n_results: int = 10,
         where: Optional[Dict] = None,
     ) -> Dict:
-        """Query collection."""
+        """Query collection.
+        
+        Returns:
+            Dict with keys: ids, documents, metadatas, distances
+            Each is a list of lists (one per query embedding)
+        """
         try:
             collection = await self._get_or_create_collection(collection_name)
             results = await collection.query(
                 query_embeddings=query_embeddings,
                 n_results=n_results,
                 where=where,
+                include=["documents", "metadatas", "distances"],  # Explicitly include all needed fields
             )
-            return results
+            
+            # Normalize results to dict format (chromadb can return typed objects)
+            # Handle both dict-like access and attribute access
+            def get_field(obj: Any, key: str, default: Any = None) -> Any:
+                if isinstance(obj, dict):
+                    return obj.get(key, default)
+                return getattr(obj, key, default)
+            
+            normalized = {
+                "ids": get_field(results, "ids", [[]]),
+                "documents": get_field(results, "documents", [[]]),
+                "metadatas": get_field(results, "metadatas", [[]]),
+                "distances": get_field(results, "distances", [[]]),
+            }
+            
+            num_results = len(normalized["ids"][0]) if normalized["ids"] and normalized["ids"][0] else 0
+            logger.debug(f"[Chroma] Query on '{collection_name}' returned {num_results} results")
+            
+            return normalized
         except Exception as e:
-            logger.error(f"Error querying: {e}")
+            logger.error(f"Error querying collection {collection_name}: {e}")
             raise
 
     async def delete_collection(self, name: str) -> None:

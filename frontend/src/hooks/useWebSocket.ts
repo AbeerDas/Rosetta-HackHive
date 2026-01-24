@@ -218,6 +218,7 @@ export function useWebSocket({
 export interface TranscriptionMessage {
   type: 'segment_saved' | 'citations' | 'pong' | 'error';
   segment_id?: string;
+  frontend_id?: string;  // For ID mapping when segment_saved
   window_index?: number;
   citations?: Array<{
     rank: number;
@@ -323,9 +324,24 @@ export function useTranscriptionSocket(
     [onMessage]
   );
 
+  const handleOpen = useCallback(() => {
+    console.log('[RAG Debug] Transcription WebSocket connected!');
+  }, []);
+
+  const handleClose = useCallback(() => {
+    console.log('[RAG Debug] Transcription WebSocket closed');
+  }, []);
+
+  const handleError = useCallback((error: Event) => {
+    console.error('[RAG Debug] Transcription WebSocket error:', error);
+  }, []);
+
   return useWebSocket({
     url,
     onMessage: handleMessage,
+    onOpen: handleOpen,
+    onClose: handleClose,
+    onError: handleError,
     autoConnect: false,
     keepaliveInterval: 30000, // 30 seconds per FRD-04
   });

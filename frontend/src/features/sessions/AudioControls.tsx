@@ -206,23 +206,43 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     sendTextForTranslationRef.current = sendTextForTranslation;
   }, [sendTextForTranslation]);
 
+  // Track backend ID -> frontend ID mapping for citations
+  const segmentIdMapRef = useRef<Map<string, string>>(new Map());
+
   // Handle messages from transcription WebSocket
   const handleTranscriptionMessage = useCallback((msg: TranscriptionMessage) => {
+    console.log('[RAG Debug] Received transcription message:', msg.type, msg);
     if (msg.type === 'segment_saved' && msg.segment_id) {
-      // Backend confirmed segment was saved - we can update the local segment ID if needed
-      console.log('Segment saved:', msg.segment_id);
+      // Backend confirmed segment was saved - track the ID mapping for citations
+      // We DON'T update the segment ID in the store to avoid breaking translation matching
+      console.log('[RAG Debug] Segment saved by backend:', msg.segment_id, 'frontend_id:', msg.frontend_id);
+      if (msg.frontend_id) {
+        // Map backend ID -> frontend ID so we can match citations later
+        segmentIdMapRef.current.set(msg.segment_id, msg.frontend_id);
+      }
     } else if (msg.type === 'citations' && msg.citations && msg.segment_id) {
-      // Attach citations to the segment
-      attachCitations(msg.segment_id, msg.citations);
+      // Attach citations to the segment - need to map backend ID to frontend ID
+      const frontendId = segmentIdMapRef.current.get(msg.segment_id) || msg.segment_id;
+      console.log('[RAG Debug] Received citations:', msg.citations.length, 'for segment', msg.segment_id, '-> frontend:', frontendId);
+      attachCitations(frontendId, msg.citations);
     } else if (msg.type === 'error') {
-      console.error('Transcription WebSocket error:', msg.message);
+      console.error('[RAG Debug] Transcription WebSocket error:', msg.message);
     }
   }, [attachCitations]);
 
   // Transcription WebSocket
   const transcriptionSocket = useTranscriptionSocket(sessionId, handleTranscriptionMessage);
+  
+  // Ref for transcription socket - declared here but also used later for cleanup
+  // Must be declared early so sendSegmentToBackend can use it
+  const transcriptionSocketRefForSend = useRef(transcriptionSocket);
+  useEffect(() => { 
+    transcriptionSocketRefForSend.current = transcriptionSocket; 
+    console.log('[RAG Debug] Transcription socket ref updated, isConnected:', transcriptionSocket.isConnected);
+  }, [transcriptionSocket, transcriptionSocket.isConnected]);
 
   // Send segment to backend via WebSocket
+  // Uses ref to avoid stale closure issues when called from speech recognition handler
   const sendSegmentToBackend = useCallback((segment: {
     id: string;
     text: string;
@@ -230,18 +250,24 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     end_time: number;
     confidence: number;
   }) => {
-    if (transcriptionSocket.isConnected) {
-      transcriptionSocket.send({
+    const socket = transcriptionSocketRefForSend.current;
+    console.log('[RAG Debug] sendSegmentToBackend called, isConnected:', socket.isConnected);
+    if (socket.isConnected) {
+      console.log('[RAG Debug] Sending segment to transcription WebSocket:', segment.text.substring(0, 50));
+      socket.send({
         type: 'segment',
         segment: {
+          id: segment.id,  // Include frontend ID for mapping
           text: segment.text,
           start_time: segment.start_time,
           end_time: segment.end_time,
           confidence: segment.confidence,
         },
       });
+    } else {
+      console.warn('[RAG Debug] Transcription WebSocket not connected, segment not sent');
     }
-  }, [transcriptionSocket]);
+  }, []); // No dependencies - uses ref
 
   // Initialize speech recognition
   const initSpeechRecognition = useCallback(() => {
@@ -338,9 +364,11 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     isActiveRef.current = true; // Mark as active for auto-restart logic
 
     // Connect to transcription WebSocket for RAG
+    console.log('[RAG Debug] Connecting transcription WebSocket...');
     transcriptionSocket.connect();
 
     // Connect to translation WebSocket for receiving translated audio
+    console.log('[RAG Debug] Connecting translation WebSocket...');
     translationSocket.connect();
 
     // Initialize and start speech recognition

@@ -12,10 +12,12 @@ interface TranscriptionState {
   autoScroll: boolean;
   fontSize: number;
   highContrast: boolean;
+  highlightedCitationKey: string | null;  // For highlighting clicked citations
   
   // Actions
   addSegment: (segment: TranscriptSegment) => void;
   updateCurrentSegment: (text: string) => void;
+  updateSegmentId: (frontendId: string, backendId: string) => void;
   updateSegmentText: (segmentId: string, translatedText: string) => void;
   attachCitations: (segmentId: string, citations: Citation[]) => void;
   clearSegments: () => void;
@@ -24,6 +26,7 @@ interface TranscriptionState {
   setAutoScroll: (enabled: boolean) => void;
   setFontSize: (size: number) => void;
   toggleHighContrast: () => void;
+  highlightCitation: (key: string | null) => void;
 }
 
 export const useTranscriptionStore = create<TranscriptionState>((set) => ({
@@ -35,6 +38,7 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
   autoScroll: true,
   fontSize: 16,
   highContrast: false,
+  highlightedCitationKey: null,
 
   // Actions
   addSegment: (segment) =>
@@ -44,6 +48,13 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     })),
 
   updateCurrentSegment: (text) => set({ currentSegment: text }),
+
+  updateSegmentId: (frontendId, backendId) =>
+    set((state) => ({
+      segments: state.segments.map((seg) =>
+        seg.id === frontendId ? { ...seg, id: backendId } : seg
+      ),
+    })),
 
   updateSegmentText: (segmentId, translatedText) =>
     set((state) => ({
@@ -80,4 +91,12 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     set((state) => ({
       highContrast: !state.highContrast,
     })),
+
+  highlightCitation: (key) => {
+    set({ highlightedCitationKey: key });
+    // Clear highlight after animation
+    if (key) {
+      setTimeout(() => set({ highlightedCitationKey: null }), 2000);
+    }
+  },
 }));

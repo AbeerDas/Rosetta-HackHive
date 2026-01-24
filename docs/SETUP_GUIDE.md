@@ -91,7 +91,7 @@ LectureLens relies on the following external services and tools:
 3. Click **Create Key** and copy the key
 4. Add credits to your account (pay-as-you-go model)
 5. Recommended models for LectureLens:
-   - **Embeddings**: `openai/text-embedding-3-small` (real-time), `openai/text-embedding-3-large` (document indexing)
+   - **Embeddings**: `openai/text-embedding-3-large` (both indexing and RAG queries must use same model)
    - **Note Generation**: `anthropic/claude-3-haiku` or `openai/gpt-4o-mini`
    - **Query Enrichment**: `anthropic/claude-3-haiku`
    - **Question Translation**: `openai/gpt-4o-mini`
@@ -150,7 +150,8 @@ DEBUG=true
 # ===================
 
 # OpenRouter model IDs
-EMBEDDING_MODEL_REALTIME=openai/text-embedding-3-small
+# Note: Both embedding models MUST be the same for RAG vector search compatibility
+EMBEDDING_MODEL_REALTIME=openai/text-embedding-3-large
 EMBEDDING_MODEL_INDEXING=openai/text-embedding-3-large
 NOTE_GENERATION_MODEL=anthropic/claude-3-haiku
 QUERY_ENRICHMENT_MODEL=anthropic/claude-3-haiku
