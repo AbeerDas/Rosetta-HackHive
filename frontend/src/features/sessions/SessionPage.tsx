@@ -85,6 +85,14 @@ export function SessionPage() {
         setShowNotesPanel(true);
       }
     },
+    onError: async () => {
+      // If end fails (e.g., session already ended), refetch session to get current state
+      // This ensures the UI reflects the actual session status and shows "View Notes" button
+      setEndSessionDialogOpen(false);
+      await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+      await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
   });
 
   const handleEndSession = (generateNotes: boolean) => {
