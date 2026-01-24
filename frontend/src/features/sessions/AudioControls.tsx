@@ -91,6 +91,92 @@ const languages = [
   { code: 'bn', name: 'Bengali', nativeName: 'বাংলা' },
 ];
 
+// Echo detection constants
+const ECHO_BUFFER_TTL_MS = 10000; // How long to keep TTS texts in buffer (10 seconds)
+const ECHO_SIMILARITY_THRESHOLD = 0.6; // Minimum similarity to consider as echo
+
+interface TTSBufferEntry {
+  text: string;
+  normalizedText: string;
+  timestamp: number;
+}
+
+/**
+ * Normalize text for comparison - lowercase, remove punctuation, collapse whitespace
+ */
+function normalizeText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove punctuation
+    .replace(/\s+/g, ' ')    // Collapse whitespace
+    .trim();
+}
+
+/**
+ * Calculate similarity between two strings using Sørensen-Dice coefficient.
+ * Returns a value between 0 (no similarity) and 1 (identical).
+ * This is faster than Levenshtein and works well for echo detection.
+ */
+function textSimilarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length < 2 || b.length < 2) return 0;
+
+  // Create bigrams (pairs of consecutive characters)
+  const getBigrams = (str: string): Set<string> => {
+    const bigrams = new Set<string>();
+    for (let i = 0; i < str.length - 1; i++) {
+      bigrams.add(str.substring(i, i + 2));
+    }
+    return bigrams;
+  };
+
+  const bigramsA = getBigrams(a);
+  const bigramsB = getBigrams(b);
+
+  // Count intersection
+  let intersection = 0;
+  for (const bigram of bigramsA) {
+    if (bigramsB.has(bigram)) intersection++;
+  }
+
+  // Dice coefficient: 2 * |intersection| / (|A| + |B|)
+  return (2 * intersection) / (bigramsA.size + bigramsB.size);
+}
+
+/**
+ * Check if a transcript is likely an echo of recent TTS output.
+ * Also checks for substring matches to catch partial echoes.
+ */
+function isLikelyEcho(transcript: string, ttsBuffer: TTSBufferEntry[]): boolean {
+  const normalizedTranscript = normalizeText(transcript);
+  
+  // Skip very short transcripts - they're too prone to false positives
+  if (normalizedTranscript.length < 3) return false;
+  
+  for (const entry of ttsBuffer) {
+    // Check similarity score
+    const similarity = textSimilarity(normalizedTranscript, entry.normalizedText);
+    if (similarity >= ECHO_SIMILARITY_THRESHOLD) {
+      console.log(`[Echo Detection] Blocked echo: "${transcript}" matches TTS "${entry.text}" (similarity: ${similarity.toFixed(2)})`);
+      return true;
+    }
+    
+    // Also check if transcript is contained within TTS or vice versa (partial echo)
+    if (entry.normalizedText.includes(normalizedTranscript) || 
+        normalizedTranscript.includes(entry.normalizedText)) {
+      // Only block if the matching portion is significant
+      const matchLength = Math.min(normalizedTranscript.length, entry.normalizedText.length);
+      const maxLength = Math.max(normalizedTranscript.length, entry.normalizedText.length);
+      if (matchLength / maxLength >= 0.5) {
+        console.log(`[Echo Detection] Blocked partial echo: "${transcript}" contained in/contains TTS "${entry.text}"`);
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
 export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isActive }: AudioControlsProps) {
   const {
     status,
@@ -120,6 +206,35 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
   const startTimeRef = useRef(0);
   const isActiveRef = useRef(false); // Track if transcription should be active (avoids stale closure)
   const sendTextForTranslationRef = useRef<((text: string, segmentId: string) => void) | null>(null);
+  
+  // Echo detection: buffer of recent TTS texts to filter from STT results
+  const ttsBufferRef = useRef<TTSBufferEntry[]>([]);
+  
+  // Add text to TTS buffer for echo detection
+  const addToTTSBuffer = useCallback((text: string) => {
+    const normalizedText = normalizeText(text);
+    if (normalizedText.length < 3) return; // Don't buffer very short texts
+    
+    ttsBufferRef.current.push({
+      text,
+      normalizedText,
+      timestamp: Date.now(),
+    });
+    console.log(`[Echo Detection] Added to buffer: "${text}"`);
+  }, []);
+  
+  // Clean up expired entries from TTS buffer
+  const cleanupTTSBuffer = useCallback(() => {
+    const now = Date.now();
+    const before = ttsBufferRef.current.length;
+    ttsBufferRef.current = ttsBufferRef.current.filter(
+      entry => now - entry.timestamp < ECHO_BUFFER_TTL_MS
+    );
+    const removed = before - ttsBufferRef.current.length;
+    if (removed > 0) {
+      console.log(`[Echo Detection] Cleaned up ${removed} expired entries from buffer`);
+    }
+  }, []);
 
   // Handle pause/resume for speech recognition per FRD-04
   useEffect(() => {
@@ -197,9 +312,12 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
   // Send transcribed text to translation WebSocket for translation + TTS
   const sendTextForTranslation = useCallback((text: string, segmentId: string) => {
     if (translationSocket.isConnected && !isMutedRef.current && text.trim()) {
+      // Add original text to echo buffer BEFORE sending for translation
+      // This ensures we can detect when our own TTS output gets picked up by STT
+      addToTTSBuffer(text.trim());
       translationSocket.send({ type: 'translate', text: text.trim(), segment_id: segmentId });
     }
-  }, [translationSocket]);
+  }, [translationSocket, addToTTSBuffer]);
 
   // Keep the ref updated to avoid stale closure in speech recognition handler
   useEffect(() => {
@@ -285,6 +403,9 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     recognition.lang = speechRecognitionLocales[sourceLanguage] || 'en-US';
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      // Periodically clean up expired TTS buffer entries
+      cleanupTTSBuffer();
+      
       let interimTranscript = '';
       let finalTranscript = '';
 
@@ -300,19 +421,30 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
       }
 
       // Update current segment with interim results (shows live typing)
+      // Note: We still show interim results even if they might be echo - 
+      // they'll be filtered when finalized
       if (interimTranscript) {
         updateCurrentSegment(interimTranscript);
       }
 
       // When we get a final result, add it as a completed segment
       if (finalTranscript) {
+        const trimmedTranscript = finalTranscript.trim();
+        
+        // Echo detection: check if this transcript matches recent TTS output
+        if (isLikelyEcho(trimmedTranscript, ttsBufferRef.current)) {
+          // This is our own TTS being picked up by the microphone - ignore it
+          updateCurrentSegment(''); // Clear the interim display
+          return;
+        }
+        
         const currentTime = (Date.now() - startTimeRef.current) / 1000;
         segmentCounterRef.current += 1;
         const segmentId = `segment-${segmentCounterRef.current}`;
         
         const segment = {
           id: segmentId,
-          text: finalTranscript.trim(),
+          text: trimmedTranscript,
           start_time: currentTime - 2, // Approximate
           end_time: currentTime,
           confidence: event.results[event.resultIndex][0].confidence || 0.9,
@@ -326,7 +458,7 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
         sendSegmentToBackend(segment);
         
         // Send to translation WebSocket for translation + TTS audio output
-        sendTextForTranslationRef.current?.(finalTranscript.trim(), segmentId);
+        sendTextForTranslationRef.current?.(trimmedTranscript, segmentId);
         
         // Clear the current segment since it's now finalized
         updateCurrentSegment('');
@@ -354,7 +486,7 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     };
 
     return recognition;
-  }, [addSegment, updateCurrentSegment, setStatus, setTranscribing, sendSegmentToBackend, sourceLanguage]);
+  }, [addSegment, updateCurrentSegment, setStatus, setTranscribing, sendSegmentToBackend, sourceLanguage, cleanupTTSBuffer]);
 
   const handleStart = async () => {
     setStatus('connecting');
@@ -362,6 +494,7 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     startTimeRef.current = Date.now();
     segmentCounterRef.current = 0;
     isActiveRef.current = true; // Mark as active for auto-restart logic
+    ttsBufferRef.current = []; // Clear echo detection buffer for fresh session
 
     // Connect to transcription WebSocket for RAG
     console.log('[RAG Debug] Connecting transcription WebSocket...');
@@ -408,6 +541,9 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     
     // Stop audio playback
     audioPlayback.stop();
+    
+    // Clear echo detection buffer
+    ttsBufferRef.current = [];
     
     // Disconnect WebSockets
     transcriptionSocket.disconnect();
