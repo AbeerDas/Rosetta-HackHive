@@ -182,7 +182,11 @@ class DocumentService:
         document_id: UUID,
         chroma_client: ChromaClient,
     ) -> None:
-        """Delete a document and its embeddings."""
+        """Delete a document and its embeddings.
+        
+        Performs cleanup in order: vector embeddings, file, database record.
+        File and DB cleanup proceed even if vector deletion fails.
+        """
         document = await self.document_repo.get_by_id(document_id)
         if not document:
             raise HTTPException(
@@ -190,16 +194,40 @@ class DocumentService:
                 detail={"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"},
             )
 
-        # Delete embeddings from Chroma
-        await chroma_client.delete_by_document(document_id)
+        # Track cleanup errors to report but continue cleanup
+        cleanup_errors = []
 
-        # Delete file
-        if os.path.exists(document.file_path):
-            os.remove(document.file_path)
+        # Delete embeddings from Chroma (best effort)
+        try:
+            await chroma_client.delete_by_document(
+                collection_name="documents",
+                document_id=str(document_id),
+            )
+        except Exception as e:
+            logger.error(f"Failed to delete embeddings for document {document_id}: {e}")
+            cleanup_errors.append(f"Vector deletion failed: {e}")
 
-        # Delete database record
-        await self.document_repo.delete(document_id)
-        logger.info(f"Deleted document: {document_id}")
+        # Delete file (always attempt even if vector deletion failed)
+        try:
+            if os.path.exists(document.file_path):
+                os.remove(document.file_path)
+        except Exception as e:
+            logger.error(f"Failed to delete file for document {document_id}: {e}")
+            cleanup_errors.append(f"File deletion failed: {e}")
+
+        # Delete database record (always attempt)
+        try:
+            await self.document_repo.delete(document_id)
+        except Exception as e:
+            logger.error(f"Failed to delete DB record for document {document_id}: {e}")
+            cleanup_errors.append(f"Database deletion failed: {e}")
+            # Re-raise DB errors as they are critical
+            raise
+
+        if cleanup_errors:
+            logger.warning(f"Document {document_id} deleted with errors: {cleanup_errors}")
+        else:
+            logger.info(f"Deleted document: {document_id}")
 
     async def retry_processing(self, document_id: UUID) -> DocumentResponse:
         """Retry processing a failed document."""
@@ -311,6 +339,7 @@ class DocumentProcessingService:
 
             # Store embeddings in Chroma
             await self.chroma_client.add_embeddings(
+                collection_name="documents",
                 ids=[f"{document_id}_{i}" for i in range(len(chunks))],
                 embeddings=embeddings,
                 metadatas=[
@@ -319,7 +348,7 @@ class DocumentProcessingService:
                         "session_id": str(document.session_id),
                         "chunk_index": i,
                         "page_number": chunks[i]["page_number"],
-                        "section_heading": chunks[i].get("section_heading", ""),
+                        "section_heading": chunks[i].get("section_heading") or "",
                         "document_name": document.name,
                     }
                     for i in range(len(chunks))

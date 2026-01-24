@@ -24,8 +24,8 @@ PyPDF2>=3.0.0
 weasyprint>=60.0
 markdown>=3.5.0
 
-# Vector Database (HTTP API only)
-# chromadb-client removed - using direct HTTP API
+# Vector Database
+chromadb-client>=1.4.0
 
 # ML/Embeddings
 sentence-transformers>=2.2.0

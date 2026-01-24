@@ -1,8 +1,10 @@
-"""Chroma vector database HTTP client - Python 3.14 compatible."""
+"""Chroma vector database client using official chromadb-client."""
 
 import logging
 from typing import List, Dict, Any, Optional
-import httpx
+
+import chromadb
+from chromadb.config import Settings
 
 from app.core.config import settings
 
@@ -10,32 +12,51 @@ logger = logging.getLogger(__name__)
 
 
 class ChromaClient:
-    """HTTP client for interacting with ChromaDB API."""
+    """Client for interacting with ChromaDB using official async client."""
 
     def __init__(self, host: str = None, port: int = None):
         self.host = host or settings.chroma_host
         self.port = port or settings.chroma_port
-        self.base_url = f"http://{self.host}:{self.port}/api/v1"
-        self.client = httpx.AsyncClient(timeout=30.0)
-        logger.info(f"ChromaDB HTTP client: {self.base_url}")
+        self._client: Optional[chromadb.AsyncClientAPI] = None
+        self._collections: Dict[str, Any] = {}  # Cache collections
+        logger.info(f"ChromaDB client configured for: {self.host}:{self.port}")
+
+    async def _get_client(self) -> chromadb.AsyncClientAPI:
+        """Get or create the async client."""
+        if self._client is None:
+            self._client = await chromadb.AsyncHttpClient(
+                host=self.host,
+                port=self.port,
+            )
+        return self._client
+
+    async def _get_or_create_collection(self, name: str):
+        """Get or create a collection by name."""
+        if name not in self._collections:
+            client = await self._get_client()
+            self._collections[name] = await client.get_or_create_collection(name=name)
+        return self._collections[name]
 
     async def health_check(self) -> bool:
         """Check if Chroma server is healthy."""
         try:
-            response = await self.client.get(f"http://{self.host}:{self.port}/api/v1/heartbeat")
-            return response.status_code == 200
-        except:
+            client = await self._get_client()
+            await client.heartbeat()
+            return True
+        except Exception:
             return False
+
+    async def heartbeat(self) -> bool:
+        """Alias for health_check for compatibility with health routes."""
+        return await self.health_check()
 
     async def create_collection(self, name: str, metadata: Optional[Dict] = None) -> Dict:
         """Create a collection."""
         try:
-            response = await self.client.post(
-                f"{self.base_url}/collections",
-                json={"name": name, "metadata": metadata or {}}
-            )
-            response.raise_for_status()
-            return response.json()
+            client = await self._get_client()
+            collection = await client.get_or_create_collection(name=name, metadata=metadata)
+            self._collections[name] = collection
+            return {"id": str(collection.id), "name": collection.name}
         except Exception as e:
             logger.error(f"Error creating collection: {e}")
             raise
@@ -43,13 +64,11 @@ class ChromaClient:
     async def get_collection(self, name: str) -> Optional[Dict]:
         """Get collection by name."""
         try:
-            response = await self.client.get(f"{self.base_url}/collections/{name}")
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return None
-            raise
+            client = await self._get_client()
+            collection = await client.get_collection(name=name)
+            return {"id": str(collection.id), "name": collection.name}
+        except Exception:
+            return None
 
     async def add_embeddings(
         self,
@@ -61,16 +80,13 @@ class ChromaClient:
     ) -> None:
         """Add embeddings to collection."""
         try:
-            response = await self.client.post(
-                f"{self.base_url}/collections/{collection_name}/add",
-                json={
-                    "ids": ids,
-                    "embeddings": embeddings,
-                    "documents": documents,
-                    "metadatas": metadatas or [{} for _ in ids],
-                }
+            collection = await self._get_or_create_collection(collection_name)
+            await collection.add(
+                ids=ids,
+                embeddings=embeddings,
+                documents=documents,
+                metadatas=metadatas,
             )
-            response.raise_for_status()
         except Exception as e:
             logger.error(f"Error adding embeddings: {e}")
             raise
@@ -84,16 +100,13 @@ class ChromaClient:
     ) -> Dict:
         """Query collection."""
         try:
-            response = await self.client.post(
-                f"{self.base_url}/collections/{collection_name}/query",
-                json={
-                    "query_embeddings": query_embeddings,
-                    "n_results": n_results,
-                    "where": where,
-                }
+            collection = await self._get_or_create_collection(collection_name)
+            results = await collection.query(
+                query_embeddings=query_embeddings,
+                n_results=n_results,
+                where=where,
             )
-            response.raise_for_status()
-            return response.json()
+            return results
         except Exception as e:
             logger.error(f"Error querying: {e}")
             raise
@@ -101,15 +114,36 @@ class ChromaClient:
     async def delete_collection(self, name: str) -> None:
         """Delete collection."""
         try:
-            response = await self.client.delete(f"{self.base_url}/collections/{name}")
-            response.raise_for_status()
+            client = await self._get_client()
+            await client.delete_collection(name=name)
+            self._collections.pop(name, None)
         except Exception as e:
             logger.error(f"Error deleting collection: {e}")
             raise
 
+    async def delete_by_document(
+        self,
+        collection_name: str,
+        document_id: str,
+    ) -> None:
+        """Delete all embeddings for a document from a collection."""
+        try:
+            collection = await self._get_or_create_collection(collection_name)
+            await collection.delete(
+                where={"document_id": str(document_id)},
+            )
+            logger.info(f"Deleted embeddings for document {document_id} from collection {collection_name}")
+        except Exception as e:
+            if "does not exist" in str(e).lower():
+                logger.warning(f"Collection {collection_name} not found, skipping embedding deletion")
+                return
+            logger.error(f"Error deleting embeddings for document {document_id}: {e}")
+            raise
+
     async def close(self):
-        """Close HTTP client."""
-        await self.client.aclose()
+        """Close the client."""
+        self._client = None
+        self._collections.clear()
 
 
 _chroma_client: Optional[ChromaClient] = None
