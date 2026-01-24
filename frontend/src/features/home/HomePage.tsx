@@ -35,54 +35,7 @@ export function HomePage() {
         <Typography variant="h6" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
           Real-time lecture translation and learning assistant. Break language barriers and focus on learning.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
-          <Button variant="contained" size="large" startIcon={<FolderIcon />}>
-            Create Your First Folder
-          </Button>
-          <Button variant="outlined" size="large">
-            Learn More
-          </Button>
-        </Box>
       </Box>
-
-      {/* Features Grid */}
-      <Typography variant="h4" sx={{ mb: 4, fontWeight: 600 }}>
-        Key Features
-      </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <FeatureCard
-            icon={<TranslateIcon sx={{ fontSize: 40 }} />}
-            title="Real-Time Translation"
-            description="Hear lectures in your preferred language with natural-sounding voice synthesis powered by ElevenLabs."
-            color="#6366F1"
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FeatureCard
-            icon={<DescriptionIcon sx={{ fontSize: 40 }} />}
-            title="Live Transcription"
-            description="Follow along with real-time text transcription as your professor speaks, with in-text citations from course materials."
-            color="#10B981"
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FeatureCard
-            icon={<AutoAwesomeIcon sx={{ fontSize: 40 }} />}
-            title="Smart Citations"
-            description="Automatically surface relevant course materials as the lecture progresses, with page references for easy review."
-            color="#F59E0B"
-          />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <FeatureCard
-            icon={<FolderIcon sx={{ fontSize: 40 }} />}
-            title="Organized Notes"
-            description="Generate structured lecture notes with embedded citations, fully editable and exportable to PDF."
-            color="#EF4444"
-          />
-        </Grid>
-      </Grid>
 
       {/* Getting Started */}
       <Box

@@ -142,8 +142,50 @@ npm install
 If ports 5173, 8080, 5432, or 8000 are in use:
 
 ```bash
-# Find and kill the process using a port
+# Find and kill the process using a port (Linux/Mac)
 lsof -ti:8080 | xargs kill -9
+
+# On Windows PowerShell
+netstat -ano | Select-String ":8080"
+# Then kill the process: taskkill /PID <pid> /F
+```
+
+### PostgreSQL Port Conflict (Windows)
+
+**Problem**: If you have a local PostgreSQL installation on Windows, it will conflict with the Docker PostgreSQL container since both try to use port 5432. You'll see errors like:
+
+```
+asyncpg.exceptions.InvalidPasswordError: password authentication failed for user "lecturelens"
+```
+
+**Solution**: The project is configured to use port **5433** instead of 5432 to avoid conflicts.
+
+If you encounter this issue, ensure these settings are correct:
+
+1. **docker/docker-compose.yml** should map to port 5433:
+   ```yaml
+   ports:
+     - "5433:5432"
+   ```
+
+2. **Both `.env` files** (root and backend/) should use port 5433:
+   ```
+   POSTGRES_PORT=5433
+   DATABASE_URL=postgresql+asyncpg://lecturelens:lecturelens_dev@localhost:5433/lecturelens
+   ```
+
+3. After changes, recreate the Docker containers:
+   ```bash
+   cd docker
+   docker-compose down -v
+   docker-compose up -d
+   ```
+
+**To check if you have a local PostgreSQL**:
+```powershell
+# Windows PowerShell
+netstat -ano | Select-String ":5432"
+Get-Process -Id <pid>  # Check if it's postgres
 ```
 
 ## Development Workflow

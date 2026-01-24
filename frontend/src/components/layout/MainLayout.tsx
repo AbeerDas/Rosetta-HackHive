@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useNavigate } from 'react-router-dom';
 import { Box, AppBar, Toolbar, Typography, IconButton, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -13,6 +13,7 @@ const SIDEBAR_WIDTH = 280;
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useFolderStore((state) => state.sidebarWidth);
+  const navigate = useNavigate();
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -42,11 +43,16 @@ export function MainLayout() {
               variant="h6"
               noWrap
               component="div"
+              onClick={() => navigate('/')}
               sx={{
                 fontWeight: 700,
                 background: 'linear-gradient(135deg, #6366F1 0%, #10B981 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
+                cursor: 'pointer',
+                '&:hover': {
+                  opacity: 0.8,
+                },
               }}
             >
               LectureLens
