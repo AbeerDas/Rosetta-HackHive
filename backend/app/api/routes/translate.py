@@ -1,5 +1,6 @@
 """Translation API routes and WebSocket handler."""
 
+import asyncio
 import json
 import logging
 from uuid import UUID
@@ -13,6 +14,8 @@ from app.api.deps import (
     TTSServiceDep,
 )
 from app.core.config import settings
+from app.external.elevenlabs import get_elevenlabs_client
+from app.external.openrouter import get_openrouter_client
 from app.schemas.translation import (
     LanguageInfo,
     LanguagesResponse,
@@ -98,15 +101,21 @@ async def translation_websocket(
     session_id: UUID,
     target_language: str,
 ):
-    """WebSocket endpoint for real-time speech-to-speech translation.
+    """WebSocket endpoint for real-time text-to-speech translation.
+
+    This implements a text-based translation pipeline:
+    1. Receive transcribed English text from frontend
+    2. Translate to target language using LLM
+    3. Convert translated text to speech using ElevenLabs TTS
+    4. Send audio back to frontend
 
     Query params:
         session_id: Session ID
         target_language: Target language code (e.g., "zh", "hi")
 
     Protocol:
-        Client → Server: Binary frames (PCM audio chunks)
-        Server → Client: Binary frames (translated audio)
+        Client → Server: JSON messages with transcribed text segments
+        Server → Client: Binary frames (translated audio MP3)
         Client → Server: JSON control messages (mute, unmute, change_language)
         Server → Client: JSON status messages
     """
@@ -117,6 +126,33 @@ async def translation_websocket(
 
     await websocket.accept()
 
+    # Get clients for translation pipeline
+    elevenlabs_client = get_elevenlabs_client()
+    openrouter_client = get_openrouter_client()
+    
+    # Track state
+    is_muted = False
+    current_language = target_language
+    processing_lock = asyncio.Lock()
+
+    async def translate_and_speak(text: str, lang: str) -> tuple[str | None, bytes | None]:
+        """Translate text and convert to speech.
+        
+        Returns:
+            Tuple of (translated_text, audio_bytes)
+        """
+        try:
+            # Step 1: Translate English text to target language
+            translated_text = await openrouter_client.translate_to_language(text, lang)
+            logger.info(f"Translated '{text[:50]}...' to {lang}: '{translated_text[:50]}...'")
+            
+            # Step 2: Convert translated text to speech using ElevenLabs TTS
+            audio_bytes = await elevenlabs_client.text_to_speech(translated_text)
+            return translated_text, audio_bytes
+        except Exception as e:
+            logger.error(f"Translation pipeline failed: {e}")
+            return None, None
+
     # Send connected message
     await websocket.send_json({
         "type": "connected",
@@ -124,34 +160,40 @@ async def translation_websocket(
         "language": target_language,
     })
 
-    # Note: In a full implementation, this would:
-    # 1. Create an ElevenLabs S2S stream
-    # 2. Forward audio bidirectionally
-    # 3. Handle mute/unmute/language change
-
-    # For now, implement a basic echo/placeholder
-    is_muted = False
-
     try:
         while True:
             message = await websocket.receive()
 
             if "bytes" in message:
-                # Audio chunk received
-                audio_chunk = message["bytes"]
-
-                if not is_muted:
-                    # In production: forward to ElevenLabs and return translated audio
-                    # For now, acknowledge receipt
-                    pass
+                # Legacy: ignore raw audio chunks (we now use text-based translation)
+                pass
 
             elif "text" in message:
-                # Control message
                 try:
                     data = json.loads(message["text"])
                     msg_type = data.get("type")
 
-                    if msg_type == "mute":
+                    if msg_type == "translate":
+                        # Receive text segment for translation
+                        text = data.get("text", "").strip()
+                        segment_id = data.get("segment_id")  # Optional segment ID for UI updates
+                        if text and not is_muted:
+                            # Process translation
+                            async with processing_lock:
+                                translated_text, audio_bytes = await translate_and_speak(text, current_language)
+                                if translated_text:
+                                    # Send translated text first for immediate UI update
+                                    await websocket.send_json({
+                                        "type": "translated_text",
+                                        "original_text": text,
+                                        "translated_text": translated_text,
+                                        "segment_id": segment_id,
+                                    })
+                                if audio_bytes:
+                                    # Then send audio
+                                    await websocket.send_bytes(audio_bytes)
+
+                    elif msg_type == "mute":
                         is_muted = True
                         await websocket.send_json({
                             "type": "status",
@@ -168,7 +210,7 @@ async def translation_websocket(
                     elif msg_type == "change_language":
                         new_lang = data.get("language")
                         if new_lang in settings.supported_languages:
-                            target_language = new_lang
+                            current_language = new_lang
                             await websocket.send_json({
                                 "type": "language_changed",
                                 "language": new_lang,
@@ -194,4 +236,7 @@ async def translation_websocket(
         logger.info(f"Translation WebSocket disconnected for session {session_id}")
     except Exception as e:
         logger.error(f"Translation WebSocket error: {e}")
-        await websocket.close(code=4000, reason=str(e))
+        try:
+            await websocket.close(code=4000, reason=str(e))
+        except Exception:
+            pass

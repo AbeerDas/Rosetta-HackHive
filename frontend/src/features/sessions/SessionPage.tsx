@@ -7,22 +7,15 @@ import {
   IconButton,
   Tooltip,
   Chip,
-  Divider,
   CircularProgress,
   Button,
-  alpha,
 } from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
-import VolumeUpIcon from '@mui/icons-material/VolumeUp';
-import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TranslateIcon from '@mui/icons-material/Translate';
-import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useQuery } from '@tanstack/react-query';
 
 import { sessionApi, documentApi } from '../../services/api';
-import { useTranslationStore } from '../../stores/translationStore';
 import { useTranscriptionStore } from '../../stores/transcriptionStore';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { CitationPanel } from './CitationPanel';
@@ -34,7 +27,6 @@ export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
 
-  const translationStatus = useTranslationStore((s) => s.status);
   const isTranscribing = useTranscriptionStore((s) => s.isTranscribing);
 
   // Fetch session details
@@ -238,6 +230,7 @@ export function SessionPage() {
       {/* Bottom Audio Controls */}
       <AudioControls
         sessionId={sessionId!}
+        sourceLanguage={session.source_language}
         targetLanguage={session.target_language}
         isActive={isActive}
       />

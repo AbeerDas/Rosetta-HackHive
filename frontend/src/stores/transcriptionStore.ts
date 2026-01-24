@@ -16,6 +16,7 @@ interface TranscriptionState {
   // Actions
   addSegment: (segment: TranscriptSegment) => void;
   updateCurrentSegment: (text: string) => void;
+  updateSegmentText: (segmentId: string, translatedText: string) => void;
   attachCitations: (segmentId: string, citations: Citation[]) => void;
   clearSegments: () => void;
   setTranscribing: (value: boolean) => void;
@@ -43,6 +44,13 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     })),
 
   updateCurrentSegment: (text) => set({ currentSegment: text }),
+
+  updateSegmentText: (segmentId, translatedText) =>
+    set((state) => ({
+      segments: state.segments.map((seg) =>
+        seg.id === segmentId ? { ...seg, text: translatedText } : seg
+      ),
+    })),
 
   attachCitations: (segmentId, citations) =>
     set((state) => ({

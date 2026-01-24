@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -6,7 +6,6 @@ import {
   Typography,
   Button,
   IconButton,
-  Tooltip,
   CircularProgress,
   Menu,
   MenuItem,
@@ -41,20 +40,22 @@ export function NotesPage() {
   // Fetch existing note
   const { data: note, isLoading: noteLoading } = useQuery({
     queryKey: ['note', sessionId],
-    queryFn: () => notesApi.getBySession(sessionId!),
+    queryFn: () => notesApi.get(sessionId!),
     enabled: !!sessionId,
-    onSuccess: (data) => {
-      if (data?.content) {
-        setContent(data.content);
-      }
-    },
   });
+
+  // Set content when note is loaded
+  useEffect(() => {
+    if (note?.content_markdown) {
+      setContent(note.content_markdown);
+    }
+  }, [note]);
 
   // Generate note mutation
   const generateMutation = useMutation({
     mutationFn: () => notesApi.generate(sessionId!),
     onSuccess: (generatedNote) => {
-      setContent(generatedNote.content);
+      setContent(generatedNote.content_markdown);
       setHasChanges(true);
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
     },
@@ -62,7 +63,7 @@ export function NotesPage() {
 
   // Save note mutation
   const saveMutation = useMutation({
-    mutationFn: (content: string) => notesApi.save(sessionId!, content),
+    mutationFn: (contentMarkdown: string) => notesApi.update(sessionId!, { content_markdown: contentMarkdown }),
     onSuccess: () => {
       setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
@@ -71,7 +72,7 @@ export function NotesPage() {
 
   // Export mutation
   const exportMutation = useMutation({
-    mutationFn: () => notesApi.exportPDF(sessionId!),
+    mutationFn: () => notesApi.exportPdf(sessionId!),
     onSuccess: (blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

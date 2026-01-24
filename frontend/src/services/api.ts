@@ -19,7 +19,7 @@ import type {
   UpdateNotesRequest,
 } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8888';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
 // Create axios instance
 const api: AxiosInstance = axios.create({

@@ -294,6 +294,54 @@ Respond in this EXACT JSON format only, no other text:
             logger.error(f"Question translation failed: {e}")
             raise ValueError(f"Translation failed: {e}")
 
+    async def translate_to_language(
+        self,
+        text: str,
+        target_language: str,
+    ) -> str:
+        """Translate English text to a target language.
+
+        Args:
+            text: English text to translate
+            target_language: Target language code (zh, hi, es, fr, bn)
+
+        Returns:
+            Translated text in target language
+        """
+        language_names = {
+            "zh": "Chinese (Mandarin)",
+            "hi": "Hindi",
+            "es": "Spanish",
+            "fr": "French",
+            "bn": "Bengali",
+        }
+        
+        target_name = language_names.get(target_language, target_language)
+        
+        prompt = f"""You are a real-time lecture translator. Translate the following English text to {target_name}.
+
+Rules:
+1. Translate naturally and fluently, as if spoken by a native speaker
+2. Preserve the academic/educational tone
+3. Keep technical terms accurate
+4. Do not add explanations or commentary
+5. Return ONLY the translated text, nothing else
+
+English text: "{text}"
+
+{target_name} translation:"""
+
+        try:
+            response = await self.generate_text(
+                prompt=prompt,
+                temperature=0.3,
+                max_tokens=1000,
+            )
+            return response.strip()
+        except Exception as e:
+            logger.error(f"Translation to {target_language} failed: {e}")
+            raise ValueError(f"Translation failed: {e}")
+
 
 # Singleton instance
 _openrouter_client: Optional[OpenRouterClient] = None
