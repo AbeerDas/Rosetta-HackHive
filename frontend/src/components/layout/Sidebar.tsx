@@ -32,7 +32,8 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { folderApi, sessionApi } from '../../services/api';
-import { useFolderStore } from '../../stores/folderStore';
+import { useFolderStore, useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 import type { Folder, SessionSummary } from '../../types';
 
 interface SidebarProps {
@@ -43,6 +44,7 @@ interface SidebarProps {
 export function Sidebar({ open, width }: SidebarProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLanguageStore();
   
   const {
     selectedFolderId,
@@ -110,9 +112,9 @@ export function Sidebar({ open, width }: SidebarProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'active':
-        return <PlayCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />;
+        return <PlayCircleIcon sx={{ fontSize: 16, color: customColors.brandGreen }} />;
       case 'completed':
-        return <CheckCircleIcon sx={{ fontSize: 16, color: 'primary.main' }} />;
+        return <CheckCircleIcon sx={{ fontSize: 16, color: customColors.brandGreen }} />;
       default:
         return <DescriptionIcon sx={{ fontSize: 16, color: 'text.secondary' }} />;
     }
@@ -136,9 +138,9 @@ export function Sidebar({ open, width }: SidebarProps) {
       <Box sx={{ p: 2 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
           <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Courses
+            {t.subjects}
           </Typography>
-          <Tooltip title="New Folder">
+          <Tooltip title={t.addFolder}>
             <IconButton size="small" onClick={() => setNewFolderDialogOpen(true)}>
               <AddIcon fontSize="small" />
             </IconButton>
@@ -147,22 +149,29 @@ export function Sidebar({ open, width }: SidebarProps) {
 
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={24} />
+            <CircularProgress size={24} sx={{ color: customColors.brandGreen }} />
           </Box>
         ) : folders.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <FolderIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
             <Typography variant="body2" color="text.secondary">
-              No folders yet
+              {t.noFoldersYet}
             </Typography>
             <Button
               variant="outlined"
               size="small"
               startIcon={<AddIcon />}
               onClick={() => setNewFolderDialogOpen(true)}
-              sx={{ mt: 2 }}
+              sx={{ 
+                mt: 2,
+                borderColor: customColors.brandGreen,
+                color: customColors.brandGreen,
+                '&:hover': {
+                  borderColor: '#005F54',
+                },
+              }}
             >
-              Create Folder
+              {t.createFolder}
             </Button>
           </Box>
         ) : (
@@ -180,6 +189,7 @@ export function Sidebar({ open, width }: SidebarProps) {
                   setNewSessionDialogOpen(true);
                 }}
                 getStatusIcon={getStatusIcon}
+                t={t}
               />
             ))}
           </List>
@@ -188,12 +198,12 @@ export function Sidebar({ open, width }: SidebarProps) {
 
       {/* New Folder Dialog */}
       <Dialog open={newFolderDialogOpen} onClose={() => setNewFolderDialogOpen(false)}>
-        <DialogTitle>Create New Folder</DialogTitle>
+        <DialogTitle>{t.createNewFolder}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Folder Name"
+            label={t.folderName}
             fullWidth
             variant="outlined"
             value={newFolderName}
@@ -202,25 +212,29 @@ export function Sidebar({ open, width }: SidebarProps) {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNewFolderDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setNewFolderDialogOpen(false)}>{t.cancel}</Button>
           <Button
             onClick={handleCreateFolder}
             variant="contained"
             disabled={!newFolderName.trim() || createFolderMutation.isPending}
+            sx={{
+              bgcolor: customColors.brandGreen,
+              '&:hover': { bgcolor: '#005F54' },
+            }}
           >
-            {createFolderMutation.isPending ? 'Creating...' : 'Create'}
+            {createFolderMutation.isPending ? 'Creating...' : t.create}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* New Session Dialog */}
       <Dialog open={newSessionDialogOpen} onClose={() => setNewSessionDialogOpen(false)}>
-        <DialogTitle>Start New Session</DialogTitle>
+        <DialogTitle>{t.startNewSession}</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
-            label="Session Name"
+            label={t.sessionName}
             fullWidth
             variant="outlined"
             value={newSessionName}
@@ -231,28 +245,32 @@ export function Sidebar({ open, width }: SidebarProps) {
           <TextField
             select
             margin="dense"
-            label="Target Language"
+            label={t.targetLanguage}
             fullWidth
             variant="outlined"
             value={newSessionLanguage}
             onChange={(e) => setNewSessionLanguage(e.target.value)}
             SelectProps={{ native: true }}
           >
-            <option value="zh">Chinese (Mandarin)</option>
-            <option value="hi">Hindi</option>
-            <option value="es">Spanish</option>
-            <option value="fr">French</option>
-            <option value="bn">Bengali</option>
+            <option value="zh">{t.chinese}</option>
+            <option value="hi">{t.hindi}</option>
+            <option value="es">{t.spanish}</option>
+            <option value="fr">{t.french}</option>
+            <option value="bn">{t.bengali}</option>
           </TextField>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNewSessionDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setNewSessionDialogOpen(false)}>{t.cancel}</Button>
           <Button
             onClick={handleCreateSession}
             variant="contained"
             disabled={!newSessionName.trim() || createSessionMutation.isPending}
+            sx={{
+              bgcolor: customColors.brandGreen,
+              '&:hover': { bgcolor: '#005F54' },
+            }}
           >
-            {createSessionMutation.isPending ? 'Starting...' : 'Start Session'}
+            {createSessionMutation.isPending ? 'Starting...' : t.startSession}
           </Button>
         </DialogActions>
       </Dialog>
@@ -269,6 +287,7 @@ interface FolderItemProps {
   onSessionClick: (sessionId: string) => void;
   onNewSession: () => void;
   getStatusIcon: (status: string) => React.ReactNode;
+  t: any;
 }
 
 function FolderItem({
@@ -279,9 +298,8 @@ function FolderItem({
   onSessionClick,
   onNewSession,
   getStatusIcon,
+  t,
 }: FolderItemProps) {
-  const queryClient = useQueryClient();
-
   // Fetch folder details when expanded
   const { data: folderDetail } = useQuery({
     queryKey: ['folder', folder.id],
@@ -295,7 +313,7 @@ function FolderItem({
     <>
       <ListItem disablePadding secondaryAction={
         isExpanded && (
-          <Tooltip title="New Session">
+          <Tooltip title={t.startNewSession}>
             <IconButton edge="end" size="small" onClick={(e) => { e.stopPropagation(); onNewSession(); }}>
               <AddIcon fontSize="small" />
             </IconButton>
@@ -305,14 +323,14 @@ function FolderItem({
         <ListItemButton selected={isSelected} onClick={onClick}>
           <ListItemIcon sx={{ minWidth: 36 }}>
             {isExpanded ? (
-              <FolderOpenIcon color="primary" />
+              <FolderOpenIcon sx={{ color: customColors.brandGreen }} />
             ) : (
               <FolderIcon color="action" />
             )}
           </ListItemIcon>
           <ListItemText
             primary={folder.name}
-            secondary={`${folder.session_count} sessions`}
+            secondary={`${folder.session_count} ${t.sessions}`}
             primaryTypographyProps={{ noWrap: true, fontWeight: isSelected ? 600 : 400 }}
             secondaryTypographyProps={{ variant: 'caption' }}
           />
@@ -344,7 +362,16 @@ function FolderItem({
                   primaryTypographyProps={{ variant: 'body2', noWrap: true }}
                 />
                 {session.has_notes && (
-                  <Chip label="Notes" size="small" sx={{ height: 20, fontSize: '0.65rem' }} />
+                  <Chip 
+                    label="Notes" 
+                    size="small" 
+                    sx={{ 
+                      height: 20, 
+                      fontSize: '0.65rem',
+                      bgcolor: customColors.activePill.background,
+                      color: customColors.activePill.text,
+                    }} 
+                  />
                 )}
               </ListItemButton>
             ))

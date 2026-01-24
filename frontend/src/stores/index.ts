@@ -4,3 +4,5 @@ export * from './transcriptionStore';
 export * from './translationStore';
 export * from './questionStore';
 export * from './noteStore';
+export * from './languageStore';
+export * from './userStore';

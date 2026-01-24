@@ -17,11 +17,12 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { useDropzone } from 'react-dropzone';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { documentApi } from '../../services/api';
+import { useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 import type { Document } from '../../types';
 
 interface DocumentPanelProps {
@@ -29,6 +30,7 @@ interface DocumentPanelProps {
 }
 
 export function DocumentPanel({ sessionId }: DocumentPanelProps) {
+  const { t } = useLanguageStore();
   const queryClient = useQueryClient();
 
   // Fetch documents directly in this component
@@ -36,7 +38,6 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
     queryKey: ['documents', sessionId],
     queryFn: () => documentApi.list(sessionId),
     refetchInterval: (query) => {
-      // Refetch if any document is pending or processing
       const docs = query.state.data || [];
       return docs.some((d) => d.status === 'pending' || d.status === 'processing') ? 2000 : false;
     },
@@ -46,10 +47,8 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
   const uploadMutation = useMutation({
     mutationFn: (file: File) => documentApi.upload(sessionId, file),
     onSuccess: (newDocument) => {
-      // Optimistically add the new document to the cache immediately
       queryClient.setQueryData<Document[]>(['documents', sessionId], (oldDocuments) => {
         if (!oldDocuments) return [newDocument];
-        // Add new document at the beginning if it doesn't already exist
         const exists = oldDocuments.some((doc) => doc.id === newDocument.id);
         if (exists) return oldDocuments;
         return [newDocument, ...oldDocuments];
@@ -95,9 +94,9 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'ready':
-        return <CheckCircleIcon sx={{ color: 'success.main', fontSize: 18 }} />;
+        return <CheckCircleIcon sx={{ color: customColors.brandGreen, fontSize: 18 }} />;
       case 'processing':
-        return <CircularProgress size={16} />;
+        return <CircularProgress size={16} sx={{ color: customColors.brandGreen }} />;
       case 'error':
         return <ErrorIcon sx={{ color: 'error.main', fontSize: 18 }} />;
       default:
@@ -113,32 +112,38 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      {/* Upload Area */}
+      {/* Upload Area - Light Blue Dashed Border */}
       <Box
         {...getRootProps()}
         sx={{
           m: 2,
-          p: 2,
-          border: (theme) =>
-            `2px dashed ${isDragActive ? theme.palette.primary.main : theme.palette.divider}`,
+          p: 3,
+          border: '2px dashed',
+          borderColor: isDragActive ? customColors.brandGreen : customColors.dropzoneBorder,
           borderRadius: 2,
           textAlign: 'center',
           cursor: 'pointer',
           transition: 'all 0.2s',
-          bgcolor: isDragActive ? (theme) => alpha(theme.palette.primary.main, 0.1) : 'transparent',
+          bgcolor: isDragActive ? alpha(customColors.brandGreen, 0.05) : 'transparent',
           '&:hover': {
-            borderColor: 'primary.main',
-            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.05),
+            borderColor: customColors.brandGreen,
+            bgcolor: alpha(customColors.brandGreen, 0.02),
           },
         }}
       >
         <input {...getInputProps()} />
-        <CloudUploadIcon sx={{ fontSize: 32, color: 'text.secondary', mb: 1 }} />
-        <Typography variant="body2" color="text.secondary">
-          {isDragActive ? 'Drop PDF here' : 'Drop PDF files or click to browse'}
+        {/* Upload Icon */}
+        <Box
+          component="img"
+          src="/icons/Upload icon.svg"
+          alt="Upload"
+          sx={{ width: 40, height: 40, mb: 1.5, opacity: 0.7 }}
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+          {t.dragDropFiles} <Typography component="span" sx={{ color: customColors.brandGreen, fontWeight: 500 }}>{t.browse}</Typography>
         </Typography>
         <Typography variant="caption" color="text.disabled">
-          Max 50 MB per file
+          {t.supportedFormats}
         </Typography>
       </Box>
 
@@ -147,10 +152,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
         {documents.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4, px: 2 }}>
             <Typography variant="body2" color="text.secondary">
-              No documents uploaded yet
+              {t.noDocumentsYet}
             </Typography>
             <Typography variant="caption" color="text.disabled">
-              Upload course materials for smart citations
+              {t.uploadMaterials}
             </Typography>
           </Box>
         ) : (
@@ -201,11 +206,19 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                     <Box component="span">
                       {doc.status === 'processing' ? (
                         <>
-                          Processing... {doc.processing_progress}%
+                          {t.processing} {doc.processing_progress}%
                           <LinearProgress
                             variant="determinate"
                             value={doc.processing_progress}
-                            sx={{ mt: 0.5, height: 2, borderRadius: 1 }}
+                            sx={{ 
+                              mt: 0.5, 
+                              height: 2, 
+                              borderRadius: 1,
+                              bgcolor: alpha(customColors.brandGreen, 0.1),
+                              '& .MuiLinearProgress-bar': {
+                                bgcolor: customColors.brandGreen,
+                              },
+                            }}
                           />
                         </>
                       ) : doc.status === 'error' ? (
@@ -236,7 +249,15 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
           <Typography variant="caption" color="text.secondary">
             Uploading...
           </Typography>
-          <LinearProgress sx={{ mt: 1 }} />
+          <LinearProgress 
+            sx={{ 
+              mt: 1,
+              bgcolor: alpha(customColors.brandGreen, 0.1),
+              '& .MuiLinearProgress-bar': {
+                bgcolor: customColors.brandGreen,
+              },
+            }} 
+          />
         </Box>
       )}
     </Box>

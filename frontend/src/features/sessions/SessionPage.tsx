@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
-  Paper,
   Typography,
   IconButton,
   Tooltip,
@@ -14,32 +13,35 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  Select,
+  MenuItem,
 } from '@mui/material';
-import StopIcon from '@mui/icons-material/Stop';
-import SettingsIcon from '@mui/icons-material/Settings';
-import TranslateIcon from '@mui/icons-material/Translate';
-import DescriptionIcon from '@mui/icons-material/Description';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
-import { useTranscriptionStore } from '../../stores/transcriptionStore';
+import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { CitationPanel } from './CitationPanel';
 import { DocumentPanel } from './DocumentPanel';
 import { AudioControls, AudioControlsHandle } from './AudioControls';
 import { QuestionTranslator } from './QuestionTranslator';
 import { NotesPanel } from './NotesPanel';
+import { customColors } from '../../theme';
 
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLanguageStore();
+  
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
   const [showNotesPanel, setShowNotesPanel] = useState(false);
   const [autoGenerateNotes, setAutoGenerateNotes] = useState(false);
+  const [documentsOpen, setDocumentsOpen] = useState(true);
+  const [citationsOpen, setCitationsOpen] = useState(true);
   const audioControlsRef = useRef<AudioControlsHandle | null>(null);
   
   // Track current sessionId to detect changes
@@ -53,21 +55,16 @@ export function SessionPage() {
   useEffect(() => {
     const previousSessionId = currentSessionIdRef.current;
     
-    // Only clear and reset if we're switching to a DIFFERENT session
     if (previousSessionId && previousSessionId !== sessionId) {
       console.log('[SessionPage] Session changed from', previousSessionId, 'to', sessionId);
       
-      // Reset UI state for new session
       setShowNotesPanel(false);
       setAutoGenerateNotes(false);
       setQuestionPanelOpen(false);
       setEndSessionDialogOpen(false);
-      
-      // Clear live transcription data when switching sessions
       clearSegments();
     }
     
-    // Always update the ref to current sessionId
     currentSessionIdRef.current = sessionId;
   }, [sessionId, clearSegments]);
 
@@ -76,22 +73,14 @@ export function SessionPage() {
     mutationFn: (generateNotes: boolean) =>
       sessionApi.end(sessionId!, { generate_notes: generateNotes }),
     onSuccess: async (_, generateNotes) => {
-      // Stop transcribing
       setTranscribing(false);
-      
-      // Close dialog
       setEndSessionDialogOpen(false);
       
-      // Invalidate and refetch session to update isActive status
-      // This will cause TranscriptionPanel to switch from live to saved mode
       await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
       await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['folders'] });
-      
-      // Invalidate transcript cache so TranscriptionPanel fetches fresh data
       queryClient.invalidateQueries({ queryKey: ['transcript', sessionId] });
       
-      // Show notes panel if generating notes
       if (generateNotes) {
         setAutoGenerateNotes(true);
         setShowNotesPanel(true);
@@ -100,13 +89,10 @@ export function SessionPage() {
   });
 
   const handleEndSession = (generateNotes: boolean) => {
-    // Stop transcription if active
     if (audioControlsRef.current) {
       audioControlsRef.current.stop();
     }
     setTranscribing(false);
-    
-    // Call the API
     endSessionMutation.mutate(generateNotes);
   };
 
@@ -136,92 +122,122 @@ export function SessionPage() {
   }
 
   const isActive = session.status === 'active';
+  
   const languageNames: Record<string, string> = {
-    en: 'English',
-    zh: 'Chinese',
-    hi: 'Hindi',
-    es: 'Spanish',
-    fr: 'French',
-    bn: 'Bengali',
+    en: t.english,
+    zh: t.chinese,
+    hi: t.hindi,
+    es: t.spanish,
+    fr: t.french,
+    bn: t.bengali,
   };
+
+  // Format session date
+  const sessionDate = new Date(session.created_at);
+  const formattedDate = sessionDate.toLocaleDateString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
       {/* Session Header */}
-      <Paper
+      <Box
         sx={{
           p: 2,
-          mb: 2,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 600 }}>
-              {session.name}
+          <Typography variant="h5" sx={{ fontWeight: 500 }}>
+            {session.name}, {formattedDate}
+          </Typography>
+          
+          <Chip
+            label={isActive ? t.active : t.sessionEnded}
+            size="small"
+            sx={{
+              bgcolor: isActive ? customColors.activePill.background : 'grey.200',
+              color: isActive ? customColors.activePill.text : 'text.secondary',
+              fontWeight: 500,
+            }}
+          />
+
+          {/* Language Selector with Chevron */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              {languageNames[session.source_language]} → {languageNames[session.target_language]}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-              <Chip
-                label={isActive ? 'Active' : 'Session Ended'}
-                color={isActive ? 'success' : 'info'}
-                size="small"
-              />
-              <Typography variant="caption" color="text.secondary">
-                {languageNames[session.source_language]} → {languageNames[session.target_language]}
-              </Typography>
-            </Box>
+            <KeyboardArrowDownIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Tooltip title="Question Translation">
-            <IconButton onClick={() => setQuestionPanelOpen(true)}>
-              <TranslateIcon />
+          {/* Question Translation Button */}
+          <Tooltip title={t.questionTranslation}>
+            <IconButton 
+              onClick={() => setQuestionPanelOpen(true)}
+              sx={{ p: 1 }}
+            >
+              <Box
+                component="img"
+                src="/icons/questionbutton.svg"
+                alt="Question"
+                sx={{ width: 24, height: 24 }}
+              />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Settings">
-            <IconButton>
-              <SettingsIcon />
-            </IconButton>
-          </Tooltip>
+
           {isActive ? (
             <Button
               variant="contained"
-              color="error"
               size="small"
-              startIcon={<StopIcon />}
               onClick={() => setEndSessionDialogOpen(true)}
+              sx={{
+                bgcolor: customColors.endSession.background,
+                color: customColors.endSession.text,
+                textTransform: 'none',
+                '&:hover': {
+                  bgcolor: '#8A1F04',
+                },
+              }}
             >
-              End Session
+              {t.endSession}
             </Button>
           ) : (
             <Button
               variant="outlined"
               size="small"
-              startIcon={<ArrowBackIcon />}
               onClick={() => navigate('/')}
+              sx={{
+                borderColor: 'divider',
+                color: 'text.primary',
+                textTransform: 'none',
+              }}
             >
-              Back to Sessions
+              Back
             </Button>
           )}
         </Box>
-      </Paper>
+      </Box>
 
       {/* End Session Confirmation Dialog */}
       <Dialog
         open={endSessionDialogOpen}
         onClose={() => !endSessionMutation.isPending && setEndSessionDialogOpen(false)}
       >
-        <DialogTitle sx={{ color: 'warning.main' }}>⚠️ End Session?</DialogTitle>
+        <DialogTitle sx={{ color: 'warning.main' }}>⚠️ {t.endSessionConfirm}</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            <strong>Warning:</strong> Once you end the session, you will no longer be able to record 
-            new transcriptions. This action cannot be undone.
+            <strong>Warning:</strong> {t.endSessionWarning}
           </DialogContentText>
           <DialogContentText>
-            Would you like to generate structured notes from the transcription, or save the transcript only?
+            {t.generateNotesQuestion}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -229,84 +245,138 @@ export function SessionPage() {
             onClick={() => setEndSessionDialogOpen(false)}
             disabled={endSessionMutation.isPending}
           >
-            Cancel
+            {t.cancel}
           </Button>
           <Button
             onClick={() => handleEndSession(false)}
             disabled={endSessionMutation.isPending}
             color="inherit"
           >
-            {endSessionMutation.isPending ? 'Ending...' : 'Save Transcript Only'}
+            {endSessionMutation.isPending ? 'Ending...' : t.saveTranscriptOnly}
           </Button>
           <Button
             onClick={() => handleEndSession(true)}
             variant="contained"
             disabled={endSessionMutation.isPending}
+            sx={{
+              bgcolor: customColors.brandGreen,
+              '&:hover': { bgcolor: '#005F54' },
+            }}
           >
-            {endSessionMutation.isPending ? 'Ending...' : 'End & Generate Notes'}
+            {endSessionMutation.isPending ? 'Ending...' : t.endAndGenerateNotes}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Main Content - Two/Three Panel Layout */}
-      <Box sx={{ display: 'flex', flex: 1, gap: 2, overflow: 'hidden' }}>
-        {/* Left Panel - Documents (hidden when showing notes) */}
-        {!showNotesPanel && (
-          <Paper
+      {/* Main Content - Three Column Layout */}
+      <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        {/* Left Panel - Documents */}
+        {documentsOpen && !showNotesPanel && (
+          <>
+            <Box
+              sx={{
+                width: 280,
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                borderRight: '1px solid',
+                borderColor: 'divider',
+              }}
+            >
+              <Box sx={{ 
+                p: 2, 
+                borderBottom: '1px solid', 
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  {t.documents}
+                </Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => setDocumentsOpen(false)}
+                >
+                  <Box
+                    component="img"
+                    src="/icons/material-symbols_left-panel-close.svg"
+                    alt="Close"
+                    sx={{ width: 20, height: 20 }}
+                  />
+                </IconButton>
+              </Box>
+              <DocumentPanel sessionId={sessionId!} />
+            </Box>
+          </>
+        )}
+
+        {/* Toggle button when documents panel is closed */}
+        {!documentsOpen && !showNotesPanel && (
+          <Box
             sx={{
-              width: 300,
-              flexShrink: 0,
               display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
+              alignItems: 'flex-start',
+              pt: 2,
+              pl: 1,
+              borderRight: '1px solid',
+              borderColor: 'divider',
             }}
           >
-            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                Documents
-              </Typography>
-            </Box>
-            <DocumentPanel sessionId={sessionId!} />
-          </Paper>
+            <IconButton 
+              size="small" 
+              onClick={() => setDocumentsOpen(true)}
+            >
+              <Box
+                component="img"
+                src="/icons/material-symbols_left-panel-open.svg"
+                alt="Open"
+                sx={{ width: 20, height: 20 }}
+              />
+            </IconButton>
+          </Box>
         )}
 
         {/* Center Panel - Transcription or Notes */}
-        <Paper
+        <Box
           sx={{
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
+            minWidth: 0,
           }}
         >
           <Box
             sx={{
               p: 2,
-              borderBottom: 1,
+              borderBottom: '1px solid',
               borderColor: 'divider',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}
           >
+            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              {showNotesPanel ? t.lectureNotes : t.liveTranscription}
+            </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {showNotesPanel ? (
-                <DescriptionIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
-              ) : null}
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                {showNotesPanel ? 'Lecture Notes' : 'Live Transcription'}
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Toggle between Notes and Transcription when session is completed */}
               {!isActive && (
                 <>
                   <Button
                     size="small"
                     variant={showNotesPanel ? 'outlined' : 'contained'}
                     onClick={() => setShowNotesPanel(!showNotesPanel)}
+                    sx={{
+                      textTransform: 'none',
+                      ...(showNotesPanel ? {} : {
+                        bgcolor: customColors.brandGreen,
+                        '&:hover': { bgcolor: '#005F54' },
+                      }),
+                    }}
                   >
-                    {showNotesPanel ? 'View Transcript' : 'View Notes'}
+                    {showNotesPanel ? t.viewTranscript : t.viewNotes}
                   </Button>
                   {showNotesPanel && (
                     <Tooltip title="Open in full-page editor">
@@ -322,15 +392,11 @@ export function SessionPage() {
               )}
               {isTranscribing && !showNotesPanel && (
                 <Chip
-                  label="Transcribing"
-                  color="success"
+                  label={t.transcribing}
                   size="small"
                   sx={{
-                    '& .MuiChip-label': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                    },
+                    bgcolor: customColors.activePill.background,
+                    color: customColors.activePill.text,
                   }}
                   icon={
                     <Box
@@ -338,8 +404,9 @@ export function SessionPage() {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        bgcolor: 'success.main',
+                        bgcolor: customColors.activePill.text,
                         animation: 'pulse 1.5s infinite',
+                        ml: 1,
                         '@keyframes pulse': {
                           '0%': { opacity: 1 },
                           '50%': { opacity: 0.4 },
@@ -361,25 +428,73 @@ export function SessionPage() {
           ) : (
             <TranscriptionPanel sessionId={sessionId!} isActive={isActive} />
           )}
-        </Paper>
+        </Box>
+
+        {/* Toggle button when citations panel is closed */}
+        {!citationsOpen && (
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              pt: 2,
+              pr: 1,
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <IconButton 
+              size="small" 
+              onClick={() => setCitationsOpen(true)}
+            >
+              <Box
+                component="img"
+                src="/icons/material-symbols_right-panel-open.svg"
+                alt="Open"
+                sx={{ width: 20, height: 20 }}
+              />
+            </IconButton>
+          </Box>
+        )}
 
         {/* Right Panel - Citations */}
-        <Paper
-          sx={{
-            width: 320,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Citations
-            </Typography>
+        {citationsOpen && (
+          <Box
+            sx={{
+              width: 300,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              borderLeft: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ 
+              p: 2, 
+              borderBottom: '1px solid', 
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t.citations}
+              </Typography>
+              <IconButton 
+                size="small" 
+                onClick={() => setCitationsOpen(false)}
+              >
+                <Box
+                  component="img"
+                  src="/icons/material-symbols_right-panel-close.svg"
+                  alt="Close"
+                  sx={{ width: 20, height: 20 }}
+                />
+              </IconButton>
+            </Box>
+            <CitationPanel sessionId={sessionId!} />
           </Box>
-          <CitationPanel sessionId={sessionId!} />
-        </Paper>
+        )}
       </Box>
 
       {/* Bottom Audio Controls */}
@@ -391,7 +506,7 @@ export function SessionPage() {
         isActive={isActive}
       />
 
-      {/* Question Translation Modal */}
+      {/* Question Translation Drawer - No navbar highlight */}
       <QuestionTranslator
         open={questionPanelOpen}
         onClose={() => setQuestionPanelOpen(false)}

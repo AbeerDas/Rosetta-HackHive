@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { Box, AppBar, Toolbar, Typography, IconButton, Tooltip } from '@mui/material';
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Typography,
+  IconButton,
+  Button,
+  TextField,
+  InputAdornment,
+} from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import SettingsIcon from '@mui/icons-material/Settings';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import EditIcon from '@mui/icons-material/Edit';
+import CheckIcon from '@mui/icons-material/Check';
 
 import { Sidebar } from './Sidebar';
-import { useFolderStore } from '../../stores/folderStore';
+import { useFolderStore, useUserStore, useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 
 const SIDEBAR_WIDTH = 280;
 
@@ -14,6 +24,22 @@ export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const sidebarWidth = useFolderStore((state) => state.sidebarWidth);
   const navigate = useNavigate();
+  const { name, setName } = useUserStore();
+  const { t } = useLanguageStore();
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState(name);
+
+  const handleSaveName = () => {
+    if (editedName.trim()) {
+      setName(editedName.trim());
+    }
+    setIsEditingName(false);
+  };
+
+  const handleStartEdit = () => {
+    setEditedName(name);
+    setIsEditingName(true);
+  };
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
@@ -25,6 +51,9 @@ export function MainLayout() {
           width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%',
           ml: sidebarOpen ? `${sidebarWidth}px` : 0,
           transition: 'margin 225ms cubic-bezier(0, 0, 0.2, 1), width 225ms cubic-bezier(0, 0, 0.2, 1)',
+          bgcolor: 'background.paper',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
         <Toolbar>
@@ -33,44 +62,111 @@ export function MainLayout() {
             aria-label="toggle sidebar"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             edge="start"
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, color: 'text.primary' }}
           >
             <MenuIcon />
           </IconButton>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* Logo */}
+          <Box 
+            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
+            onClick={() => navigate('/')}
+          >
+            {/* Logo Icon */}
+            <Box
+              component="img"
+              src="/icons/play.svg"
+              alt="LectureLens"
+              sx={{ width: 24, height: 24 }}
+            />
             <Typography
               variant="h6"
               noWrap
               component="div"
-              onClick={() => navigate('/')}
               sx={{
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #6366F1 0%, #10B981 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                cursor: 'pointer',
+                fontFamily: '"Inter", sans-serif',
+                fontWeight: 600,
+                color: 'text.primary',
                 '&:hover': {
                   opacity: 0.8,
                 },
               }}
             >
-              LectureLens
+              {t.lectureLens}
             </Typography>
           </Box>
 
           <Box sx={{ flexGrow: 1 }} />
 
-          <Tooltip title="Help">
-            <IconButton color="inherit" size="small">
-              <HelpOutlineIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Settings">
-            <IconButton color="inherit" size="small">
-              <SettingsIcon />
-            </IconButton>
-          </Tooltip>
+          {/* Settings Button */}
+          <Button
+            variant="contained"
+            startIcon={
+              <Box
+                component="img"
+                src="/icons/material-symbols_settings.svg"
+                alt="Settings"
+                sx={{ 
+                  width: 18, 
+                  height: 18,
+                  filter: 'brightness(0) invert(1)', // Make SVG white
+                }}
+              />
+            }
+            sx={{
+              bgcolor: customColors.brandGreen,
+              color: 'white',
+              textTransform: 'none',
+              fontWeight: 500,
+              px: 2,
+              '&:hover': {
+                bgcolor: '#005F54',
+              },
+            }}
+          >
+            {t.settings}
+          </Button>
+
+          {/* User Name Section */}
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
+            {isEditingName ? (
+              <TextField
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                size="small"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveName();
+                  if (e.key === 'Escape') setIsEditingName(false);
+                }}
+                sx={{ width: 120 }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton size="small" onClick={handleSaveName}>
+                        <CheckIcon fontSize="small" />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.primary',
+                    fontWeight: 500,
+                  }}
+                >
+                  {name}
+                </Typography>
+                <IconButton size="small" onClick={handleStartEdit}>
+                  <EditIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
         </Toolbar>
       </AppBar>
 

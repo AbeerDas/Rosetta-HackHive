@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { Box, Card, CardContent, Typography, Chip, alpha, keyframes } from '@mui/material';
-import DescriptionIcon from '@mui/icons-material/Description';
-import { useTranscriptionStore } from '../../stores/transcriptionStore';
+import { useTranscriptionStore, useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 
 interface CitationPanelProps {
   sessionId: string;
@@ -13,12 +13,13 @@ const getCitationKey = (citation: { document_name: string; page_number: number }
 
 // Pulse animation for highlighted citation
 const pulseAnimation = keyframes`
-  0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.7); }
-  70% { box-shadow: 0 0 0 10px rgba(102, 126, 234, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(0, 126, 112, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(0, 126, 112, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 126, 112, 0); }
 `;
 
 export function CitationPanel({ sessionId }: CitationPanelProps) {
+  const { t } = useLanguageStore();
   const segments = useTranscriptionStore((s) => s.segments);
   const highlightedCitationKey = useTranscriptionStore((s) => s.highlightedCitationKey);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,7 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
     }))
   );
 
-  // Deduplicate citations - keep only the first occurrence of each document+page combo
+  // Deduplicate citations
   const seenKeys = new Set<string>();
   const uniqueCitations = allCitations.filter((citation) => {
     if (seenKeys.has(citation.key)) {
@@ -65,9 +66,15 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
           color: 'text.secondary',
         }}
       >
-        <DescriptionIcon sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
+        {/* Citation Icon from icons folder */}
+        <Box
+          component="img"
+          src="/icons/material-icon-theme_citation.svg"
+          alt="Citations"
+          sx={{ width: 64, height: 64, mb: 2, opacity: 0.5 }}
+        />
         <Typography variant="body2" textAlign="center">
-          Citations from your course materials will appear here as the lecture progresses
+          {t.citationsEmptyMessage}
         </Typography>
       </Box>
     );
@@ -120,11 +127,11 @@ function CitationCard({ citation, isHighlighted }: CitationCardProps) {
         opacity: getOpacity(citation.rank, isHighlighted),
         transition: 'opacity 0.2s, transform 0.2s, box-shadow 0.2s',
         cursor: 'pointer',
+        border: '1px solid',
+        borderColor: isHighlighted ? customColors.brandGreen : 'divider',
         ...(isHighlighted && {
           animation: `${pulseAnimation} 0.6s ease-out`,
-          borderColor: 'primary.main',
           borderWidth: 2,
-          borderStyle: 'solid',
         }),
         '&:hover': {
           opacity: 1,
@@ -142,9 +149,8 @@ function CitationCard({ citation, isHighlighted }: CitationCardProps) {
               height: 24,
               fontSize: '0.75rem',
               fontWeight: 700,
-              bgcolor: (theme) =>
-                alpha(theme.palette.primary.main, 0.2 + (4 - citation.rank) * 0.2),
-              color: 'primary.main',
+              bgcolor: alpha(customColors.brandGreen, 0.2 + (4 - citation.rank) * 0.2),
+              color: customColors.brandGreen,
             }}
           />
           <Typography

@@ -8,7 +8,6 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemText,
   Divider,
   CircularProgress,
   Tooltip,
@@ -19,11 +18,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CheckIcon from '@mui/icons-material/Check';
-import DeleteIcon from '@mui/icons-material/Delete';
 import { useMutation } from '@tanstack/react-query';
 
 import { translationApi } from '../../services/api';
-import { useQuestionStore } from '../../stores/questionStore';
+import { useQuestionStore, useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 
 interface QuestionTranslatorProps {
   open: boolean;
@@ -31,6 +30,7 @@ interface QuestionTranslatorProps {
 }
 
 export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
+  const { t } = useLanguageStore();
   const [inputText, setInputText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [detectedLanguage, setDetectedLanguage] = useState('');
@@ -38,7 +38,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { history, addTranslation, clearHistory, isLoading, error, setLoading, setError } =
+  const { history, addTranslation, clearHistory, error, setError } =
     useQuestionStore();
 
   // Translation mutation
@@ -116,11 +116,20 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: 1,
+            borderBottom: '1px solid',
             borderColor: 'divider',
           }}
         >
-          <Typography variant="h6">Question Translation</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            {/* Question Button SVG Icon */}
+            <Box
+              component="img"
+              src="/icons/questionbutton.svg"
+              alt="Question"
+              sx={{ width: 24, height: 24 }}
+            />
+            <Typography variant="h6">{t.questionTranslation}</Typography>
+          </Box>
           <IconButton onClick={onClose} size="small">
             <CloseIcon />
           </IconButton>
@@ -132,7 +141,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
             fullWidth
             multiline
             rows={3}
-            placeholder="Type your question in your language..."
+            placeholder={t.typeQuestion}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             variant="outlined"
@@ -141,7 +150,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
           />
           {detectedLanguage && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-              Detected: {detectedLanguage}
+              {t.detected} {detectedLanguage}
             </Typography>
           )}
           <Button
@@ -149,12 +158,18 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
             variant="contained"
             onClick={handleTranslate}
             disabled={!inputText.trim() || inputText.length > 1000 || translateMutation.isPending}
-            sx={{ mt: 2 }}
+            sx={{ 
+              mt: 2,
+              bgcolor: customColors.brandGreen,
+              '&:hover': {
+                bgcolor: '#005F54',
+              },
+            }}
           >
             {translateMutation.isPending ? (
               <CircularProgress size={20} color="inherit" />
             ) : (
-              'Translate'
+              t.translate
             )}
           </Button>
         </Box>
@@ -170,22 +185,22 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
         {translatedText && (
           <Box sx={{ px: 2, pb: 2 }}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-              Translation:
+              {t.translation}
             </Typography>
             <Box
               sx={{
                 p: 2,
-                bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
+                bgcolor: alpha(customColors.brandGreen, 0.1),
                 borderRadius: 2,
-                border: 1,
-                borderColor: 'primary.main',
+                border: '1px solid',
+                borderColor: customColors.brandGreen,
               }}
             >
               <Typography variant="body1" sx={{ mb: 2 }}>
                 {translatedText}
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title="Speak aloud">
+                <Tooltip title={t.speak}>
                   <Button
                     size="small"
                     startIcon={
@@ -197,17 +212,25 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
                     }
                     onClick={() => handleSpeak(translatedText)}
                     disabled={speakMutation.isPending || isPlaying}
+                    sx={{
+                      borderColor: customColors.brandGreen,
+                      color: customColors.brandGreen,
+                    }}
                   >
-                    Speak
+                    {t.speak}
                   </Button>
                 </Tooltip>
-                <Tooltip title="Copy to clipboard">
+                <Tooltip title={t.copy}>
                   <Button
                     size="small"
                     startIcon={copiedId === 'current' ? <CheckIcon /> : <ContentCopyIcon />}
                     onClick={() => handleCopy(translatedText)}
+                    sx={{
+                      borderColor: customColors.brandGreen,
+                      color: customColors.brandGreen,
+                    }}
                   >
-                    {copiedId === 'current' ? 'Copied!' : 'Copy'}
+                    {copiedId === 'current' ? t.copied : t.copy}
                   </Button>
                 </Tooltip>
               </Box>
@@ -229,11 +252,15 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
             }}
           >
             <Typography variant="subtitle2" color="text.secondary">
-              History
+              {t.history}
             </Typography>
             {history.length > 0 && (
-              <Button size="small" color="error" onClick={clearHistory}>
-                Clear
+              <Button 
+                size="small" 
+                onClick={clearHistory}
+                sx={{ color: customColors.endSession.background }}
+              >
+                {t.clear}
               </Button>
             )}
           </Box>
@@ -241,7 +268,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
           {history.length === 0 ? (
             <Box sx={{ p: 2, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
-                No translations yet
+                {t.noTranslationsYet}
               </Typography>
             </Box>
           ) : (
@@ -252,7 +279,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
                   sx={{
                     flexDirection: 'column',
                     alignItems: 'stretch',
-                    borderBottom: 1,
+                    borderBottom: '1px solid',
                     borderColor: 'divider',
                   }}
                 >
@@ -280,18 +307,20 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
                     {item.translatedText}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    <Tooltip title="Speak">
+                    <Tooltip title={t.speak}>
                       <IconButton
                         size="small"
                         onClick={() => handleSpeak(item.translatedText)}
+                        sx={{ color: customColors.brandGreen }}
                       >
                         <VolumeUpIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Copy">
+                    <Tooltip title={t.copy}>
                       <IconButton
                         size="small"
                         onClick={() => handleCopy(item.translatedText, item.id)}
+                        sx={{ color: customColors.brandGreen }}
                       >
                         {copiedId === item.id ? (
                           <CheckIcon fontSize="small" />

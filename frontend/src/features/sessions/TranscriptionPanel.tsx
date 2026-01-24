@@ -3,25 +3,19 @@ import {
   Box, 
   Typography, 
   alpha, 
-  IconButton, 
-  Tooltip, 
-  Slider, 
-  Popover,
-  Button,
   Fab,
   Alert,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
-import PauseIcon from '@mui/icons-material/Pause';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import TextFieldsIcon from '@mui/icons-material/TextFields';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useQuery } from '@tanstack/react-query';
-import { useTranscriptionStore } from '../../stores/transcriptionStore';
+import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { transcriptApi } from '../../services/api';
 import type { TranscriptSegment } from '../../types';
+import { customColors } from '../../theme';
 
-// Check if browser supports Web Speech API (types declared in AudioControls.tsx)
+// Check if browser supports Web Speech API
 const isSpeechRecognitionSupported = () => {
   return !!((window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition || 
             (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
@@ -35,9 +29,8 @@ interface TranscriptionPanelProps {
 export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
-  const [fontSizeAnchor, setFontSizeAnchor] = useState<HTMLButtonElement | null>(null);
+  const { t } = useLanguageStore();
   
-  // For active sessions: use live store data
   const {
     segments: liveSegments,
     currentSegment,
@@ -47,48 +40,39 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
     fontSize,
     highContrast,
     setAutoScroll,
-    togglePause,
-    setFontSize,
   } = useTranscriptionStore();
 
   // For ended sessions: fetch from database
   const { data: savedTranscript, isLoading: isLoadingTranscript } = useQuery({
     queryKey: ['transcript', sessionId],
     queryFn: () => transcriptApi.get(sessionId),
-    enabled: !isActive, // Only fetch when session is ended
+    enabled: !isActive,
   });
 
-  // Use live segments for active sessions, saved segments for ended sessions
   const segments: TranscriptSegment[] = isActive 
     ? liveSegments 
     : (savedTranscript?.segments ?? []) as TranscriptSegment[];
 
   const browserSupported = isSpeechRecognitionSupported();
 
-  // Handle scroll events to toggle auto-scroll per FRD-04
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
     
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50; // Within 50px of bottom
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
     
-    // If user scrolled up, disable auto-scroll
-    // If user scrolled to bottom, re-enable auto-scroll
     if (!isUserScrollingRef.current) {
       setAutoScroll(isAtBottom);
     }
   }, [setAutoScroll]);
 
-  // Track user-initiated scrolls
   const handleWheel = useCallback(() => {
     isUserScrollingRef.current = true;
-    // Reset flag after scroll ends
     setTimeout(() => {
       isUserScrollingRef.current = false;
     }, 150);
   }, []);
 
-  // Auto-scroll to bottom when new segments arrive
   useEffect(() => {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -110,60 +94,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}>
-      {/* Panel Header with Controls per FRD-04 */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 1,
-          p: 1,
-          borderBottom: 1,
-          borderColor: 'divider',
-        }}
-      >
-        {/* Font Size Control */}
-        <Tooltip title="Adjust font size">
-          <IconButton 
-            size="small" 
-            onClick={(e) => setFontSizeAnchor(e.currentTarget)}
-          >
-            <TextFieldsIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Popover
-          open={Boolean(fontSizeAnchor)}
-          anchorEl={fontSizeAnchor}
-          onClose={() => setFontSizeAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Box sx={{ p: 2, width: 200 }}>
-            <Typography variant="caption" color="text.secondary">
-              Font Size
-            </Typography>
-            <Slider
-              value={fontSize}
-              onChange={(_, value) => setFontSize(value as number)}
-              min={14}
-              max={24}
-              step={1}
-              valueLabelDisplay="auto"
-              size="small"
-            />
-          </Box>
-        </Popover>
-
-        {/* Pause/Resume Transcription */}
-        {isTranscribing && (
-          <Tooltip title={isPaused ? 'Resume transcription' : 'Pause transcription'}>
-            <IconButton size="small" onClick={togglePause}>
-              {isPaused ? <PlayArrowIcon fontSize="small" /> : <PauseIcon fontSize="small" />}
-            </IconButton>
-          </Tooltip>
-        )}
-      </Box>
-
-      {/* Browser Compatibility Warning per FRD-04 */}
+      {/* Browser Compatibility Warning */}
       {!browserSupported && (
         <Alert severity="warning" sx={{ m: 2 }}>
           Live transcription requires Chrome or Edge. Please switch browsers for full functionality.
@@ -177,9 +108,10 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
         onWheel={handleWheel}
         sx={{
           flex: 1,
-          minHeight: 0, // Required for flexbox scrolling
+          minHeight: 0,
           overflow: 'auto',
-          p: 3,
+          p: 4,
+          px: 8, // Significant lateral padding for "document" feel
           bgcolor: highContrast ? 'background.default' : 'transparent',
         }}
       >
@@ -223,9 +155,9 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
             )}
           </Box>
         ) : (
-          <Box sx={{ fontSize }}>
+          <Box sx={{ fontSize, maxWidth: 800, mx: 'auto' }}>
             {segments.map((segment, index) => (
-              <Box key={segment.id} sx={{ mb: 2 }}>
+              <Box key={segment.id} sx={{ mb: 3 }}>
                 {/* Timestamp marker */}
                 {(index === 0 || segment.start_time - segments[index - 1].end_time > 10) && (
                   <Typography
@@ -245,8 +177,9 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                 <Typography
                   component="span"
                   sx={{
-                    lineHeight: 1.8,
-                    color: highContrast ? 'text.primary' : 'text.secondary',
+                    lineHeight: 2, // Increased line-height for better readability
+                    color: 'text.primary',
+                    fontSize: '1rem',
                   }}
                 >
                   {segment.text}
@@ -264,14 +197,14 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                 sx={{
                   p: 2,
                   borderRadius: 1,
-                  bgcolor: (theme) => alpha(theme.palette.primary.main, 0.1),
-                  border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.3)}`,
+                  bgcolor: alpha(customColors.brandGreen, 0.1),
+                  border: `1px solid ${alpha(customColors.brandGreen, 0.3)}`,
                 }}
               >
                 <Typography
                   sx={{
-                    lineHeight: 1.8,
-                    color: 'primary.main',
+                    lineHeight: 2,
+                    color: customColors.brandGreen,
                   }}
                 >
                   {currentSegment}
@@ -281,7 +214,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                       display: 'inline-block',
                       width: 2,
                       height: '1em',
-                      bgcolor: 'primary.main',
+                      bgcolor: customColors.brandGreen,
                       ml: 0.5,
                       animation: 'blink 1s infinite',
                       '@keyframes blink': {
@@ -292,7 +225,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                   />
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                  Currently transcribing...
+                  {t.transcribing}...
                 </Typography>
               </Box>
             )}
@@ -300,16 +233,20 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
         )}
       </Box>
 
-      {/* Jump to Latest FAB per FRD-04 - shows when auto-scroll is disabled */}
+      {/* Jump to Latest FAB */}
       {!autoScroll && segments.length > 0 && (
         <Fab
           size="small"
-          color="primary"
           onClick={handleJumpToLatest}
           sx={{
             position: 'absolute',
             bottom: 16,
             right: 16,
+            bgcolor: customColors.brandGreen,
+            color: 'white',
+            '&:hover': {
+              bgcolor: '#005F54',
+            },
           }}
         >
           <KeyboardArrowDownIcon />
@@ -326,14 +263,12 @@ interface Citation {
   snippet: string;
 }
 
-// Generate same key as CitationPanel for cross-referencing
 const getCitationKey = (citation: Citation) => 
   `${citation.document_name}-p${citation.page_number}`;
 
 function CitationMarkers({ citations }: { citations: Citation[] }) {
   const highlightCitation = useTranscriptionStore((s) => s.highlightCitation);
   
-  // Sort by rank and map to superscript numbers
   const sortedCitations = [...citations].sort((a, b) => a.rank - b.rank);
 
   const handleCitationClick = (citation: Citation) => {
@@ -358,10 +293,9 @@ function CitationMarkers({ citations }: { citations: Citation[] }) {
               mx: 0.25,
               fontSize: '0.75em',
               fontWeight: 600,
-              color: 'primary.main',
-              opacity: 1 - (citation.rank - 1) * 0.25, // Rank 1 = 100%, Rank 2 = 75%, Rank 3 = 50%
+              color: customColors.brandGreen,
+              opacity: 1 - (citation.rank - 1) * 0.25,
               '&:hover': {
-                color: 'primary.light',
                 textDecoration: 'underline',
               },
             }}
