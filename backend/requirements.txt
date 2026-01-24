@@ -1,0 +1,39 @@
+# FastAPI and Server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+python-multipart>=0.0.6
+websockets>=12.0
+
+# Pydantic and Settings
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+asyncpg>=0.29.0
+greenlet>=3.0.0
+
+# HTTP Client
+httpx>=0.26.0
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+
+# PDF Processing
+PyPDF2>=3.0.0
+weasyprint>=60.0
+markdown>=3.5.0
+
+# Vector Database (HTTP API only)
+# chromadb-client removed - using direct HTTP API
+
+# ML/Embeddings
+sentence-transformers>=2.2.0
+numpy>=1.24.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# Utilities
+python-jose>=3.3.0
+tiktoken>=0.5.0

@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lecturelens-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lecturelens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lecturelens_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-lecturelens}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lecturelens}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: lecturelens-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+      - ALLOW_RESET=true
+      - IS_PERSISTENT=true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  chroma_data:
+    driver: local
