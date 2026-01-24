@@ -281,6 +281,17 @@ export const notesApi = {
       throw handleApiError(error as AxiosError);
     }
   },
+
+  exportMarkdown: async (sessionId: string): Promise<Blob> => {
+    try {
+      const response = await api.get(`/sessions/${sessionId}/notes/export-markdown`, {
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (error) {
+      throw handleApiError(error as AxiosError);
+    }
+  },
 };
 
 // Health API

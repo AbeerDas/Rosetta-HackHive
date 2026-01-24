@@ -48,6 +48,9 @@ LectureLens helps international students and language learners break through lan
 - Docker & Docker Compose
 - Node.js 18+ & npm
 - Python 3.11+
+- **System Libraries** (for PDF export):
+  - macOS: `brew install cairo pango gdk-pixbuf libffi`
+  - Ubuntu: `sudo apt-get install python3-cffi libpango-1.0-0 libpangoft2-1.0-0`
 - API Keys:
   - [ElevenLabs](https://elevenlabs.io/) - Speech-to-Speech translation
   - [OpenRouter](https://openrouter.ai/) - LLM and embeddings

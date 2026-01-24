@@ -495,9 +495,11 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
 
   const handleStart = async () => {
     setStatus('connecting');
-    clearSegments();
-    startTimeRef.current = Date.now();
-    segmentCounterRef.current = 0;
+    // DON'T clear segments - allow resuming with existing transcript
+    // Only reset timing for new segments
+    if (segmentCounterRef.current === 0) {
+      startTimeRef.current = Date.now();
+    }
     isActiveRef.current = true; // Mark as active for auto-restart logic
     ttsBufferRef.current = []; // Clear echo detection buffer for fresh session
 

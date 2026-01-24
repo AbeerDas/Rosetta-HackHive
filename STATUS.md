@@ -62,7 +62,8 @@ All 7 phases of the LectureLens implementation have been successfully completed 
 - **AudioControls**: Play/stop, volume, language selector, microphone status
 - **QuestionTranslator**: Question translation drawer with TTS playback
 - **NotesPage**: Note generation, editing, and PDF export
-- **TipTapEditor**: Rich text editor with formatting toolbar
+- **NotesPanel**: Inline notes panel with auto-save and generation progress
+- **TipTapEditor**: Rich text editor with Markdown conversion and formatting toolbar
 
 ---
 
@@ -81,6 +82,7 @@ HackHive2026/
 │   │   ├── core/ (config, database)
 │   │   └── main.py
 │   ├── alembic/ (migrations)
+│   ├── Dockerfile              # Backend container with PDF deps
 │   └── requirements.txt
 ├── frontend/ (32 files)
 │   ├── src/
@@ -92,7 +94,8 @@ HackHive2026/
 │   │   ├── theme/ (MUI theme)
 │   │   └── types/ (TypeScript definitions)
 │   └── package.json
-├── docker/ (docker-compose.yml)
+├── docker/
+│   └── docker-compose.yml      # PostgreSQL, ChromaDB, Backend (optional)
 ├── docs/ (FRDs, PRD, setup guide)
 ├── .env.example
 ├── .gitignore
@@ -212,8 +215,12 @@ Full API docs: http://localhost:8080/docs
 ✅ @tanstack/react-query@^5.17.0
 ✅ zustand@^4.4.0
 ✅ @tiptap/react@^2.1.0
+✅ @tiptap/extension-superscript@^2.1.0
+✅ @tiptap/extension-link@^2.1.0
 ✅ axios@^1.6.0
 ✅ react-dropzone@^14.2.0
+✅ turndown@^7.2.2          # HTML to Markdown conversion
+✅ marked@^17.0.1           # Markdown to HTML conversion
 ✅ typescript@^5.3.0
 ✅ vite@^5.0.0
 ```
@@ -244,13 +251,22 @@ Full API docs: http://localhost:8080/docs
 
 2. **Chromadb version**: Using `chromadb-client` instead of full `chromadb` to avoid pydantic v2 conflicts
 
-3. **WeasyPrint dependencies**: May require system libraries on some platforms:
+3. **WeasyPrint dependencies**: Required for PDF export. Two options:
+
+   **Option A: Run backend in Docker (recommended)**
+   ```bash
+   cd docker
+   docker compose --profile full up -d
+   ```
+   All dependencies are included in the Docker image!
+
+   **Option B: Install locally**
    ```bash
    # macOS
    brew install cairo pango gdk-pixbuf libffi
    
    # Ubuntu/Debian
-   apt-get install python3-cffi python3-brotli libpango-1.0-0 libpangoft2-1.0-0
+   apt-get install python3-cffi libpango-1.0-0 libpangoft2-1.0-0 libcairo2
    ```
 
 4. **Frontend vulnerabilities**: npm reports 9 vulnerabilities - mostly in dev dependencies. Run `npm audit fix` if needed.

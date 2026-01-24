@@ -423,12 +423,24 @@ class NoteService:
             pdf_bytes = HTML(string=styled_html).write_pdf()
             return pdf_bytes
         except ImportError:
-            logger.warning("weasyprint not available, returning HTML")
+            logger.warning("weasyprint not available")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
                     "code": "PDF_UNAVAILABLE",
-                    "message": "PDF export not available. Try downloading as HTML.",
+                    "message": "PDF export not available. WeasyPrint library not installed. Use Markdown export instead.",
+                },
+            )
+        except OSError as e:
+            # WeasyPrint requires system libraries (Cairo, Pango, GDK-PixBuf)
+            # On macOS: brew install cairo pango gdk-pixbuf libffi
+            # On Ubuntu: apt-get install python3-cffi libpango-1.0-0 libpangoft2-1.0-0
+            logger.warning(f"WeasyPrint missing system dependencies: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={
+                    "code": "PDF_DEPS_MISSING",
+                    "message": "PDF export requires system libraries. Run: brew install cairo pango gdk-pixbuf libffi (macOS) or see QUICKSTART.md",
                 },
             )
         except Exception as e:

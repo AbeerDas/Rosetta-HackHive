@@ -75,15 +75,36 @@ async def export_notes_pdf(
     """Export notes as PDF."""
     pdf_bytes = await service.export_to_pdf(session_id)
 
-    # Get session name for filename
-    from app.api.deps import get_session_repository
-    from app.core.database import get_async_session
-
     filename = f"lecture_notes_{session_id}.pdf"
 
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.get("/sessions/{session_id}/notes/export-markdown")
+async def export_notes_markdown(
+    session_id: UUID,
+    service: NoteServiceDep,
+) -> Response:
+    """Export notes as Markdown file (fallback when PDF unavailable)."""
+    notes = await service.get_notes(session_id)
+    if not notes:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"code": "NOTES_NOT_FOUND", "message": "Notes not found for session"},
+        )
+    
+    filename = f"lecture_notes_{session_id}.md"
+    
+    return Response(
+        content=notes.content_markdown.encode('utf-8'),
+        media_type="text/markdown",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
         },

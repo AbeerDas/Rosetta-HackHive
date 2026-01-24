@@ -46,10 +46,19 @@ chmod +x setup.sh
 
 #### Start Docker Containers
 
+**Option A: Databases only** (run backend locally)
 ```bash
 cd docker
 docker-compose up -d
 cd ..
+```
+
+**Option B: Full stack** (backend runs in Docker with all dependencies)
+```bash
+cd docker
+docker-compose --profile full up -d
+cd ..
+# Skip the backend setup below - it's running in Docker!
 ```
 
 #### Setup Backend
@@ -187,6 +196,25 @@ If you encounter this issue, ensure these settings are correct:
 netstat -ano | Select-String ":5432"
 Get-Process -Id <pid>  # Check if it's postgres
 ```
+
+### PDF Export not working
+
+PDF export requires WeasyPrint system libraries. If you get "PDF_DEPS_MISSING" error:
+
+**macOS:**
+```bash
+brew install cairo pango gdk-pixbuf libffi
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install python3-cffi libpango-1.0-0 libpangoft2-1.0-0
+```
+
+**Windows:**
+See https://doc.courtbouillon.org/weasyprint/stable/first_steps.html#windows
+
+Alternatively, use "Export as Markdown" which doesn't require additional libraries.
 
 ## Development Workflow
 

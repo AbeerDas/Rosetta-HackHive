@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -8,11 +8,18 @@ import {
   MenuItem,
   Divider,
   IconButton,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { notesApi } from '../../services/api';
@@ -24,6 +31,9 @@ interface NotesPanelProps {
   readonly autoGenerate?: boolean;
 }
 
+// Auto-save debounce time in milliseconds
+const AUTO_SAVE_DELAY = 5000;
+
 export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: NotesPanelProps) {
   const queryClient = useQueryClient();
 
@@ -31,6 +41,13 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
   const [content, setContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [hasTriggeredGenerate, setHasTriggeredGenerate] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
+  
+  // Ref for auto-save timer
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch existing note
   const { data: note, isLoading: noteLoading } = useQuery({
@@ -40,21 +57,108 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
     retry: false, // Don't retry if note doesn't exist
   });
 
+  // Poll generation status when generating
+  const { data: noteStatus } = useQuery({
+    queryKey: ['noteStatus', sessionId],
+    queryFn: () => notesApi.getStatus(sessionId),
+    enabled: isGenerating,
+    refetchInterval: isGenerating ? 1000 : false, // Poll every second while generating
+  });
+
+  // Update progress from status
+  useEffect(() => {
+    if (noteStatus) {
+      setGenerationProgress(noteStatus.progress);
+      if (noteStatus.status === 'ready') {
+        setIsGenerating(false);
+        // Refetch the note
+        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+      } else if (noteStatus.status === 'error') {
+        setIsGenerating(false);
+      }
+    }
+  }, [noteStatus, sessionId, queryClient]);
+
   // Set content when note is loaded
   useEffect(() => {
     if (note?.content_markdown) {
       setContent(note.content_markdown);
+      setHasChanges(false);
     }
   }, [note]);
 
+  // Auto-save functionality
+  const saveNotes = useCallback(async (contentToSave: string) => {
+    if (!contentToSave || !note) return;
+    
+    try {
+      await notesApi.update(sessionId, { content_markdown: contentToSave });
+      setHasChanges(false);
+      setLastSavedAt(new Date());
+      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  }, [sessionId, note, queryClient]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    if (hasChanges && content && note) {
+      // Clear any existing timer
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      
+      // Set new timer
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveNotes(content);
+      }, AUTO_SAVE_DELAY);
+    }
+    
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [content, hasChanges, note, saveNotes]);
+
+  // Save on blur/navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasChanges && content && note) {
+        // Attempt synchronous save (may not complete)
+        navigator.sendBeacon?.(
+          `/api/v1/sessions/${sessionId}/notes`,
+          JSON.stringify({ content_markdown: content })
+        );
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges, content, note, sessionId]);
+
   // Generate note mutation
   const generateMutation = useMutation({
-    mutationFn: () => notesApi.generate(sessionId),
+    mutationFn: (forceRegenerate: boolean = false) => 
+      notesApi.generate(sessionId, { force_regenerate: forceRegenerate }),
+    onMutate: () => {
+      setIsGenerating(true);
+      setGenerationProgress(0);
+    },
     onSuccess: (generatedNote) => {
       setContent(generatedNote.content_markdown);
-      setHasChanges(false); // Just generated, no unsaved changes yet
+      setHasChanges(false);
+      setIsGenerating(false);
+      setGenerationProgress(100);
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+    },
+    onError: (error) => {
+      setIsGenerating(false);
+      console.error('Note generation failed:', error);
+      // Show error to user
+      alert(`Note generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -62,20 +166,21 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
   useEffect(() => {
     if (autoGenerate && !hasTriggeredGenerate && !noteLoading && !note?.content_markdown) {
       setHasTriggeredGenerate(true);
-      generateMutation.mutate();
+      generateMutation.mutate(false);
     }
-  }, [autoGenerate, hasTriggeredGenerate, noteLoading, note, generateMutation]);
+  }, [autoGenerate, hasTriggeredGenerate, noteLoading, note]);
 
-  // Save note mutation
+  // Save note mutation (for manual save)
   const saveMutation = useMutation({
     mutationFn: (contentMarkdown: string) => notesApi.update(sessionId, { content_markdown: contentMarkdown }),
     onSuccess: () => {
       setHasChanges(false);
+      setLastSavedAt(new Date());
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
     },
   });
 
-  // Export mutation
+  // Export PDF mutation
   const exportMutation = useMutation({
     mutationFn: () => notesApi.exportPdf(sessionId),
     onSuccess: (blob) => {
@@ -87,6 +192,37 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
+    },
+    onError: (error) => {
+      console.error('PDF export failed:', error);
+      // Offer Markdown export as fallback
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMsg.includes('PDF_DEPS_MISSING') || errorMsg.includes('PDF_UNAVAILABLE') || errorMsg.includes('503')) {
+        if (confirm('PDF export requires additional system libraries. Would you like to download as Markdown instead?')) {
+          exportMarkdownMutation.mutate();
+        }
+      } else {
+        alert(`PDF export failed: ${errorMsg}`);
+      }
+    },
+  });
+
+  // Export Markdown mutation (fallback)
+  const exportMarkdownMutation = useMutation({
+    mutationFn: () => notesApi.exportMarkdown(sessionId),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${sessionName || 'notes'}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },
+    onError: (error) => {
+      console.error('Markdown export failed:', error);
+      alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -105,12 +241,33 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
   };
 
   const handleGenerate = () => {
-    generateMutation.mutate();
-    setAnchorEl(null);
+    // If note already exists, show confirmation
+    if (note?.content_markdown) {
+      setConfirmRegenerateOpen(true);
+      setAnchorEl(null);
+    } else {
+      generateMutation.mutate(false);
+      setAnchorEl(null);
+    }
+  };
+
+  const handleConfirmRegenerate = () => {
+    generateMutation.mutate(true);
+    setConfirmRegenerateOpen(false);
+  };
+
+  // Format last saved time
+  const formatLastSaved = () => {
+    if (!lastSavedAt) return null;
+    const seconds = Math.floor((Date.now() - lastSavedAt.getTime()) / 1000);
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ago`;
   };
 
   // Show loading state while generating
-  if (generateMutation.isPending) {
+  if (isGenerating || generateMutation.isPending) {
     return (
       <Box
         sx={{
@@ -122,15 +279,42 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
           p: 4,
         }}
       >
-        <CircularProgress size={48} sx={{ mb: 2 }} />
+        <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+          <CircularProgress
+            variant="determinate"
+            value={generationProgress}
+            size={80}
+            thickness={4}
+          />
+          <Box
+            sx={{
+              top: 0,
+              left: 0,
+              bottom: 0,
+              right: 0,
+              position: 'absolute',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography variant="h6" component="div" color="text.secondary">
+              {`${Math.round(generationProgress)}%`}
+            </Typography>
+          </Box>
+        </Box>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
           Generating Notes...
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
-          AI is analyzing your transcript and creating structured notes.
-          <br />
-          This may take a moment.
+        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
+          {generationProgress < 30 && 'Collecting transcript segments...'}
+          {generationProgress >= 30 && generationProgress < 50 && 'Gathering citations...'}
+          {generationProgress >= 50 && generationProgress < 90 && 'AI is analyzing and structuring your notes...'}
+          {generationProgress >= 90 && 'Finalizing notes...'}
         </Typography>
+        <Box sx={{ width: '100%', maxWidth: 300, mt: 3 }}>
+          <LinearProgress variant="determinate" value={generationProgress} />
+        </Box>
       </Box>
     );
   }
@@ -154,49 +338,89 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
           borderColor: 'divider',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: 1,
+          justifyContent: 'space-between',
         }}
       >
-        {hasChanges && (
-          <Typography variant="caption" color="warning.main" sx={{ mr: 1 }}>
-            Unsaved changes
-          </Typography>
-        )}
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={saveMutation.isPending ? <CircularProgress size={14} /> : <SaveIcon />}
-          onClick={handleSave}
-          disabled={!hasChanges || saveMutation.isPending}
-        >
-          Save
-        </Button>
-        <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
-          <MoreVertIcon />
-        </IconButton>
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
-        >
-          <MenuItem
-            onClick={handleGenerate}
-            disabled={generateMutation.isPending}
+        {/* Left side - save status */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {hasChanges ? (
+            <Typography variant="caption" color="warning.main">
+              Unsaved changes
+            </Typography>
+          ) : lastSavedAt ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+              <Typography variant="caption" color="text.secondary">
+                Saved {formatLastSaved()}
+              </Typography>
+            </Box>
+          ) : null}
+        </Box>
+
+        {/* Right side - actions */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={saveMutation.isPending ? <CircularProgress size={14} /> : <SaveIcon />}
+            onClick={handleSave}
+            disabled={!hasChanges || saveMutation.isPending}
           >
-            <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
-            Regenerate Notes
-          </MenuItem>
-          <Divider />
-          <MenuItem
-            onClick={handleExport}
-            disabled={!content || exportMutation.isPending}
+            Save
+          </Button>
+          <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
+            <MoreVertIcon />
+          </IconButton>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
           >
-            <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
-            {exportMutation.isPending ? 'Exporting...' : 'Export as PDF'}
-          </MenuItem>
-        </Menu>
+            <MenuItem
+              onClick={handleGenerate}
+              disabled={generateMutation.isPending}
+            >
+              <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
+              {note?.content_markdown ? 'Regenerate Notes' : 'Generate Notes'}
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={handleExport}
+              disabled={!content || exportMutation.isPending}
+            >
+              <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
+              {exportMutation.isPending ? 'Exporting...' : 'Export as PDF'}
+            </MenuItem>
+            <MenuItem
+              onClick={() => { exportMarkdownMutation.mutate(); setAnchorEl(null); }}
+              disabled={!content || exportMarkdownMutation.isPending}
+            >
+              <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
+              {exportMarkdownMutation.isPending ? 'Exporting...' : 'Export as Markdown'}
+            </MenuItem>
+          </Menu>
+        </Box>
       </Box>
+
+      {/* Regenerate Confirmation Dialog */}
+      <Dialog
+        open={confirmRegenerateOpen}
+        onClose={() => setConfirmRegenerateOpen(false)}
+      >
+        <DialogTitle>Regenerate Notes?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will replace your current notes with a fresh generation from the transcript.
+            Your edits will be lost.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmRegenerateOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmRegenerate} variant="contained" color="primary">
+            Regenerate
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Editor or Empty State */}
       <Box sx={{ flex: 1, overflow: 'auto' }}>
@@ -234,7 +458,7 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
               </Button>
               <Button
                 variant="outlined"
-                onClick={() => setContent('<p>Start writing your notes here...</p>')}
+                onClick={() => setContent('# Notes\n\nStart writing your notes here...')}
               >
                 Start from Scratch
               </Button>

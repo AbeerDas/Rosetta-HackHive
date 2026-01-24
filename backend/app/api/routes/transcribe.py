@@ -98,6 +98,9 @@ async def transcription_websocket(
                             session_id=session_id,
                             segment=segment,
                         )
+                        
+                        # IMPORTANT: Commit immediately so segment persists
+                        await db.commit()
 
                         # Confirm save - include frontend_id for ID mapping
                         await websocket.send_json({
@@ -127,6 +130,9 @@ async def transcription_websocket(
                                     window_index=window_buffer.index,
                                     transcript_id=saved_segment.id,
                                 )
+                                
+                                # Commit any citations created by RAG
+                                await db.commit()
 
                                 # Send citations
                                 if rag_result.citations:

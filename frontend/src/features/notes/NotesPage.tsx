@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -10,16 +10,26 @@ import {
   Menu,
   MenuItem,
   Divider,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SaveIcon from '@mui/icons-material/Save';
 import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { notesApi, sessionApi } from '../../services/api';
 import { TipTapEditor } from './TipTapEditor';
+
+// Auto-save debounce time in milliseconds
+const AUTO_SAVE_DELAY = 5000;
 
 export function NotesPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -29,6 +39,13 @@ export function NotesPage() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
+
+  // Ref for auto-save timer
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch session details
   const { data: session, isLoading: sessionLoading } = useQuery({
@@ -42,22 +59,105 @@ export function NotesPage() {
     queryKey: ['note', sessionId],
     queryFn: () => notesApi.get(sessionId!),
     enabled: !!sessionId,
+    retry: false,
   });
+
+  // Poll generation status when generating
+  const { data: noteStatus } = useQuery({
+    queryKey: ['noteStatus', sessionId],
+    queryFn: () => notesApi.getStatus(sessionId!),
+    enabled: isGenerating,
+    refetchInterval: isGenerating ? 1000 : false,
+  });
+
+  // Update progress from status
+  useEffect(() => {
+    if (noteStatus) {
+      setGenerationProgress(noteStatus.progress);
+      if (noteStatus.status === 'ready') {
+        setIsGenerating(false);
+        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+      } else if (noteStatus.status === 'error') {
+        setIsGenerating(false);
+      }
+    }
+  }, [noteStatus, sessionId, queryClient]);
 
   // Set content when note is loaded
   useEffect(() => {
     if (note?.content_markdown) {
       setContent(note.content_markdown);
+      setHasChanges(false);
     }
   }, [note]);
 
+  // Auto-save functionality
+  const saveNotes = useCallback(async (contentToSave: string) => {
+    if (!contentToSave || !note) return;
+
+    try {
+      await notesApi.update(sessionId!, { content_markdown: contentToSave });
+      setHasChanges(false);
+      setLastSavedAt(new Date());
+      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    }
+  }, [sessionId, note, queryClient]);
+
+  // Debounced auto-save
+  useEffect(() => {
+    if (hasChanges && content && note) {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+
+      autoSaveTimerRef.current = setTimeout(() => {
+        saveNotes(content);
+      }, AUTO_SAVE_DELAY);
+    }
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+    };
+  }, [content, hasChanges, note, saveNotes]);
+
+  // Save on navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (hasChanges && content && note) {
+        navigator.sendBeacon?.(
+          `/api/v1/sessions/${sessionId}/notes`,
+          JSON.stringify({ content_markdown: content })
+        );
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasChanges, content, note, sessionId]);
+
   // Generate note mutation
   const generateMutation = useMutation({
-    mutationFn: () => notesApi.generate(sessionId!),
+    mutationFn: (forceRegenerate: boolean = false) =>
+      notesApi.generate(sessionId!, { force_regenerate: forceRegenerate }),
+    onMutate: () => {
+      setIsGenerating(true);
+      setGenerationProgress(0);
+    },
     onSuccess: (generatedNote) => {
       setContent(generatedNote.content_markdown);
-      setHasChanges(true);
+      setHasChanges(false);
+      setIsGenerating(false);
+      setGenerationProgress(100);
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+    },
+    onError: (error) => {
+      setIsGenerating(false);
+      console.error('Note generation failed:', error);
+      alert(`Note generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -66,11 +166,12 @@ export function NotesPage() {
     mutationFn: (contentMarkdown: string) => notesApi.update(sessionId!, { content_markdown: contentMarkdown }),
     onSuccess: () => {
       setHasChanges(false);
+      setLastSavedAt(new Date());
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
     },
   });
 
-  // Export mutation
+  // Export PDF mutation
   const exportMutation = useMutation({
     mutationFn: () => notesApi.exportPdf(sessionId!),
     onSuccess: (blob) => {
@@ -82,6 +183,37 @@ export function NotesPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+    },
+    onError: (error) => {
+      console.error('PDF export failed:', error);
+      // Offer Markdown export as fallback
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMsg.includes('PDF_DEPS_MISSING') || errorMsg.includes('PDF_UNAVAILABLE') || errorMsg.includes('503')) {
+        if (confirm('PDF export requires additional system libraries. Would you like to download as Markdown instead?')) {
+          exportMarkdownMutation.mutate();
+        }
+      } else {
+        alert(`PDF export failed: ${errorMsg}`);
+      }
+    },
+  });
+
+  // Export Markdown mutation (fallback)
+  const exportMarkdownMutation = useMutation({
+    mutationFn: () => notesApi.exportMarkdown(sessionId!),
+    onSuccess: (blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${session?.name || 'notes'}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    },
+    onError: (error) => {
+      console.error('Markdown export failed:', error);
+      alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
@@ -100,8 +232,28 @@ export function NotesPage() {
   };
 
   const handleGenerate = () => {
-    generateMutation.mutate();
-    setAnchorEl(null);
+    if (note?.content_markdown) {
+      setConfirmRegenerateOpen(true);
+      setAnchorEl(null);
+    } else {
+      generateMutation.mutate(false);
+      setAnchorEl(null);
+    }
+  };
+
+  const handleConfirmRegenerate = () => {
+    generateMutation.mutate(true);
+    setConfirmRegenerateOpen(false);
+  };
+
+  // Format last saved time
+  const formatLastSaved = () => {
+    if (!lastSavedAt) return null;
+    const seconds = Math.floor((Date.now() - lastSavedAt.getTime()) / 1000);
+    if (seconds < 5) return 'just now';
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ago`;
   };
 
   const isLoading = sessionLoading || noteLoading;
@@ -158,11 +310,20 @@ export function NotesPage() {
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {hasChanges && (
+          {/* Save status */}
+          {hasChanges ? (
             <Typography variant="caption" color="warning.main" sx={{ mr: 1 }}>
               Unsaved changes
             </Typography>
-          )}
+          ) : lastSavedAt ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 1 }}>
+              <CheckCircleIcon sx={{ fontSize: 14, color: 'success.main' }} />
+              <Typography variant="caption" color="text.secondary">
+                Saved {formatLastSaved()}
+              </Typography>
+            </Box>
+          ) : null}
+          
           <Button
             variant="contained"
             startIcon={saveMutation.isPending ? <CircularProgress size={16} /> : <SaveIcon />}
@@ -184,7 +345,7 @@ export function NotesPage() {
               disabled={generateMutation.isPending}
             >
               <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
-              {generateMutation.isPending ? 'Generating...' : 'Generate from Transcripts'}
+              {note?.content_markdown ? 'Regenerate Notes' : 'Generate from Transcripts'}
             </MenuItem>
             <Divider />
             <MenuItem
@@ -194,9 +355,36 @@ export function NotesPage() {
               <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
               {exportMutation.isPending ? 'Exporting...' : 'Export as PDF'}
             </MenuItem>
+            <MenuItem
+              onClick={() => { exportMarkdownMutation.mutate(); setAnchorEl(null); }}
+              disabled={!content || exportMarkdownMutation.isPending}
+            >
+              <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
+              {exportMarkdownMutation.isPending ? 'Exporting...' : 'Export as Markdown'}
+            </MenuItem>
           </Menu>
         </Box>
       </Paper>
+
+      {/* Regenerate Confirmation Dialog */}
+      <Dialog
+        open={confirmRegenerateOpen}
+        onClose={() => setConfirmRegenerateOpen(false)}
+      >
+        <DialogTitle>Regenerate Notes?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will replace your current notes with a fresh generation from the transcript.
+            Your edits will be lost.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmRegenerateOpen(false)}>Cancel</Button>
+          <Button onClick={handleConfirmRegenerate} variant="contained" color="primary">
+            Regenerate
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Editor */}
       <Paper
@@ -207,7 +395,55 @@ export function NotesPage() {
           overflow: 'hidden',
         }}
       >
-        {content ? (
+        {isGenerating || generateMutation.isPending ? (
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              p: 4,
+            }}
+          >
+            <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+              <CircularProgress
+                variant="determinate"
+                value={generationProgress}
+                size={80}
+                thickness={4}
+              />
+              <Box
+                sx={{
+                  top: 0,
+                  left: 0,
+                  bottom: 0,
+                  right: 0,
+                  position: 'absolute',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="h6" component="div" color="text.secondary">
+                  {`${Math.round(generationProgress)}%`}
+                </Typography>
+              </Box>
+            </Box>
+            <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+              Generating Notes...
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
+              {generationProgress < 30 && 'Collecting transcript segments...'}
+              {generationProgress >= 30 && generationProgress < 50 && 'Gathering citations...'}
+              {generationProgress >= 50 && generationProgress < 90 && 'AI is analyzing and structuring your notes...'}
+              {generationProgress >= 90 && 'Finalizing notes...'}
+            </Typography>
+            <Box sx={{ width: '100%', maxWidth: 300, mt: 3 }}>
+              <LinearProgress variant="determinate" value={generationProgress} />
+            </Box>
+          </Box>
+        ) : content ? (
           <TipTapEditor content={content} onChange={handleContentChange} />
         ) : (
           <Box
@@ -236,11 +472,11 @@ export function NotesPage() {
                 onClick={handleGenerate}
                 disabled={generateMutation.isPending}
               >
-                {generateMutation.isPending ? 'Generating...' : 'Generate Notes'}
+                Generate Notes
               </Button>
               <Button
                 variant="outlined"
-                onClick={() => setContent('<p>Start writing your notes here...</p>')}
+                onClick={() => setContent('# Notes\n\nStart writing your notes here...')}
               >
                 Start from Scratch
               </Button>

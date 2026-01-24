@@ -1,5 +1,8 @@
+import { useCallback, useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Superscript from '@tiptap/extension-superscript';
+import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Box, ToggleButton, ToggleButtonGroup, Divider, alpha } from '@mui/material';
 import FormatBoldIcon from '@mui/icons-material/FormatBold';
@@ -10,25 +13,116 @@ import FormatQuoteIcon from '@mui/icons-material/FormatQuote';
 import CodeIcon from '@mui/icons-material/Code';
 import UndoIcon from '@mui/icons-material/Undo';
 import RedoIcon from '@mui/icons-material/Redo';
+import TurndownService from 'turndown';
+import { marked } from 'marked';
 
 interface TipTapEditorProps {
-  content: string;
-  onChange: (content: string) => void;
+  content: string; // Markdown content
+  onChange: (content: string) => void; // Returns Markdown
+}
+
+// Initialize turndown for HTML to Markdown conversion
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+});
+
+// Add rules for superscript (citations)
+turndownService.addRule('superscript', {
+  filter: ['sup'],
+  replacement: function (content) {
+    return `^${content}^`;
+  },
+});
+
+// Configure marked for Markdown to HTML conversion
+marked.setOptions({
+  gfm: true,
+  breaks: true,
+});
+
+// Convert markdown to HTML for the editor
+function markdownToHtml(markdown: string): string {
+  if (!markdown) return '';
+  
+  // Handle superscript citations (^1^, ^2^, etc.)
+  const withSuperscripts = markdown.replace(/\^(\d+)\^/g, '<sup>$1</sup>');
+  
+  // Parse markdown to HTML
+  const html = marked.parse(withSuperscripts) as string;
+  return html;
+}
+
+// Convert HTML to Markdown for storage
+function htmlToMarkdown(html: string): string {
+  if (!html) return '';
+  return turndownService.turndown(html);
 }
 
 export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
+  // Convert initial markdown content to HTML
+  const initialHtml = useMemo(() => markdownToHtml(content), []);
+
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Superscript,
+      Link.configure({
+        openOnClick: false,
+      }),
       Placeholder.configure({
         placeholder: 'Start writing your notes...',
       }),
     ],
-    content,
+    content: initialHtml,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      const markdown = htmlToMarkdown(html);
+      onChange(markdown);
     },
   });
+
+  // Update editor content when the prop changes (e.g., after regeneration)
+  useEffect(() => {
+    if (editor && content) {
+      const currentHtml = editor.getHTML();
+      const newHtml = markdownToHtml(content);
+      
+      // Only update if content actually changed (avoid cursor jumping)
+      if (htmlToMarkdown(currentHtml) !== content) {
+        editor.commands.setContent(newHtml);
+      }
+    }
+  }, [content, editor]);
+
+  const toggleBold = useCallback(() => {
+    editor?.chain().focus().toggleBold().run();
+  }, [editor]);
+
+  const toggleItalic = useCallback(() => {
+    editor?.chain().focus().toggleItalic().run();
+  }, [editor]);
+
+  const toggleCode = useCallback(() => {
+    editor?.chain().focus().toggleCode().run();
+  }, [editor]);
+
+  const toggleBulletList = useCallback(() => {
+    editor?.chain().focus().toggleBulletList().run();
+  }, [editor]);
+
+  const toggleOrderedList = useCallback(() => {
+    editor?.chain().focus().toggleOrderedList().run();
+  }, [editor]);
+
+  const toggleBlockquote = useCallback(() => {
+    editor?.chain().focus().toggleBlockquote().run();
+  }, [editor]);
 
   if (!editor) {
     return null;
@@ -100,21 +194,21 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
         <ToggleButtonGroup size="small">
           <ToggleButton
             value="bold"
-            onClick={() => editor.chain().focus().toggleBold().run()}
+            onClick={toggleBold}
             selected={editor.isActive('bold')}
           >
             <FormatBoldIcon fontSize="small" />
           </ToggleButton>
           <ToggleButton
             value="italic"
-            onClick={() => editor.chain().focus().toggleItalic().run()}
+            onClick={toggleItalic}
             selected={editor.isActive('italic')}
           >
             <FormatItalicIcon fontSize="small" />
           </ToggleButton>
           <ToggleButton
             value="code"
-            onClick={() => editor.chain().focus().toggleCode().run()}
+            onClick={toggleCode}
             selected={editor.isActive('code')}
           >
             <CodeIcon fontSize="small" />
@@ -127,21 +221,21 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
         <ToggleButtonGroup size="small">
           <ToggleButton
             value="bulletList"
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            onClick={toggleBulletList}
             selected={editor.isActive('bulletList')}
           >
             <FormatListBulletedIcon fontSize="small" />
           </ToggleButton>
           <ToggleButton
             value="orderedList"
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            onClick={toggleOrderedList}
             selected={editor.isActive('orderedList')}
           >
             <FormatListNumberedIcon fontSize="small" />
           </ToggleButton>
           <ToggleButton
             value="blockquote"
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            onClick={toggleBlockquote}
             selected={editor.isActive('blockquote')}
           >
             <FormatQuoteIcon fontSize="small" />
@@ -162,37 +256,40 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
             '& h1': {
               fontSize: '2rem',
               fontWeight: 700,
-              mt: 4,
-              mb: 2,
+              marginTop: '1.5rem',
+              marginBottom: '0.75rem',
+              lineHeight: 1.2,
             },
             '& h2': {
               fontSize: '1.5rem',
               fontWeight: 600,
-              mt: 3,
-              mb: 1.5,
+              marginTop: '1.25rem',
+              marginBottom: '0.5rem',
+              lineHeight: 1.3,
             },
             '& h3': {
               fontSize: '1.25rem',
               fontWeight: 600,
-              mt: 2.5,
-              mb: 1,
+              marginTop: '1rem',
+              marginBottom: '0.5rem',
+              lineHeight: 1.4,
             },
             '& p': {
               lineHeight: 1.8,
-              mb: 1.5,
+              marginBottom: '0.75rem',
             },
             '& ul, & ol': {
-              pl: 3,
-              mb: 2,
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
             },
             '& li': {
-              mb: 0.5,
+              marginBottom: '0.25rem',
             },
             '& blockquote': {
-              borderLeft: 4,
+              borderLeft: '4px solid',
               borderColor: 'primary.main',
-              pl: 2,
-              ml: 0,
+              paddingLeft: '1rem',
+              marginLeft: 0,
               fontStyle: 'italic',
               color: 'text.secondary',
             },
@@ -215,6 +312,22 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
                 px: 0,
                 py: 0,
               },
+            },
+            '& sup': {
+              color: 'primary.main',
+              fontWeight: 600,
+              fontSize: '0.75em',
+              verticalAlign: 'super',
+            },
+            '& a': {
+              color: 'primary.main',
+              textDecoration: 'underline',
+            },
+            '& hr': {
+              border: 'none',
+              borderTop: '1px solid',
+              borderColor: 'divider',
+              margin: '1.5rem 0',
             },
             '& .ProseMirror-placeholder': {
               color: 'text.disabled',

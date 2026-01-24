@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -19,6 +19,7 @@ import StopIcon from '@mui/icons-material/Stop';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TranslateIcon from '@mui/icons-material/Translate';
 import DescriptionIcon from '@mui/icons-material/Description';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
@@ -32,6 +33,7 @@ import { NotesPanel } from './NotesPanel';
 
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
@@ -40,7 +42,6 @@ export function SessionPage() {
   const audioControlsRef = useRef<AudioControlsHandle | null>(null);
 
   const isTranscribing = useTranscriptionStore((s) => s.isTranscribing);
-  const clearSegments = useTranscriptionStore((s) => s.clearSegments);
   const setTranscribing = useTranscriptionStore((s) => s.setTranscribing);
 
   // End session mutation
@@ -52,8 +53,7 @@ export function SessionPage() {
       queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       
-      // Clear transcription state
-      clearSegments();
+      // Stop transcribing but DON'T clear segments - we want to keep them for viewing
       setTranscribing(false);
       
       // Close dialog
@@ -132,8 +132,8 @@ export function SessionPage() {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
               <Chip
-                label={isActive ? 'Active' : session.status}
-                color={isActive ? 'success' : 'default'}
+                label={isActive ? 'Active' : 'Session Ended'}
+                color={isActive ? 'success' : 'info'}
                 size="small"
               />
               <Typography variant="caption" color="text.secondary">
@@ -254,13 +254,25 @@ export function SessionPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {/* Toggle between Notes and Transcription when session is completed */}
               {!isActive && (
-                <Button
-                  size="small"
-                  variant={showNotesPanel ? 'outlined' : 'contained'}
-                  onClick={() => setShowNotesPanel(!showNotesPanel)}
-                >
-                  {showNotesPanel ? 'View Transcript' : 'View Notes'}
-                </Button>
+                <>
+                  <Button
+                    size="small"
+                    variant={showNotesPanel ? 'outlined' : 'contained'}
+                    onClick={() => setShowNotesPanel(!showNotesPanel)}
+                  >
+                    {showNotesPanel ? 'View Transcript' : 'View Notes'}
+                  </Button>
+                  {showNotesPanel && (
+                    <Tooltip title="Open in full-page editor">
+                      <IconButton
+                        size="small"
+                        onClick={() => navigate(`/session/${sessionId}/notes`)}
+                      >
+                        <OpenInNewIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </>
               )}
               {isTranscribing && !showNotesPanel && (
                 <Chip
