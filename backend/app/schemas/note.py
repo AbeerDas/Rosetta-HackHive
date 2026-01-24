@@ -14,6 +14,10 @@ class NoteGenerateRequest(BaseModel):
         default=False,
         description="Force regeneration even if notes exist",
     )
+    output_language: Optional[str] = Field(
+        default=None,
+        description="Language code for generated notes (e.g., 'en', 'zh', 'hi', 'es', 'fr'). Defaults to English.",
+    )
 
 
 class NoteUpdateRequest(BaseModel):

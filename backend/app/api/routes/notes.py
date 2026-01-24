@@ -42,6 +42,7 @@ async def generate_notes(
     return await service.generate_notes(
         session_id=session_id,
         force_regenerate=data.force_regenerate,
+        output_language=data.output_language,
     )
 
 

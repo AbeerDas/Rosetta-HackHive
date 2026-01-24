@@ -42,7 +42,7 @@ const AUTO_SAVE_DELAY = 5000;
 
 export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onViewTranscript, onOpenFullPage }: NotesPanelProps) {
   const queryClient = useQueryClient();
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
@@ -182,8 +182,8 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   // Generate note mutation
   const generateMutation = useMutation({
     mutationFn: (forceRegenerate: boolean = false) => {
-      console.log('[NotesPanel] Starting note generation for session:', sessionId, 'forceRegenerate:', forceRegenerate);
-      return notesApi.generate(sessionId, { force_regenerate: forceRegenerate });
+      console.log('[NotesPanel] Starting note generation for session:', sessionId, 'forceRegenerate:', forceRegenerate, 'language:', language);
+      return notesApi.generate(sessionId, { force_regenerate: forceRegenerate, output_language: language });
     },
     onMutate: () => {
       console.log('[NotesPanel] Generation started, setting isGenerating=true');
@@ -392,8 +392,11 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
           justifyContent: 'space-between',
         }}
       >
-        {/* Left side - save status */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* Left side - title and save status */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            {t.lectureNotes}
+          </Typography>
           {hasChanges ? (
             <Typography variant="caption" color="warning.main">
               Unsaved changes

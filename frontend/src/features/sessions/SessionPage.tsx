@@ -347,68 +347,71 @@ export function SessionPage() {
             minWidth: 0,
           }}
         >
-          <Box
-            sx={{
-              p: 2,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              {showNotesPanel ? t.lectureNotes : t.liveTranscription}
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {/* Only show View Notes button when viewing transcript (not notes) */}
-              {!isActive && !showNotesPanel && (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={() => setShowNotesPanel(true)}
-                  sx={{
-                    textTransform: 'none',
-                    borderColor: customColors.brandGreen,
-                    color: customColors.brandGreen,
-                    '&:hover': {
-                      borderColor: '#005F54',
-                      bgcolor: 'rgba(0, 126, 112, 0.04)',
-                    },
-                  }}
-                >
-                  {t.viewNotes}
-                </Button>
-              )}
-              {isTranscribing && !showNotesPanel && (
-                <Chip
-                  label={t.transcribing}
-                  size="small"
-                  sx={{
-                    bgcolor: customColors.activePill.background,
-                    color: customColors.activePill.text,
-                  }}
-                  icon={
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        bgcolor: customColors.activePill.text,
-                        animation: 'pulse 1.5s infinite',
-                        ml: 1,
-                        '@keyframes pulse': {
-                          '0%': { opacity: 1 },
-                          '50%': { opacity: 0.4 },
-                          '100%': { opacity: 1 },
-                        },
-                      }}
-                    />
-                  }
-                />
-              )}
+          {/* Header - only show when viewing transcription (NotesPanel has its own header) */}
+          {!showNotesPanel && (
+            <Box
+              sx={{
+                p: 2,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t.liveTranscription}
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* Only show View Notes button when viewing transcript (not notes) */}
+                {!isActive && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => setShowNotesPanel(true)}
+                    sx={{
+                      textTransform: 'none',
+                      borderColor: customColors.brandGreen,
+                      color: customColors.brandGreen,
+                      '&:hover': {
+                        borderColor: '#005F54',
+                        bgcolor: 'rgba(0, 126, 112, 0.04)',
+                      },
+                    }}
+                  >
+                    {t.viewNotes}
+                  </Button>
+                )}
+                {isTranscribing && (
+                  <Chip
+                    label={t.transcribing}
+                    size="small"
+                    sx={{
+                      bgcolor: customColors.activePill.background,
+                      color: customColors.activePill.text,
+                    }}
+                    icon={
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          bgcolor: customColors.activePill.text,
+                          animation: 'pulse 1.5s infinite',
+                          ml: 1,
+                          '@keyframes pulse': {
+                            '0%': { opacity: 1 },
+                            '50%': { opacity: 0.4 },
+                            '100%': { opacity: 1 },
+                          },
+                        }}
+                      />
+                    }
+                  />
+                )}
+              </Box>
             </Box>
-          </Box>
+          )}
           {showNotesPanel ? (
             <NotesPanel
               sessionId={sessionId!}

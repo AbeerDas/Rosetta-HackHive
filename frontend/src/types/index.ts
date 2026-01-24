@@ -172,6 +172,7 @@ export interface TranslateQuestionRequest {
 
 export interface GenerateNotesRequest {
   force_regenerate?: boolean;
+  output_language?: string;
 }
 
 export interface UpdateNotesRequest {

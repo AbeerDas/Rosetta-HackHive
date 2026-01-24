@@ -38,7 +38,7 @@ export function NotesPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { t } = useLanguageStore();
+  const { t, language } = useLanguageStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
@@ -179,7 +179,7 @@ export function NotesPage() {
   // Generate note mutation
   const generateMutation = useMutation({
     mutationFn: (forceRegenerate: boolean = false) =>
-      notesApi.generate(sessionId!, { force_regenerate: forceRegenerate }),
+      notesApi.generate(sessionId!, { force_regenerate: forceRegenerate, output_language: language }),
     onMutate: () => {
       setIsGenerating(true);
       setGenerationProgress(0);

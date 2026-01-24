@@ -19,9 +19,10 @@ from app.schemas.note import NoteResponse, NoteStatusResponse
 
 logger = logging.getLogger(__name__)
 
-# Note generation system prompt
-SYSTEM_PROMPT = """You are an expert academic note-taking assistant. Transform lecture transcripts into clear, well-organized study notes.
+# Note generation system prompt template (language will be inserted)
+SYSTEM_PROMPT_TEMPLATE = """You are an expert academic note-taking assistant. Transform lecture transcripts into clear, well-organized study notes.
 
+OUTPUT LANGUAGE: {output_language}
 OUTPUT FORMAT: Markdown
 
 STRUCTURE:
@@ -33,6 +34,7 @@ STRUCTURE:
 6. "Citations" section listing all references
 
 GUIDELINES:
+- Write ALL notes in {output_language} (translate content if transcript is in a different language)
 - Reorganize content by TOPIC, not chronologically
 - Create clear, descriptive section headings
 - Use bullet points for lists and key points
@@ -46,6 +48,16 @@ CITATION FORMAT:
 - In text: Use superscript numbers (¹, ², ³)
 - In citations section: "1. [Document], Page [X] - \\"[brief excerpt]\\""
 """
+
+# Language code to name mapping
+LANGUAGE_NAMES = {
+    "en": "English",
+    "zh": "Chinese (Mandarin)",
+    "hi": "Hindi",
+    "es": "Spanish",
+    "fr": "French",
+    "bn": "Bengali",
+}
 
 
 class NoteGenerationService:
@@ -63,6 +75,7 @@ class NoteGenerationService:
         duration_minutes: int,
         source_language: str,
         target_language: str,
+        output_language: Optional[str] = None,
     ) -> str:
         """Generate structured notes from transcript and citations.
 
@@ -74,12 +87,20 @@ class NoteGenerationService:
             duration_minutes: Session duration
             source_language: Source language code
             target_language: Target language code
+            output_language: Language code for generated notes (defaults to English)
 
         Returns:
             Generated notes in Markdown format
         """
         # Format citations for prompt
         formatted_citations = self._format_citations(citations)
+
+        # Get output language name (default to English)
+        output_lang_code = output_language or "en"
+        output_lang_name = LANGUAGE_NAMES.get(output_lang_code, "English")
+
+        # Build system prompt with language
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(output_language=output_lang_name)
 
         # Build user prompt
         prompt = f"""Please create structured lecture notes from the following:
@@ -88,6 +109,7 @@ Session: {session_name}
 Date: {date.strftime("%B %d, %Y")}
 Duration: {duration_minutes} minutes
 Languages: {source_language} → {target_language}
+Output Language: {output_lang_name}
 
 TRANSCRIPT:
 {transcript}
@@ -95,12 +117,12 @@ TRANSCRIPT:
 CITATIONS:
 {formatted_citations}
 
-Generate well-organized notes following the template structure."""
+Generate well-organized notes following the template structure. Write all notes in {output_lang_name}."""
 
         try:
             notes = await self.openrouter_client.generate_text(
                 prompt=prompt,
-                system_prompt=SYSTEM_PROMPT,
+                system_prompt=system_prompt,
                 temperature=0.3,
                 max_tokens=4000,
             )
@@ -169,12 +191,14 @@ class NoteService:
         self,
         session_id: UUID,
         force_regenerate: bool = False,
+        output_language: Optional[str] = None,
     ) -> NoteResponse:
         """Generate notes for a session.
 
         Args:
             session_id: Session ID
             force_regenerate: Force regeneration even if notes exist
+            output_language: Language code for generated notes (defaults to English)
 
         Returns:
             Generated notes
@@ -241,6 +265,7 @@ class NoteService:
                 duration_minutes=duration_minutes,
                 source_language=session.source_language,
                 target_language=session.target_language,
+                output_language=output_language,
             )
 
             self._generation_status[str(session_id)]["progress"] = 90
