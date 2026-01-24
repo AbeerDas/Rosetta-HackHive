@@ -188,9 +188,9 @@ flowchart TB
     end
     
     subgraph output [User Interface]
-        TRANSCRIPTION[Live Transcription Panel]
+        TRANSCRIPTION[Live Transcription with In-Text Citations]
         SPEAKER[Audio Speaker]
-        SIDEBAR[Citation Sidebar]
+        SIDEBAR[Citation Details Panel]
     end
     
     MIC --> GWSAPI
@@ -198,6 +198,7 @@ flowchart TB
     TRANSCRIPT --> TRANSCRIPTION
     TRANSCRIPT --> WINDOW
     AUDIO_OUT --> SPEAKER
+    CITATIONS --> TRANSCRIPTION
     CITATIONS --> SIDEBAR
 ```
 
@@ -239,12 +240,15 @@ flowchart TB
 
 ### Feature 2: Live Transcription Display
 
-**Description:** Display real-time voice-to-text transcription as the professor speaks, rendered dynamically in a dedicated panel using Google Web Speech API.
+**Description:** Display real-time voice-to-text transcription as the professor speaks, rendered dynamically in a dedicated panel using Google Web Speech API, with in-text citations from the RAG pipeline.
 
 **Requirements:**
 - Real-time speech-to-text via Google Web Speech API
 - Live transcription appearing word-by-word or phrase-by-phrase as detected
-- Dedicated right-side panel for transcription display
+- Dedicated center panel for transcription display
+- **In-text citations:** Superscript citation numbers appear inline after relevant segments (e.g., "...fundamental theorem...<sup>1, 2, 3</sup>")
+- **Relevance-based styling:** Citations use varying opacity/darkness (darkest = most relevant)
+- Clickable citation numbers that highlight corresponding details in the right panel
 - Smooth scrolling with auto-scroll to latest content
 - Visual indication of active speech detection
 - Configurable font size and contrast for accessibility
@@ -253,6 +257,7 @@ flowchart TB
 **Visual Design:**
 - Text appears dynamically as speech is detected, creating a "typing" effect
 - Current sentence highlighted or distinguished from previous content
+- Citation numbers styled as clickable superscripts with hover effects
 - Clean, readable typography optimized for extended reading
 - Material UI styling with smooth animations
 
@@ -296,7 +301,7 @@ flowchart TB
 
 ### Feature 4: Real-Time RAG Pipeline
 
-**Description:** Continuously analyze professor speech to surface relevant course materials as citations displayed alongside the translation.
+**Description:** Continuously analyze professor speech to surface relevant course materials as in-text citations embedded directly within the live transcription.
 
 **Requirements:**
 - Sliding window trigger that accumulates 2-3 sentences before initiating RAG query
@@ -304,8 +309,10 @@ flowchart TB
 - Semantic search against course document index
 - Agentic query enrichment for improved retrieval accuracy
 - Re-ranking from 10 candidates to 3 final citations
-- Display citations with document name, page number, and relevance indicator
-- Clickable citations to preview content
+- **In-text citation display:** Citations appear inline at the end of relevant transcript segments (e.g., "...and that is what the fundamental theorem of calculus is...<sup>1, 2, 3</sup>")
+- Citations ranked best to worst (1 = most relevant, 3 = least relevant)
+- **Relevance-based styling:** Citation numbers use darker opacity/color for higher relevance (citation 1 darkest, citation 3 lightest)
+- Clickable citations to preview document content in sidebar or modal
 
 **Agentic RAG Flow:**
 
@@ -711,117 +718,29 @@ Based on research into available tools and hackathon constraints:
 
 ## User Interface Design
 
-### Design System
+### Design Philosophy
 
-**Framework:** Material UI (MUI) v5
+The interface follows Material Design principles with a modern, accessible aesthetic. The UI prioritizes clarity and usability during live lecture scenarios, with a responsive layout that adapts to different screen sizes. The design emphasizes high contrast for accessibility and provides a clean workspace that minimizes cognitive load while maximizing information density.
 
-**Design Principles:**
-- Clean, modern aesthetic with ample whitespace
-- Consistent use of Material Design 3 principles
-- High contrast for accessibility
-- Responsive layout for various screen sizes
+### Main Application View
 
-**Color Palette:**
-- Primary: Deep blue (#1976d2)
-- Secondary: Teal accent (#009688)
-- Background: Light gray (#fafafa) / Dark mode: (#121212)
-- Surface: White (#ffffff) / Dark mode: (#1e1e1e)
-- Error: Red (#d32f2f)
-- Success: Green (#388e3c)
+The primary interface uses a three-panel layout to support simultaneous consumption of multiple information streams:
 
-**Typography:**
-- Primary font: Roboto
-- Monospace (code/transcription): JetBrains Mono
-- Scale following Material Design type scale
+**Left Panel - Navigation and Content Management:**
+Contains folder-based organization for courses and sessions, along with document management capabilities. Users can browse their session history, create new folders, and manage uploaded course materials.
 
-### Main Application Layout
+**Center Panel - Live Transcription with In-Text Citations:**
+The largest area of the screen displays real-time transcription of the professor's speech. Text appears dynamically as speech is detected, with automatic scrolling to keep the latest content visible. Citations appear inline as superscript numbers (e.g., "...fundamental theorem of calculus...<sup>1, 2, 3</sup>") with relevance-based styling where more relevant citations appear darker. Timestamp markers help orient students within the lecture timeline. The question translation assistant is accessible from this panel.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  [Logo] LectureLens          [Language: EN→HI ▼]  [Settings] [?]│
-├────────────┬────────────────────────────────────┬───────────────┤
-│            │                                    │               │
-│  FOLDERS   │     LIVE TRANSCRIPTION PANEL      │   CITATIONS   │
-│  & DOCS    │                                    │   SIDEBAR     │
-│            │  "Today we'll discuss the          │               │
-│ 📁 CS 401  │   fundamentals of machine          │ 📄 Ch.1 p.12  │
-│   └─ Lec 1 │   learning. The key concept        │   "Machine    │
-│   └─ Lec 2 │   is supervised learning where..." │   learning    │
-│ 📁 MATH 301│                                    │   basics..."  │
-│            │  [Text appears dynamically]        │               │
-│ ───────────│                                    │ 📄 Ch.2 p.45  │
-│ DOCUMENTS  │                                    │   "Supervised │
-│ + Add PDF  │                                    │   learning..."│
-│ 📄 Ch1.pdf │                                    │               │
-│ 📄 Ch2.pdf │──────────────────────────────────│               │
-│   [🗑️]     │  💬 Ask a Question                │               │
-│            │  [Type in your language...]       │               │
-├────────────┴────────────────────────────────────┴───────────────┤
-│  [🎤 Recording] [⏸️ Pause] [⏹️ End Session]    [🔊 Vol] [📝 Notes]│
-└─────────────────────────────────────────────────────────────────┘
-```
+**Right Panel - Citation Details:**
+Displays detailed information about the in-text citations. When users hover over or click citation numbers in the transcription, this panel shows the corresponding document names, page references, and content previews. Users can click through to view full document content.
+
+**Bottom Control Bar:**
+Provides session controls including recording status, playback controls, volume adjustment, and quick access to note generation.
 
 ### Note Editor View
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ← Back to Session                              [Export PDF 📥] │
-├─────────────────────────────────────────────────────────────────┤
-│  [📝 Structure into Notes]  │ B I U │ H1 H2 │ • 1. │ Link │    │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  # Lecture Notes: Machine Learning Introduction                 │
-│  Date: January 20, 2026 | Duration: 50 min                     │
-│                                                                 │
-│  ## Key Concepts                                                 │
-│  - Supervised learning fundamentals                             │
-│  - Training vs. test data [1, p.12]                            │
-│  - Model evaluation metrics                                     │
-│                                                                 │
-│  ## Detailed Notes                                              │
-│                                                                 │
-│  ### Introduction to Machine Learning                           │
-│  Machine learning is a subset of artificial intelligence...    │
-│                                                                 │
-│  [Editable content continues...]                               │
-│                                                                 │
-│  ## Citations Referenced                                        │
-│  1. Chapter 1 - ML Fundamentals, p.12                          │
-│  2. Chapter 2 - Supervised Learning, p.45                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Key UI Components
-
-**Folder Panel (Left Sidebar):**
-- Collapsible folder tree
-- Session list under each folder
-- Document management section
-- Add/Delete buttons with Material UI icons
-
-**Transcription Panel (Center):**
-- Large, readable text area
-- Text appears dynamically as speech is detected
-- Auto-scroll with "scroll to latest" button
-- Timestamp markers every few minutes
-
-**Citation Sidebar (Right):**
-- Card-based citation display
-- Document name, page number, relevance score
-- Expandable preview on hover/click
-- Click to open full document view
-
-**Question Assistant:**
-- Collapsible input area at bottom of transcription panel
-- Clean text input with language indicator
-- Copy button for translated output
-
-**Control Bar (Bottom):**
-- Recording status indicator
-- Play/Pause/Stop controls
-- Volume slider
-- Quick access to note generation
+The note editing interface provides a full-featured text editing workspace. A toolbar offers formatting options and includes the "Structure into Notes" button for LLM-powered note generation. The editor supports rich text editing with Markdown, with an export option to generate PDF versions of completed notes.
 
 ---
 
