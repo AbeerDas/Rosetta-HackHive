@@ -51,9 +51,9 @@ async def transcription_websocket(
             from app.repositories.citation import CitationRepository
             from app.repositories.document import DocumentChunkRepository
             from app.services.transcript import TranscriptService
-            from app.services.rag import RAGService, RerankerService, QueryEnrichmentService
+            from app.services.rag import RAGService, RerankerService, QueryEnrichmentService, KeywordExtractor
             from app.external.chroma import get_chroma_client
-            from app.external.openrouter import get_openrouter_client
+            from app.external.embeddings import get_local_embedding_service
 
             transcript_repo = TranscriptRepository(db)
             transcript_service = TranscriptService(transcript_repo)
@@ -61,13 +61,14 @@ async def transcription_websocket(
             citation_repo = CitationRepository(db)
             chunk_repo = DocumentChunkRepository(db)
             chroma_client = get_chroma_client()
-            openrouter_client = get_openrouter_client()
+            embedding_service = get_local_embedding_service()
             reranker = RerankerService()
-            query_enrichment = QueryEnrichmentService(openrouter_client)
+            keyword_extractor = KeywordExtractor()
+            query_enrichment = QueryEnrichmentService(keyword_extractor)
 
             rag_service = RAGService(
                 chroma_client,
-                openrouter_client,
+                embedding_service,
                 citation_repo,
                 chunk_repo,
                 reranker,

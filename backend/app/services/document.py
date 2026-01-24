@@ -14,7 +14,7 @@ from PyPDF2 import PdfReader
 
 from app.core.config import settings
 from app.external.chroma import ChromaClient
-from app.external.openrouter import OpenRouterClient
+from app.external.embeddings import LocalEmbeddingService
 from app.models.document import DocumentStatus
 from app.repositories.document import DocumentChunkRepository, DocumentRepository
 from app.repositories.session import SessionRepository
@@ -261,7 +261,10 @@ class DocumentService:
 
 
 class DocumentProcessingService:
-    """Service for document processing (text extraction, chunking, embedding)."""
+    """Service for document processing (text extraction, chunking, embedding).
+    
+    Uses local bge-base-en-v1.5 embeddings for fast, cost-free indexing.
+    """
 
     TARGET_CHUNK_SIZE = 500  # tokens
     CHUNK_OVERLAP = 50  # tokens
@@ -271,12 +274,12 @@ class DocumentProcessingService:
         document_repo: DocumentRepository,
         chunk_repo: DocumentChunkRepository,
         chroma_client: ChromaClient,
-        openrouter_client: OpenRouterClient,
+        embedding_service: LocalEmbeddingService,
     ):
         self.document_repo = document_repo
         self.chunk_repo = chunk_repo
         self.chroma_client = chroma_client
-        self.openrouter_client = openrouter_client
+        self.embedding_service = embedding_service
 
     async def process_document(self, document_id: UUID) -> None:
         """Process a document: extract text, chunk, embed, and store."""
@@ -313,9 +316,9 @@ class DocumentProcessingService:
                 progress=50,
             )
 
-            # Generate embeddings
+            # Generate embeddings using local model
             chunk_texts = [c["content"] for c in chunks]
-            embeddings = await self._generate_embeddings(chunk_texts)
+            embeddings = self._generate_embeddings(chunk_texts)
             await self.document_repo.update_status(
                 document_id=document_id,
                 status=DocumentStatus.PROCESSING,
@@ -463,18 +466,17 @@ class DocumentProcessingService:
                     return line[:255]  # Truncate to max length
         return None
 
-    async def _generate_embeddings(self, texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for texts using OpenRouter."""
-        # Process in batches of 100
-        batch_size = 100
-        all_embeddings = []
-
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            embeddings = await self.openrouter_client.create_embeddings(
-                texts=batch,
-                model=settings.embedding_model_indexing,
-            )
-            all_embeddings.extend(embeddings)
-
-        return all_embeddings
+    def _generate_embeddings(self, texts: list[str]) -> list[list[float]]:
+        """Generate embeddings for texts using local bge-base-en-v1.5 model.
+        
+        Uses sentence-transformers for fast local inference (~10ms per batch).
+        """
+        if not texts:
+            return []
+        
+        # Local embedding is fast, process all at once
+        # The embedding service handles batching internally
+        embeddings = self.embedding_service.create_embeddings(texts)
+        
+        logger.info(f"Generated {len(embeddings)} embeddings with {len(embeddings[0])} dimensions")
+        return embeddings

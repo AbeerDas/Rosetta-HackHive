@@ -74,11 +74,28 @@ class Settings(BaseSettings):
     # ===========================================
     # Model Configuration
     # ===========================================
-    # Note: Both embedding models MUST match for RAG vector search compatibility
-    embedding_model_realtime: str = Field(default="openai/text-embedding-3-large")
-    embedding_model_indexing: str = Field(default="openai/text-embedding-3-large")
+    # Local embedding model for both indexing and RAG queries (must match!)
+    local_embedding_model: str = Field(default="BAAI/bge-base-en-v1.5")
+    
+    # Cross-encoder for re-ranking (TinyBERT for speed)
+    reranker_model: str = Field(default="cross-encoder/ms-marco-TinyBERT-L-2-v2")
+    
+    # KeyBERT backbone for keyword extraction
+    keybert_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2")
+    
+    # RAG pipeline settings
+    rag_top_k_candidates: int = Field(default=5)  # Candidates for re-ranking
+    rag_top_k_results: int = Field(default=3)  # Final results to return
+    rag_relevance_threshold: float = Field(default=0.5)  # Minimum re-ranker score
+    rag_distance_threshold: float = Field(default=1.5)  # Max L2 distance for early exit
+    
+    # LLM models (still used for other features like translation, notes)
     llm_model: str = Field(default="anthropic/claude-3-haiku-20240307")
     llm_model_fallback: str = Field(default="openai/gpt-4o-mini")
+    
+    # Legacy embedding models (kept for reference, no longer used for RAG)
+    embedding_model_realtime: str = Field(default="openai/text-embedding-3-large")
+    embedding_model_indexing: str = Field(default="openai/text-embedding-3-large")
 
     # ===========================================
     # ElevenLabs Configuration

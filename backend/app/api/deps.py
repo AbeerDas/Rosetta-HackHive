@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_async_session
 from app.external.chroma import ChromaClient, get_chroma_client
 from app.external.elevenlabs import ElevenLabsClient, get_elevenlabs_client
+from app.external.embeddings import LocalEmbeddingService, get_local_embedding_service
 from app.external.openrouter import OpenRouterClient, get_openrouter_client
 from app.repositories.citation import CitationRepository
 from app.repositories.document import DocumentChunkRepository, DocumentRepository
@@ -20,7 +21,7 @@ from app.services.document import DocumentProcessingService, DocumentService
 from app.services.folder import FolderService
 from app.services.note import NoteGenerationService, NoteService
 from app.services.question import QuestionTranslationService
-from app.services.rag import QueryEnrichmentService, RAGService, RerankerService
+from app.services.rag import KeywordExtractor, QueryEnrichmentService, RAGService, RerankerService
 from app.services.session import SessionService
 from app.services.transcript import TranscriptService
 from app.services.translation import TranslationService
@@ -85,6 +86,7 @@ NoteRepoDep = Annotated[NoteRepository, Depends(get_note_repository)]
 ChromaClientDep = Annotated[ChromaClient, Depends(get_chroma_client)]
 ElevenLabsClientDep = Annotated[ElevenLabsClient, Depends(get_elevenlabs_client)]
 OpenRouterClientDep = Annotated[OpenRouterClient, Depends(get_openrouter_client)]
+LocalEmbeddingServiceDep = Annotated[LocalEmbeddingService, Depends(get_local_embedding_service)]
 
 
 # ===========================================
@@ -115,38 +117,49 @@ def get_document_processing_service(
     document_repo: DocumentRepoDep,
     chunk_repo: DocumentChunkRepoDep,
     chroma_client: ChromaClientDep,
-    openrouter_client: OpenRouterClientDep,
+    embedding_service: LocalEmbeddingServiceDep,
 ) -> DocumentProcessingService:
     """Get DocumentProcessingService instance."""
     return DocumentProcessingService(
-        document_repo, chunk_repo, chroma_client, openrouter_client
+        document_repo, chunk_repo, chroma_client, embedding_service
     )
 
 
 def get_reranker_service() -> RerankerService:
-    """Get RerankerService instance."""
+    """Get RerankerService instance (TinyBERT cross-encoder)."""
     return RerankerService()
 
 
+def get_keyword_extractor() -> KeywordExtractor:
+    """Get KeywordExtractor instance (KeyBERT)."""
+    return KeywordExtractor()
+
+
 def get_query_enrichment_service(
-    openrouter_client: OpenRouterClientDep,
+    keyword_extractor: Annotated[KeywordExtractor, Depends(get_keyword_extractor)],
 ) -> QueryEnrichmentService:
-    """Get QueryEnrichmentService instance."""
-    return QueryEnrichmentService(openrouter_client)
+    """Get QueryEnrichmentService instance (uses KeyBERT for local keyword extraction)."""
+    return QueryEnrichmentService(keyword_extractor)
 
 
 def get_rag_service(
     chroma_client: ChromaClientDep,
-    openrouter_client: OpenRouterClientDep,
+    embedding_service: LocalEmbeddingServiceDep,
     citation_repo: CitationRepoDep,
     chunk_repo: DocumentChunkRepoDep,
     reranker: Annotated[RerankerService, Depends(get_reranker_service)],
     query_enrichment: Annotated[QueryEnrichmentService, Depends(get_query_enrichment_service)],
 ) -> RAGService:
-    """Get RAGService instance."""
+    """Get RAGService instance.
+    
+    Uses local models for low-latency RAG:
+    - bge-base-en-v1.5 for embeddings
+    - KeyBERT for keyword extraction
+    - TinyBERT for re-ranking
+    """
     return RAGService(
         chroma_client,
-        openrouter_client,
+        embedding_service,
         citation_repo,
         chunk_repo,
         reranker,

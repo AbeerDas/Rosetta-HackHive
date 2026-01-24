@@ -46,7 +46,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
   // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: (file: File) => documentApi.upload(sessionId, file),
-    onSuccess: (newDocument) => {
+    onSuccess: async (newDocument) => {
+      // Cancel any in-flight queries to prevent them from overwriting our update
+      await queryClient.cancelQueries({ queryKey: ['documents', sessionId] });
+      
       queryClient.setQueryData<Document[]>(['documents', sessionId], (oldDocuments) => {
         if (!oldDocuments) return [newDocument];
         const exists = oldDocuments.some((doc) => doc.id === newDocument.id);
