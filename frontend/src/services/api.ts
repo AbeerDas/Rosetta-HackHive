@@ -231,9 +231,9 @@ export const translationApi = {
     }
   },
 
-  speak: async (text: string): Promise<Blob> => {
+  speak: async (text: string, voiceId?: string | null): Promise<Blob> => {
     try {
-      const response = await api.post('/translate/tts/speak', { text }, {
+      const response = await api.post('/translate/tts/speak', { text, voice_id: voiceId }, {
         responseType: 'blob',
       });
       return response.data;

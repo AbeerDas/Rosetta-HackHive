@@ -16,7 +16,7 @@ import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
 import TranslateIcon from '@mui/icons-material/Translate';
 import { useTranslationStore } from '../../stores/translationStore';
-import { useTranscriptionStore, useLanguageStore } from '../../stores';
+import { useTranscriptionStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { useTranscriptionSocket, useTranslationSocket, TranscriptionMessage, TranslationMessage } from '../../hooks/useWebSocket';
 import { useAudioPlayback } from '../../hooks/useAudioCapture';
 import { customColors } from '../../theme';
@@ -164,6 +164,7 @@ function isLikelyEcho(transcript: string, ttsBuffer: TTSBufferEntry[]): boolean 
 export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>(
   function AudioControls({ sessionId, sourceLanguage, targetLanguage, isActive }, ref) {
   const { t } = useLanguageStore();
+  const { selectedVoiceId } = useVoiceStore();
   const {
     status,
     volume,
@@ -286,6 +287,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
   const translationSocket = useTranslationSocket(
     sessionId,
     selectedLanguage,
+    selectedVoiceId,
     handleTranslatedAudio,
     handleTranslationStatus
   );

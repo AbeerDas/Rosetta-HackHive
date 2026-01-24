@@ -6,3 +6,4 @@ export * from './questionStore';
 export * from './noteStore';
 export * from './languageStore';
 export * from './userStore';
+export * from './voiceStore';

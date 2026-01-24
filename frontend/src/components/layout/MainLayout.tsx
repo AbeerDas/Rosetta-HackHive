@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,13 +15,19 @@ import {
   DialogActions,
   Select,
   MenuItem,
+  FormControl,
+  InputLabel,
+  CircularProgress,
+  Divider,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
 
 import { Sidebar } from './Sidebar';
-import { useFolderStore, useUserStore, useLanguageStore } from '../../stores';
+import { useFolderStore, useUserStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
 
@@ -30,12 +36,55 @@ const SIDEBAR_WIDTH = 280;
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [previewingVoice, setPreviewingVoice] = useState<string | null>(null);
+  const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
   const sidebarWidth = useFolderStore((state) => state.sidebarWidth);
   const navigate = useNavigate();
   const { name, setName } = useUserStore();
   const { language, setLanguage, t } = useLanguageStore();
+  const { voices, selectedVoiceId, isLoading: voicesLoading, fetchVoices, setSelectedVoiceId } = useVoiceStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
+
+  // Fetch voices when settings modal opens
+  useEffect(() => {
+    if (settingsOpen && voices.length === 0) {
+      fetchVoices();
+    }
+  }, [settingsOpen, voices.length, fetchVoices]);
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (previewAudio) {
+        previewAudio.pause();
+        previewAudio.src = '';
+      }
+    };
+  }, [previewAudio]);
+
+  const handlePreviewVoice = (previewUrl: string | undefined, voiceId: string) => {
+    if (!previewUrl) return;
+    
+    // Stop current preview if any
+    if (previewAudio) {
+      previewAudio.pause();
+      previewAudio.src = '';
+    }
+    
+    if (previewingVoice === voiceId) {
+      // Stop if same voice is clicked again
+      setPreviewingVoice(null);
+      return;
+    }
+    
+    const audio = new Audio(previewUrl);
+    audio.onended = () => setPreviewingVoice(null);
+    audio.onerror = () => setPreviewingVoice(null);
+    audio.play();
+    setPreviewAudio(audio);
+    setPreviewingVoice(voiceId);
+  };
 
   const handleSaveName = () => {
     if (editedName.trim()) {
@@ -208,6 +257,88 @@ export function MainLayout() {
                 </MenuItem>
               ))}
             </Select>
+          </Box>
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Voice Selection */}
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+              {t.voiceForDictation || 'Voice for Dictation'}
+            </Typography>
+            
+            {voicesLoading ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <CircularProgress size={20} />
+                <Typography variant="body2" color="text.secondary">
+                  {t.loadingVoices || 'Loading voices...'}
+                </Typography>
+              </Box>
+            ) : (
+              <FormControl fullWidth size="small">
+                <InputLabel id="voice-select-label">{t.selectVoice || 'Select Voice'}</InputLabel>
+                <Select
+                  labelId="voice-select-label"
+                  value={selectedVoiceId || ''}
+                  onChange={(e) => setSelectedVoiceId(e.target.value || null)}
+                  label={t.selectVoice || 'Select Voice'}
+                >
+                  <MenuItem value="">
+                    <em>{t.defaultVoice || 'Default Voice'}</em>
+                  </MenuItem>
+                  {voices.map((voice) => (
+                    <MenuItem key={voice.voice_id} value={voice.voice_id}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <Box>
+                          <Typography variant="body2">{voice.name}</Typography>
+                          {voice.labels?.accent && (
+                            <Typography variant="caption" color="text.secondary">
+                              {voice.labels.accent}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            {/* Voice Preview */}
+            {selectedVoiceId && voices.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                {(() => {
+                  const selectedVoice = voices.find(v => v.voice_id === selectedVoiceId);
+                  if (!selectedVoice?.preview_url) {
+                    return (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        {t.noPreviewAvailable || 'No preview available for this voice'}
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={previewingVoice === selectedVoiceId ? <StopIcon /> : <PlayArrowIcon />}
+                      onClick={() => handlePreviewVoice(selectedVoice.preview_url, selectedVoiceId)}
+                      sx={{
+                        borderColor: customColors.brandGreen,
+                        color: customColors.brandGreen,
+                        '&:hover': {
+                          borderColor: '#005F54',
+                          bgcolor: 'rgba(0, 112, 99, 0.08)',
+                        },
+                      }}
+                    >
+                      {previewingVoice === selectedVoiceId 
+                        ? (t.stopPreview || 'Stop Preview') 
+                        : (t.previewVoice || 'Preview Voice')}
+                    </Button>
+                  );
+                })()}
+              </Box>
+            )}
           </Box>
         </DialogContent>
         <DialogActions>

@@ -28,6 +28,105 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Default voices to use as fallback if API doesn't have voices_read permission
+DEFAULT_VOICES = [
+    {
+        "voice_id": "21m00Tcm4TlvDq8ikWAM",
+        "name": "Rachel",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Female", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/21m00Tcm4TlvDq8ikWAM/df6788f9-5c96-470d-8571-1f6d2119b596.mp3"
+    },
+    {
+        "voice_id": "EXAVITQu4vr4xnSDxMaL",
+        "name": "Bella",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Female", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/04e5ed84-4426-4700-9e82-e9e35f289f8b.mp3"
+    },
+    {
+        "voice_id": "ErXwobaYiN019PkySvjV",
+        "name": "Antoni",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/ErXwobaYiN019PkySvjV/38d8f8f0-1122-4333-b323-0b87478d506a.mp3"
+    },
+    {
+        "voice_id": "VR6AewLTigWG4xSOukaG",
+        "name": "Arnold",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Middle-Aged"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/VR6AewLTigWG4xSOukaG/66e83dc8-b2f6-4580-a2d5-f1f6b8f9e321.mp3"
+    },
+    {
+        "voice_id": "pNInz6obpgDQGcFmaJgB",
+        "name": "Adam",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Middle-Aged"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/pNInz6obpgDQGcFmaJgB/e0b45450-78db-49b9-aaa4-d5358a6871bd.mp3"
+    },
+    {
+        "voice_id": "yoZ06aMxZJJ28mfd3POQ",
+        "name": "Sam",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/yoZ06aMxZJJ28mfd3POQ/1c4d417c-ba80-4de8-874a-a1c57987ea63.mp3"
+    },
+    {
+        "voice_id": "AZnzlk1XvdvUeBnXmlld",
+        "name": "Domi",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Female", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/AZnzlk1XvdvUeBnXmlld/69c5373f-0dc2-4efd-9232-a0140182c0a9.mp3"
+    },
+    {
+        "voice_id": "MF3mGyEYCl7XYWbV9V6O",
+        "name": "Elli",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Female", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/MF3mGyEYCl7XYWbV9V6O/d8c8a3c3-cf64-4354-8866-ab14d4e5af2e.mp3"
+    },
+    {
+        "voice_id": "TxGEqnHWrfWFTfGW9XjX",
+        "name": "Josh",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/TxGEqnHWrfWFTfGW9XjX/e9cff670-a54c-490b-a4e4-57a6c9d4e7b8.mp3"
+    },
+    {
+        "voice_id": "g5CIjZEefAph4nQFvHAz",
+        "name": "Ethan",
+        "category": "premade",
+        "labels": {"accent": "American", "gender": "Male", "age": "Young"},
+        "preview_url": "https://storage.googleapis.com/eleven-public-prod/premade/voices/g5CIjZEefAph4nQFvHAz/48eaef24-6b8c-4b06-8be8-38d3d5a2c67c.mp3"
+    },
+]
+
+
+@router.get("/voices")
+async def get_voices():
+    """Get available ElevenLabs voices for TTS."""
+    elevenlabs_client = get_elevenlabs_client()
+    voices = await elevenlabs_client.get_voices()
+    
+    # If API returns empty (missing permissions), use default voices
+    if not voices:
+        logger.info("Using default voices (API may lack voices_read permission)")
+        return {"voices": DEFAULT_VOICES}
+    
+    # Return a simplified list of voices
+    simplified_voices = [
+        {
+            "voice_id": voice.get("voice_id"),
+            "name": voice.get("name"),
+            "category": voice.get("category", ""),
+            "labels": voice.get("labels", {}),
+            "preview_url": voice.get("preview_url"),
+        }
+        for voice in voices
+    ]
+    return {"voices": simplified_voices}
+
 
 @router.get("/languages", response_model=LanguagesResponse)
 async def get_languages() -> LanguagesResponse:
@@ -85,7 +184,7 @@ async def text_to_speech(
     service: TTSServiceDep,
 ) -> Response:
     """Convert text to speech and return audio."""
-    audio_bytes = await service.speak(data.text)
+    audio_bytes = await service.speak(data.text, voice_id=data.voice_id)
     return Response(
         content=audio_bytes,
         media_type="audio/mpeg",
@@ -100,6 +199,7 @@ async def translation_websocket(
     websocket: WebSocket,
     session_id: UUID,
     target_language: str,
+    voice_id: str = None,
 ):
     """WebSocket endpoint for real-time text-to-speech translation.
 
@@ -112,6 +212,7 @@ async def translation_websocket(
     Query params:
         session_id: Session ID
         target_language: Target language code (e.g., "zh", "hi")
+        voice_id: Optional ElevenLabs voice ID for TTS
 
     Protocol:
         Client → Server: JSON messages with transcribed text segments
@@ -133,6 +234,7 @@ async def translation_websocket(
     # Track state
     is_muted = False
     current_language = target_language
+    current_voice_id = voice_id
     processing_lock = asyncio.Lock()
 
     async def translate_and_speak(text: str, lang: str) -> tuple[str | None, bytes | None]:
@@ -147,7 +249,7 @@ async def translation_websocket(
             logger.info(f"Translated '{text[:50]}...' to {lang}: '{translated_text[:50]}...'")
             
             # Step 2: Convert translated text to speech using ElevenLabs TTS
-            audio_bytes = await elevenlabs_client.text_to_speech(translated_text)
+            audio_bytes = await elevenlabs_client.text_to_speech(translated_text, voice_id=current_voice_id)
             return translated_text, audio_bytes
         except Exception as e:
             logger.error(f"Translation pipeline failed: {e}")

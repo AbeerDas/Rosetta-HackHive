@@ -42,6 +42,7 @@ class TTSSpeakRequest(BaseModel):
     """Schema for TTS speak request."""
 
     text: str = Field(..., min_length=1, max_length=1000, description="Text to speak")
+    voice_id: Optional[str] = Field(None, description="ElevenLabs voice ID (uses default if not provided)")
 
 
 # WebSocket message schemas for translation stream

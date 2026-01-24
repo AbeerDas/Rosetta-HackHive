@@ -21,7 +21,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import { useMutation } from '@tanstack/react-query';
 
 import { translationApi } from '../../services/api';
-import { useQuestionStore, useLanguageStore } from '../../stores';
+import { useQuestionStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { customColors } from '../../theme';
 
 interface QuestionTranslatorProps {
@@ -31,6 +31,7 @@ interface QuestionTranslatorProps {
 
 export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
   const { t } = useLanguageStore();
+  const { selectedVoiceId } = useVoiceStore();
   const [inputText, setInputText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [detectedLanguage, setDetectedLanguage] = useState('');
@@ -60,7 +61,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
 
   // TTS mutation
   const speakMutation = useMutation({
-    mutationFn: (text: string) => translationApi.speak(text),
+    mutationFn: (text: string) => translationApi.speak(text, selectedVoiceId),
     onSuccess: (audioBlob) => {
       const url = URL.createObjectURL(audioBlob);
       if (audioRef.current) {

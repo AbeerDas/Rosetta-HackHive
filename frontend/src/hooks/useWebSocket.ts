@@ -257,11 +257,15 @@ export interface TranslateTextMessage {
 export function useTranslationSocket(
   sessionId: string,
   targetLanguage: string,
+  voiceId: string | null,
   onAudio: (audioData: ArrayBuffer) => void,
   onStatusMessage?: (msg: TranslationMessage) => void,
 ) {
   const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
-  const url = `${baseUrl}/api/v1/translate/stream?session_id=${sessionId}&target_language=${targetLanguage}`;
+  let url = `${baseUrl}/api/v1/translate/stream?session_id=${sessionId}&target_language=${targetLanguage}`;
+  if (voiceId) {
+    url += `&voice_id=${encodeURIComponent(voiceId)}`;
+  }
 
   // Handle binary audio data directly
   const handleBinaryMessage = useCallback(

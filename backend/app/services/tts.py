@@ -15,11 +15,12 @@ class TTSService:
     def __init__(self, elevenlabs_client: ElevenLabsClient):
         self.elevenlabs_client = elevenlabs_client
 
-    async def speak(self, text: str) -> bytes:
+    async def speak(self, text: str, voice_id: str | None = None) -> bytes:
         """Convert text to speech and return audio bytes.
 
         Args:
             text: Text to convert to speech
+            voice_id: Optional ElevenLabs voice ID (uses default if not provided)
 
         Returns:
             Audio bytes in MP3 format
@@ -37,7 +38,7 @@ class TTSService:
             )
 
         try:
-            audio_bytes = await self.elevenlabs_client.text_to_speech(text)
+            audio_bytes = await self.elevenlabs_client.text_to_speech(text, voice_id=voice_id)
             logger.info(f"Generated TTS audio for {len(text)} characters")
             return audio_bytes
 
