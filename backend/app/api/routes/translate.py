@@ -183,6 +183,7 @@ async def translation_websocket(
                                 translated_text, audio_bytes = await translate_and_speak(text, current_language)
                                 if translated_text:
                                     # Send translated text first for immediate UI update
+                                    # Note: Frontend saves to database via REST API after receiving backend ID
                                     await websocket.send_json({
                                         "type": "translated_text",
                                         "original_text": text,

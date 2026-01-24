@@ -199,6 +199,16 @@ export const transcriptApi = {
       throw handleApiError(error as AxiosError);
     }
   },
+
+  updateTranslatedText: async (transcriptId: string, translatedText: string): Promise<void> => {
+    try {
+      await api.patch(`/transcribe/transcripts/${transcriptId}/translated-text`, {
+        translated_text: translatedText,
+      });
+    } catch (error) {
+      throw handleApiError(error as AxiosError);
+    }
+  },
 };
 
 // Translation API

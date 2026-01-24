@@ -39,6 +39,10 @@ class Transcript(Base):
         Text,
         nullable=False,
     )
+    translated_text: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
     start_time: Mapped[float] = mapped_column(
         Float,
         nullable=False,

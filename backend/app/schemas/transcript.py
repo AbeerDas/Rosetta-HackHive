@@ -33,6 +33,7 @@ class TranscriptSegmentResponse(BaseModel):
 
     id: UUID
     text: str
+    translated_text: Optional[str] = None
     start_time: float
     end_time: float
     confidence: float

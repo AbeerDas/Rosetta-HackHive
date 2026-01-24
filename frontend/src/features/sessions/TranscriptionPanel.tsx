@@ -173,7 +173,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                   </Typography>
                 )}
 
-                {/* Segment text with citations */}
+                {/* Segment text with citations - prefer translated_text if available */}
                 <Typography
                   component="span"
                   sx={{
@@ -182,7 +182,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                     fontSize: '1rem',
                   }}
                 >
-                  {segment.text}
+                  {segment.translated_text || segment.text}
                   {segment.citations.length > 0 && (
                     <CitationMarkers citations={segment.citations} />
                   )}

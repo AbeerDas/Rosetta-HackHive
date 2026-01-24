@@ -72,6 +72,7 @@ class TranscriptService:
                 TranscriptSegmentResponse(
                     id=transcript.id,
                     text=transcript.text,
+                    translated_text=transcript.translated_text,
                     start_time=transcript.start_time,
                     end_time=transcript.end_time,
                     confidence=transcript.confidence,
@@ -91,6 +92,29 @@ class TranscriptService:
     async def get_full_text(self, session_id: UUID) -> str:
         """Get the full transcript text for a session."""
         return await self.transcript_repo.get_full_text(session_id)
+
+    async def update_translated_text(
+        self,
+        transcript_id: UUID,
+        translated_text: str,
+    ) -> TranscriptSegmentResponse | None:
+        """Update the translated text for a transcript segment."""
+        transcript = await self.transcript_repo.update_translated_text(
+            transcript_id=transcript_id,
+            translated_text=translated_text,
+        )
+        if not transcript:
+            return None
+
+        return TranscriptSegmentResponse(
+            id=transcript.id,
+            text=transcript.text,
+            translated_text=transcript.translated_text,
+            start_time=transcript.start_time,
+            end_time=transcript.end_time,
+            confidence=transcript.confidence,
+            citations=[],
+        )
 
 
 class SlidingWindowBuffer:

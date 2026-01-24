@@ -108,3 +108,16 @@ class TranscriptRepository:
             await self.db.delete(transcript)
         await self.db.flush()
         return count
+
+    async def update_translated_text(
+        self,
+        transcript_id: UUID,
+        translated_text: str,
+    ) -> Optional[Transcript]:
+        """Update the translated text for a transcript segment."""
+        transcript = await self.get_by_id(transcript_id)
+        if transcript:
+            transcript.translated_text = translated_text
+            await self.db.flush()
+            await self.db.refresh(transcript)
+        return transcript

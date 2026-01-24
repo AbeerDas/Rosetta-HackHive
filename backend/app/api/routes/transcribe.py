@@ -4,7 +4,8 @@ import json
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from pydantic import BaseModel
 
 from app.api.deps import RAGServiceDep, TranscriptServiceDep, get_rag_service, get_transcript_service
 from app.core.database import get_async_session
@@ -23,6 +24,27 @@ async def get_transcript(
 ) -> TranscriptResponse:
     """Get full transcript for a session."""
     return await service.list_segments(session_id)
+
+
+class UpdateTranslatedTextRequest(BaseModel):
+    """Request to update translated text for a segment."""
+    translated_text: str
+
+
+@router.patch("/transcripts/{transcript_id}/translated-text")
+async def update_translated_text(
+    transcript_id: UUID,
+    request: UpdateTranslatedTextRequest,
+    service: TranscriptServiceDep,
+):
+    """Update the translated text for a transcript segment."""
+    result = await service.update_translated_text(
+        transcript_id=transcript_id,
+        translated_text=request.translated_text,
+    )
+    if not result:
+        raise HTTPException(status_code=404, detail="Transcript segment not found")
+    return {"status": "ok"}
 
 
 @router.websocket("/stream")

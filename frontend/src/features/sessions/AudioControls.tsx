@@ -20,6 +20,7 @@ import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { useTranscriptionSocket, useTranslationSocket, TranscriptionMessage, TranslationMessage } from '../../hooks/useWebSocket';
 import { useAudioPlayback } from '../../hooks/useAudioCapture';
 import { customColors } from '../../theme';
+import { transcriptApi } from '../../services/api';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -257,7 +258,27 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
       setTranslationConnected(true);
     } else if (msg.type === 'translated_text') {
       if (msg.segment_id && msg.translated_text) {
+        // Update UI immediately
         updateSegmentTextRef.current(msg.segment_id, msg.translated_text);
+        
+        // Store the translation to save to database when we get the backend ID
+        // Check if we already have a backend ID for this segment
+        let backendId: string | undefined;
+        for (const [bid, fid] of segmentIdMapRef.current.entries()) {
+          if (fid === msg.segment_id) {
+            backendId = bid;
+            break;
+          }
+        }
+        
+        if (backendId) {
+          // We already have the backend ID, save immediately
+          transcriptApi.updateTranslatedText(backendId, msg.translated_text)
+            .catch(err => console.error('Failed to save translated text:', err));
+        } else {
+          // Store for later when we get the backend ID
+          pendingTranslationsRef.current.set(msg.segment_id, msg.translated_text);
+        }
       }
     }
   }, []);
@@ -281,11 +302,22 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
   }, [sendTextForTranslation]);
 
   const segmentIdMapRef = useRef<Map<string, string>>(new Map());
+  // Store pending translations by frontend ID until we get the backend ID
+  const pendingTranslationsRef = useRef<Map<string, string>>(new Map());
 
   const handleTranscriptionMessage = useCallback((msg: TranscriptionMessage) => {
     if (msg.type === 'segment_saved' && msg.segment_id) {
       if (msg.frontend_id) {
         segmentIdMapRef.current.set(msg.segment_id, msg.frontend_id);
+        
+        // Check if we have a pending translation for this frontend ID
+        const pendingTranslation = pendingTranslationsRef.current.get(msg.frontend_id);
+        if (pendingTranslation) {
+          // Save to database using the backend ID
+          transcriptApi.updateTranslatedText(msg.segment_id, pendingTranslation)
+            .catch(err => console.error('Failed to save translated text:', err));
+          pendingTranslationsRef.current.delete(msg.frontend_id);
+        }
       }
     } else if (msg.type === 'citations' && msg.citations && msg.segment_id) {
       const frontendId = segmentIdMapRef.current.get(msg.segment_id) || msg.segment_id;

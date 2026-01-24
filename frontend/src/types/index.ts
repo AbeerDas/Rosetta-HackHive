@@ -67,6 +67,7 @@ export interface Citation {
 export interface TranscriptSegment {
   id: string;
   text: string;
+  translated_text?: string;
   start_time: number;
   end_time: number;
   confidence: number;
