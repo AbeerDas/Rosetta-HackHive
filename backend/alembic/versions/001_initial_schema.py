@@ -20,70 +20,66 @@ def upgrade() -> None:
     # Create folders table
     op.create_table(
         'folders',
-        sa.Column('id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_folders_name', 'folders', ['name'])
-    op.create_index('ix_folders_created_at', 'folders', ['created_at'])
+    op.create_index('ix_folders_archived_at', 'folders', ['archived_at'])
 
     # Create sessions table
     op.create_table(
         'sessions',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('folder_id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('folder_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
+        sa.Column('status', sa.String(20), server_default='active', nullable=False),
         sa.Column('source_language', sa.String(10), server_default='en', nullable=False),
         sa.Column('target_language', sa.String(10), nullable=False),
-        sa.Column('status', sa.String(20), server_default='active', nullable=False),
         sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.Column('ended_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('archived_at', sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(['folder_id'], ['folders.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_sessions_folder_id', 'sessions', ['folder_id'])
     op.create_index('ix_sessions_status', 'sessions', ['status'])
-    op.create_index('ix_sessions_created_at', 'sessions', ['created_at'])
+    op.create_index('ix_sessions_started_at', 'sessions', ['started_at'])
 
     # Create documents table
     op.create_table(
         'documents',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('session_id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('session_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('name', sa.String(255), nullable=False),
-        sa.Column('file_path', sa.String(512), nullable=False),
+        sa.Column('file_path', sa.String(500), nullable=False),
         sa.Column('file_size', sa.Integer(), nullable=False),
-        sa.Column('mime_type', sa.String(100), server_default='application/pdf', nullable=False),
-        sa.Column('page_count', sa.Integer(), nullable=True),
+        sa.Column('page_count', sa.Integer(), server_default='0', nullable=False),
+        sa.Column('chunk_count', sa.Integer(), server_default='0', nullable=False),
         sa.Column('status', sa.String(20), server_default='pending', nullable=False),
         sa.Column('processing_progress', sa.Integer(), server_default='0', nullable=False),
         sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('chroma_collection_id', sa.String(255), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('uploaded_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('processed_at', sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
     op.create_index('ix_documents_session_id', 'documents', ['session_id'])
-    op.create_index('ix_documents_status', 'documents', ['status'])
 
     # Create document_chunks table
     op.create_table(
         'document_chunks',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('document_id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('document_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('chunk_index', sa.Integer(), nullable=False),
-        sa.Column('content', sa.Text(), nullable=False),
         sa.Column('page_number', sa.Integer(), nullable=False),
-        sa.Column('start_char', sa.Integer(), nullable=False),
-        sa.Column('end_char', sa.Integer(), nullable=False),
-        sa.Column('token_count', sa.Integer(), nullable=False),
-        sa.Column('chroma_id', sa.String(255), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('section_heading', sa.String(255), nullable=True),
+        sa.Column('content', sa.Text(), nullable=False),
+        sa.Column('token_count', sa.Integer(), server_default='0', nullable=False),
+        sa.Column('embedding_id', sa.String(255), nullable=True),
         sa.ForeignKeyConstraint(['document_id'], ['documents.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
     )
@@ -93,15 +89,13 @@ def upgrade() -> None:
     # Create transcripts table
     op.create_table(
         'transcripts',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('session_id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('session_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('segment_index', sa.Integer(), nullable=False),
         sa.Column('text', sa.Text(), nullable=False),
         sa.Column('start_time', sa.Float(), nullable=False),
         sa.Column('end_time', sa.Float(), nullable=False),
-        sa.Column('confidence', sa.Float(), nullable=True),
-        sa.Column('language', sa.String(10), server_default='en', nullable=False),
-        sa.Column('is_final', sa.Boolean(), server_default='true', nullable=False),
+        sa.Column('confidence', sa.Float(), server_default='1.0', nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id')
@@ -112,16 +106,17 @@ def upgrade() -> None:
     # Create citations table
     op.create_table(
         'citations',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('session_id', sa.String(36), nullable=False),
-        sa.Column('transcript_id', sa.String(36), nullable=True),
-        sa.Column('document_id', sa.String(36), nullable=False),
-        sa.Column('chunk_id', sa.String(36), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('session_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('transcript_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('document_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('chunk_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('window_index', sa.Integer(), nullable=False),
         sa.Column('rank', sa.Integer(), nullable=False),
-        sa.Column('relevance_score', sa.Float(), nullable=False),
-        sa.Column('query_text', sa.Text(), nullable=False),
-        sa.Column('snippet', sa.Text(), nullable=False),
         sa.Column('page_number', sa.Integer(), nullable=False),
+        sa.Column('section_heading', sa.String(255), nullable=True),
+        sa.Column('snippet', sa.Text(), nullable=False),
+        sa.Column('relevance_score', sa.Float(), nullable=False),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['transcript_id'], ['transcripts.id'], ondelete='SET NULL'),
@@ -136,15 +131,12 @@ def upgrade() -> None:
     # Create notes table
     op.create_table(
         'notes',
-        sa.Column('id', sa.String(36), nullable=False),
-        sa.Column('session_id', sa.String(36), nullable=False),
-        sa.Column('title', sa.String(255), nullable=True),
-        sa.Column('content', sa.Text(), nullable=False),
-        sa.Column('format', sa.String(20), server_default='html', nullable=False),
-        sa.Column('is_generated', sa.Boolean(), server_default='false', nullable=False),
-        sa.Column('generation_model', sa.String(100), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('session_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('content_markdown', sa.Text(), nullable=False),
+        sa.Column('generated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('last_edited_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('version', sa.Integer(), server_default='1', nullable=False),
         sa.ForeignKeyConstraint(['session_id'], ['sessions.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('session_id')

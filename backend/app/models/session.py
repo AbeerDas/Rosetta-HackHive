@@ -106,6 +106,7 @@ class Session(Base):
         back_populates="session",
         uselist=False,
         cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     @property
