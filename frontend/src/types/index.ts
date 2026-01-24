@@ -62,6 +62,7 @@ export interface Citation {
   document_name: string;
   page_number: number;
   snippet: string;
+  relevance_score?: number;
 }
 
 export interface TranscriptSegment {
