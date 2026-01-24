@@ -104,6 +104,9 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
       anchor="right"
       open={open}
       onClose={onClose}
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 2, // Above navbar
+      }}
       PaperProps={{
         sx: { width: 400, p: 0 },
       }}

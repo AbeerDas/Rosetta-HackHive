@@ -24,7 +24,7 @@ A student starts a new semester and wants to organize their courses. They click 
 
 ### Starting a Lecture Session
 
-The student arrives at lecture and opens LectureLens. They navigate to their "CS 401" folder and click "New Session". A dialog appears asking for a session name — they enter "Lecture 5 - Neural Networks". The session is created in "active" state and the main workspace transitions to the live session view, ready for transcription and translation.
+The student arrives at lecture and opens Rosetta. They navigate to their "CS 401" folder and click "New Session". A dialog appears asking for a session name — they enter "Lecture 5 - Neural Networks". The session is created in "active" state and the main workspace transitions to the live session view, ready for transcription and translation.
 
 ### Browsing Past Sessions
 

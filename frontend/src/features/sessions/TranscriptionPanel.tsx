@@ -129,7 +129,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
           >
             <CircularProgress size={32} sx={{ mb: 2 }} />
             <Typography variant="body1">
-              Loading transcript...
+              {t.loadingTranscript}
             </Typography>
           </Box>
         ) : segments.length === 0 && !currentSegment ? (
@@ -145,19 +145,19 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
           >
             <Typography variant="body1">
               {isActive 
-                ? 'Transcription will appear here when you start the session'
-                : 'No transcript available for this session'}
+                ? t.transcriptionWillAppear
+                : t.noTranscriptAvailable}
             </Typography>
             {isActive && (
               <Typography variant="caption" sx={{ mt: 1 }}>
-                Make sure your microphone is enabled
+                {t.enableMicrophone}
               </Typography>
             )}
           </Box>
         ) : (
           <Box sx={{ fontSize, maxWidth: 800, mx: 'auto' }}>
             {segments.map((segment, index) => (
-              <Box key={segment.id} sx={{ mb: 3 }}>
+              <Box key={`${sessionId}-${segment.id}`} sx={{ mb: 3 }}>
                 {/* Timestamp marker */}
                 {(index === 0 || segment.start_time - segments[index - 1].end_time > 10) && (
                   <Typography

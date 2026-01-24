@@ -1,10 +1,10 @@
-# LectureLens 🎓🔮
+# Rosetta 🎓🔮
 
 **Real-time lecture translation and learning assistant for HackHive 2026**
 
-LectureLens helps international students and language learners break through language barriers in real-time. It provides live lecture translation, automatic transcription, intelligent citations from course materials, and structured note generation.
+Rosetta helps international students and language learners break through language barriers in real-time. It provides live lecture translation, automatic transcription, intelligent citations from course materials, and structured note generation.
 
-![LectureLens Banner](docs/assets/banner.png)
+![Rosetta Banner](docs/assets/banner.png)
 
 ## ✨ Features
 

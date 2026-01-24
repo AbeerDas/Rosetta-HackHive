@@ -1,3 +1,3 @@
-"""LectureLens Backend Application."""
+"""Rosetta Backend Application."""
 
 __version__ = "1.0.0"

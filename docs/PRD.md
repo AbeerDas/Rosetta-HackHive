@@ -1,8 +1,8 @@
-# Product Requirements Document - LectureLens
+# Product Requirements Document - Rosetta
 
 ## Executive Summary
 
-LectureLens is a real-time lecture translation and learning assistant that breaks down language barriers for students in educational settings. The application captures professor speech, translates it in real-time through natural-sounding voice synthesis, and intelligently surfaces relevant course materials as citations alongside the translation.
+Rosetta is a real-time lecture translation and learning assistant that breaks down language barriers for students in educational settings. The application captures professor speech, translates it in real-time through natural-sounding voice synthesis, and intelligently surfaces relevant course materials as citations alongside the translation.
 
 **Hackathon Context:** HackHive 2026 | Tracks: Best Accessibility Hack + Best Use of ElevenLabs
 

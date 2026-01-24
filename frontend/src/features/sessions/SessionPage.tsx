@@ -13,8 +13,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Select,
-  MenuItem,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -131,30 +129,20 @@ export function SessionPage() {
     bn: t.bengali,
   };
 
-  // Format session date
-  const sessionDate = new Date(session.created_at);
-  const formattedDate = sessionDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-  });
-
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)' }}>
       {/* Session Header */}
       <Box
         sx={{
-          p: 2,
+          p: 1.5,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid',
-          borderColor: 'divider',
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h5" sx={{ fontWeight: 500 }}>
-            {session.name}, {formattedDate}
+          <Typography variant="h4" sx={{ fontWeight: 500 }}>
+            {session.name}
           </Typography>
           
           <Chip
@@ -284,14 +272,12 @@ export function SessionPage() {
               }}
             >
               <Box sx={{ 
-                p: 2, 
-                borderBottom: '1px solid', 
-                borderColor: 'divider',
+                p: 1.5, 
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
                   {t.documents}
                 </Typography>
                 <IconButton 
@@ -318,7 +304,7 @@ export function SessionPage() {
               display: 'flex',
               alignItems: 'flex-start',
               pt: 2,
-              pl: 1,
+              px: 2,
               borderRight: '1px solid',
               borderColor: 'divider',
             }}
@@ -359,7 +345,7 @@ export function SessionPage() {
                 justifyContent: 'space-between',
               }}
             >
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
                 {t.liveTranscription}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -432,7 +418,7 @@ export function SessionPage() {
               display: 'flex',
               alignItems: 'flex-start',
               pt: 2,
-              pr: 1,
+              px: 2,
               borderLeft: '1px solid',
               borderColor: 'divider',
             }}
@@ -465,14 +451,12 @@ export function SessionPage() {
             }}
           >
             <Box sx={{ 
-              p: 2, 
-              borderBottom: '1px solid', 
-              borderColor: 'divider',
+              p: 1.5, 
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
             }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
                 {t.citations}
               </Typography>
               <IconButton 

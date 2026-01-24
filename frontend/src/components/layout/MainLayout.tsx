@@ -9,6 +9,12 @@ import {
   Button,
   TextField,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import EditIcon from '@mui/icons-material/Edit';
@@ -16,16 +22,18 @@ import CheckIcon from '@mui/icons-material/Check';
 
 import { Sidebar } from './Sidebar';
 import { useFolderStore, useUserStore, useLanguageStore } from '../../stores';
+import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
 
 const SIDEBAR_WIDTH = 280;
 
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const sidebarWidth = useFolderStore((state) => state.sidebarWidth);
   const navigate = useNavigate();
   const { name, setName } = useUserStore();
-  const { t } = useLanguageStore();
+  const { language, setLanguage, t } = useLanguageStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
 
@@ -39,6 +47,10 @@ export function MainLayout() {
   const handleStartEdit = () => {
     setEditedName(name);
     setIsEditingName(true);
+  };
+
+  const handleLanguageChange = (lang: LanguageCode) => {
+    setLanguage(lang);
   };
 
   return (
@@ -75,9 +87,9 @@ export function MainLayout() {
             {/* Logo Icon */}
             <Box
               component="img"
-              src="/icons/play.svg"
-              alt="LectureLens"
-              sx={{ width: 24, height: 24 }}
+              src="/icons/logo/Logo.svg"
+              alt="Rosetta"
+              sx={{ width: 28, height: 28 }}
             />
             <Typography
               variant="h6"
@@ -92,7 +104,7 @@ export function MainLayout() {
                 },
               }}
             >
-              {t.lectureLens}
+              {t.rosetta}
             </Typography>
           </Box>
 
@@ -101,6 +113,7 @@ export function MainLayout() {
           {/* Settings Button */}
           <Button
             variant="contained"
+            onClick={() => setSettingsOpen(true)}
             startIcon={
               <Box
                 component="img"
@@ -169,6 +182,47 @@ export function MainLayout() {
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* Settings Modal */}
+      <Dialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{t.settings}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+            <Typography variant="body1">
+              {t.yourBaseLanguageIs}
+            </Typography>
+            <Select
+              value={language}
+              onChange={(e) => handleLanguageChange(e.target.value as LanguageCode)}
+              size="small"
+              sx={{ minWidth: 150 }}
+            >
+              {availableLanguages.map((lang) => (
+                <MenuItem key={lang.code} value={lang.code}>
+                  {lang.nativeName}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setSettingsOpen(false)}
+            variant="contained"
+            sx={{
+              bgcolor: customColors.brandGreen,
+              '&:hover': { bgcolor: '#005F54' },
+            }}
+          >
+            {t.close || 'Close'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Sidebar */}
       <Sidebar open={sidebarOpen} width={sidebarWidth} />

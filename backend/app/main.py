@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup
-    logger.info("Starting LectureLens API...")
+    logger.info("Starting Rosetta API...")
     logger.info(f"Debug mode: {settings.debug}")
 
     # Initialize database (create tables if needed)
@@ -37,13 +37,13 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Shutting down LectureLens API...")
+    logger.info("Shutting down Rosetta API...")
     await close_db()
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="LectureLens API",
+    title="Rosetta API",
     description="Real-time lecture translation and learning assistant API",
     version="1.0.0",
     lifespan=lifespan,
@@ -69,7 +69,7 @@ app.include_router(api_router, prefix=settings.api_v1_prefix)
 async def root():
     """Root endpoint."""
     return {
-        "name": "LectureLens API",
+        "name": "Rosetta API",
         "version": "1.0.0",
         "docs": f"{settings.api_v1_prefix}/docs" if settings.debug else None,
     }

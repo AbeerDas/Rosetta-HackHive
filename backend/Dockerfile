@@ -1,4 +1,4 @@
-# LectureLens Backend Dockerfile
+# Rosetta Backend Dockerfile
 FROM python:3.11-slim-bookworm
 
 # Set working directory

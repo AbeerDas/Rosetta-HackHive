@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# LectureLens Setup Script
-# This script will set up the entire LectureLens development environment
+# Rosetta Setup Script
+# This script will set up the entire Rosetta development environment
 
 set -e  # Exit on error
 
-echo "🎓 LectureLens Setup Script"
+echo "🎓 Rosetta Setup Script"
 echo "======================================"
 echo ""
 

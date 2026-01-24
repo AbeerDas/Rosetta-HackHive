@@ -355,13 +355,13 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
           </Box>
         </Box>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-          Generating Notes...
+          {t.generatingNotes}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
-          {generationProgress < 30 && 'Collecting transcript segments...'}
-          {generationProgress >= 30 && generationProgress < 50 && 'Gathering citations...'}
-          {generationProgress >= 50 && generationProgress < 90 && 'AI is analyzing and structuring your notes...'}
-          {generationProgress >= 90 && 'Finalizing notes...'}
+          {generationProgress < 30 && t.collectingTranscript}
+          {generationProgress >= 30 && generationProgress < 50 && t.gatheringCitations}
+          {generationProgress >= 50 && generationProgress < 90 && t.analyzingNotes}
+          {generationProgress >= 90 && t.finalizingNotes}
         </Typography>
         <Box sx={{ width: '100%', maxWidth: 300, mt: 3 }}>
           <LinearProgress variant="determinate" value={generationProgress} />
@@ -521,12 +521,10 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
           >
             <AutoAwesomeIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-              No notes yet
+              {t.noNotesYet}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
-              Generate notes automatically from your lecture transcripts,
-              <br />
-              or start writing from scratch.
+              {t.generateNotesFromTranscript}
             </Typography>
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
@@ -535,13 +533,13 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
                 onClick={handleGenerate}
                 disabled={generateMutation.isPending}
               >
-                Generate Notes
+                {t.viewNotes}
               </Button>
               <Button
                 variant="outlined"
                 onClick={() => setContent('# Notes\n\nStart writing your notes here...')}
               >
-                Start from Scratch
+                {t.startFromScratch}
               </Button>
             </Box>
           </Box>

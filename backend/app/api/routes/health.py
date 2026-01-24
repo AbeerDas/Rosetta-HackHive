@@ -20,7 +20,7 @@ async def health_check() -> HealthCheckResponse:
     """Basic health check endpoint."""
     return HealthCheckResponse(
         status=HealthStatus.HEALTHY,
-        message="LectureLens API is running",
+        message="Rosetta API is running",
         version="1.0.0",
     )
 

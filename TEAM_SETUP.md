@@ -1,4 +1,4 @@
-# 🚀 LectureLens - Team Setup Guide
+# 🚀 Rosetta - Team Setup Guide
 
 **Step-by-step instructions to get the app running on your machine.**
 

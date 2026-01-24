@@ -1,8 +1,8 @@
-# 🎓 LectureLens - Project Status
+# 🎓 Rosetta - Project Status
 
 ## ✅ Implementation Complete!
 
-All 7 phases of the LectureLens implementation have been successfully completed for HackHive 2026.
+All 7 phases of the Rosetta implementation have been successfully completed for HackHive 2026.
 
 ---
 

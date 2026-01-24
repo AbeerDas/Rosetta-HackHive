@@ -37,8 +37,8 @@ class OpenRouterClient:
                 base_url=self.BASE_URL,
                 headers={
                     "Authorization": f"Bearer {self.api_key}",
-                    "HTTP-Referer": "https://lecturelens.app",
-                    "X-Title": "LectureLens",
+                    "HTTP-Referer": "https://rosetta.app",
+                    "X-Title": "Rosetta",
                 },
                 timeout=60.0,
             )

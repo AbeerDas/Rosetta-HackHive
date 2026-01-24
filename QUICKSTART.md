@@ -1,6 +1,6 @@
-# LectureLens - Quick Start Guide
+# Rosetta - Quick Start Guide
 
-Welcome to LectureLens! This guide will help you get the application up and running.
+Welcome to Rosetta! This guide will help you get the application up and running.
 
 ## Prerequisites
 

@@ -1,6 +1,6 @@
-# LectureLens Setup Guide
+# Rosetta Setup Guide
 
-This guide walks you through setting up the LectureLens development environment, including all external dependencies, API keys, and local services.
+This guide walks you through setting up the Rosetta development environment, including all external dependencies, API keys, and local services.
 
 ---
 
@@ -44,7 +44,7 @@ docker compose version  # Should be 2.20.x or higher
 
 ## External Dependencies
 
-LectureLens relies on the following external services and tools:
+Rosetta relies on the following external services and tools:
 
 ### External APIs (Require API Keys)
 
@@ -90,7 +90,7 @@ LectureLens relies on the following external services and tools:
 2. Navigate to **Keys** in the dashboard
 3. Click **Create Key** and copy the key
 4. Add credits to your account (pay-as-you-go model)
-5. Recommended models for LectureLens:
+5. Recommended models for Rosetta:
    - **Embeddings**: `openai/text-embedding-3-large` (both indexing and RAG queries must use same model)
    - **Note Generation**: `anthropic/claude-3-haiku` or `openai/gpt-4o-mini`
    - **Query Enrichment**: `anthropic/claude-3-haiku`

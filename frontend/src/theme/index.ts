@@ -1,6 +1,6 @@
 import { createTheme, alpha } from '@mui/material/styles';
 
-// LectureLens Modern White brand colors
+// Rosetta Modern White brand colors
 const colors = {
   primary: {
     main: '#007E70', // Brand green
@@ -59,9 +59,11 @@ export const customColors = {
     text: '#FFFFFF',
   },
   brandGreen: '#007E70',
-  dropzoneBorder: '#90CAF9', // Light blue for dashed border
+  dropzoneBorder: '#CFCFCF', // Grey for dashed border
   quoteIcon: '#CCCCCC',
   columnDivider: '#CFCFCF',
+  cardBackground: '#E1F5F2', // Light turquoise card background
+  sessionListBackground: '#F3F8F7', // Session list background
 };
 
 export const theme = createTheme({

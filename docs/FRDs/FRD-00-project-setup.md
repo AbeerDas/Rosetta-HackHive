@@ -2,7 +2,7 @@
 
 ## Overview
 
-This FRD establishes the foundational project structure, technology stack, Docker configuration, and development environment for LectureLens. All subsequent features build upon this infrastructure.
+This FRD establishes the foundational project structure, technology stack, Docker configuration, and development environment for Rosetta. All subsequent features build upon this infrastructure.
 
 **Key Design Decisions:**
 
@@ -14,7 +14,7 @@ This FRD establishes the foundational project structure, technology stack, Docke
 
 4. **Type Safety Throughout** — TypeScript on frontend, Pydantic models on backend, with generated API client for end-to-end type safety.
 
-5. **Material UI Design System** — Consistent, accessible UI components with custom theming for the LectureLens brand.
+5. **Material UI Design System** — Consistent, accessible UI components with custom theming for the Rosetta brand.
 
 ---
 

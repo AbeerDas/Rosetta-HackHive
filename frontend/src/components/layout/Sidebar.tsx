@@ -20,21 +20,31 @@ import {
   Tooltip,
   Chip,
   CircularProgress,
+  Menu,
+  MenuItem,
 } from '@mui/material';
-import FolderIcon from '@mui/icons-material/Folder';
-import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ExpandLess from '@mui/icons-material/ExpandLess';
 import ExpandMore from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DescriptionIcon from '@mui/icons-material/Description';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { folderApi, sessionApi } from '../../services/api';
 import { useFolderStore, useLanguageStore } from '../../stores';
 import { customColors } from '../../theme';
 import type { Folder, SessionSummary } from '../../types';
+
+// Folder icon paths
+const folderIcons = [
+  '/icons/folders/BlueFolder.png',
+  '/icons/folders/RedFolder.svg',
+  '/icons/folders/TurqoiseFolder.svg',
+  '/icons/folders/PurpleFolder.png',
+];
 
 interface SidebarProps {
   open: boolean;
@@ -58,6 +68,7 @@ export function Sidebar({ open, width }: SidebarProps) {
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionLanguage, setNewSessionLanguage] = useState('zh');
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ el: HTMLElement; folderId: string } | null>(null);
 
   // Fetch folders
   const { data: folders = [], isLoading } = useQuery({
@@ -72,6 +83,18 @@ export function Sidebar({ open, width }: SidebarProps) {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       setNewFolderDialogOpen(false);
       setNewFolderName('');
+    },
+  });
+
+  // Delete folder mutation
+  const deleteFolderMutation = useMutation({
+    mutationFn: (folderId: string) => folderApi.delete(folderId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      setFolderMenuAnchor(null);
+      if (selectedFolderId === folderMenuAnchor?.folderId) {
+        setSelectedFolderId(null);
+      }
     },
   });
 
@@ -153,7 +176,12 @@ export function Sidebar({ open, width }: SidebarProps) {
           </Box>
         ) : folders.length === 0 ? (
           <Box sx={{ textAlign: 'center', py: 4 }}>
-            <FolderIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+            <Box
+              component="img"
+              src="/icons/folders/BlueFolder.png"
+              alt="Folder"
+              sx={{ width: 48, height: 'auto', mb: 1, opacity: 0.5 }}
+            />
             <Typography variant="body2" color="text.secondary">
               {t.noFoldersYet}
             </Typography>
@@ -176,10 +204,11 @@ export function Sidebar({ open, width }: SidebarProps) {
           </Box>
         ) : (
           <List dense disablePadding>
-            {folders.map((folder) => (
+            {folders.map((folder, index) => (
               <FolderItem
                 key={folder.id}
                 folder={folder}
+                folderIndex={index}
                 isSelected={selectedFolderId === folder.id}
                 isExpanded={expandedFolderIds.has(folder.id)}
                 onClick={() => handleFolderClick(folder)}
@@ -188,6 +217,7 @@ export function Sidebar({ open, width }: SidebarProps) {
                   setSelectedFolderId(folder.id);
                   setNewSessionDialogOpen(true);
                 }}
+                onMenuClick={(el) => setFolderMenuAnchor({ el, folderId: folder.id })}
                 getStatusIcon={getStatusIcon}
                 t={t}
               />
@@ -195,6 +225,25 @@ export function Sidebar({ open, width }: SidebarProps) {
           </List>
         )}
       </Box>
+
+      {/* Folder Menu */}
+      <Menu
+        anchorEl={folderMenuAnchor?.el}
+        open={Boolean(folderMenuAnchor)}
+        onClose={() => setFolderMenuAnchor(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            if (folderMenuAnchor) {
+              deleteFolderMutation.mutate(folderMenuAnchor.folderId);
+            }
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon sx={{ mr: 1, fontSize: 20 }} />
+          {t.deleteFolder || 'Delete Folder'}
+        </MenuItem>
+      </Menu>
 
       {/* New Folder Dialog */}
       <Dialog open={newFolderDialogOpen} onClose={() => setNewFolderDialogOpen(false)}>
@@ -281,22 +330,26 @@ export function Sidebar({ open, width }: SidebarProps) {
 // Folder Item Component
 interface FolderItemProps {
   folder: Folder;
+  folderIndex: number;
   isSelected: boolean;
   isExpanded: boolean;
   onClick: () => void;
   onSessionClick: (sessionId: string) => void;
   onNewSession: () => void;
+  onMenuClick: (el: HTMLElement) => void;
   getStatusIcon: (status: string) => React.ReactNode;
   t: any;
 }
 
 function FolderItem({
   folder,
+  folderIndex,
   isSelected,
   isExpanded,
   onClick,
   onSessionClick,
   onNewSession,
+  onMenuClick,
   getStatusIcon,
   t,
 }: FolderItemProps) {
@@ -311,22 +364,44 @@ function FolderItem({
 
   return (
     <>
-      <ListItem disablePadding secondaryAction={
-        isExpanded && (
-          <Tooltip title={t.startNewSession}>
-            <IconButton edge="end" size="small" onClick={(e) => { e.stopPropagation(); onNewSession(); }}>
-              <AddIcon fontSize="small" />
+      <ListItem 
+        disablePadding 
+        secondaryAction={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Tooltip title={t.startNewSession}>
+              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onNewSession(); }}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <IconButton 
+              size="small" 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onMenuClick(e.currentTarget);
+              }}
+            >
+              <MoreVertIcon fontSize="small" />
             </IconButton>
-          </Tooltip>
-        )
-      }>
-        <ListItemButton selected={isSelected} onClick={onClick}>
+            <IconButton 
+              size="small" 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                onClick();
+              }}
+            >
+              {isExpanded ? <ExpandLess fontSize="small" /> : <ExpandMore fontSize="small" />}
+            </IconButton>
+          </Box>
+        }
+      >
+        <ListItemButton selected={isSelected} onClick={onClick} sx={{ pr: 12 }}>
           <ListItemIcon sx={{ minWidth: 36 }}>
-            {isExpanded ? (
-              <FolderOpenIcon sx={{ color: customColors.brandGreen }} />
-            ) : (
-              <FolderIcon color="action" />
-            )}
+            <Box
+              component="img"
+              src={folderIcons[folderIndex % folderIcons.length]}
+              alt="Folder"
+              sx={{ width: 24, height: 'auto' }}
+            />
           </ListItemIcon>
           <ListItemText
             primary={folder.name}
@@ -334,7 +409,6 @@ function FolderItem({
             primaryTypographyProps={{ noWrap: true, fontWeight: isSelected ? 600 : 400 }}
             secondaryTypographyProps={{ variant: 'caption' }}
           />
-          {isExpanded ? <ExpandLess /> : <ExpandMore />}
         </ListItemButton>
       </ListItem>
 
@@ -343,7 +417,7 @@ function FolderItem({
           {sessions.length === 0 ? (
             <ListItem>
               <ListItemText
-                primary="No sessions yet"
+                primary={t.noSessionsYet || 'No sessions yet'}
                 primaryTypographyProps={{ variant: 'caption', color: 'text.secondary' }}
               />
             </ListItem>

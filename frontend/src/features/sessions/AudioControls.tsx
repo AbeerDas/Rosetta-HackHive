@@ -10,10 +10,11 @@ import {
   Tooltip,
   alpha,
 } from '@mui/material';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import StopIcon from '@mui/icons-material/Stop';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
+import TranslateIcon from '@mui/icons-material/Translate';
 import { useTranslationStore } from '../../stores/translationStore';
 import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { useTranscriptionSocket, useTranslationSocket, TranscriptionMessage, TranslationMessage } from '../../hooks/useWebSocket';
@@ -575,15 +576,15 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
               sx={{
                 width: 48,
                 height: 48,
-                border: '2px solid',
-                borderColor: isActive ? customColors.brandGreen : 'divider',
-                color: isActive ? customColors.brandGreen : 'text.disabled',
+                borderRadius: '50%',
+                bgcolor: isActive ? customColors.brandGreen : 'grey.200',
+                color: isActive ? 'white' : 'text.disabled',
                 '&:hover': {
-                  bgcolor: alpha(customColors.brandGreen, 0.1),
+                  bgcolor: isActive ? '#005F54' : 'grey.300',
                 },
               }}
             >
-              <PlayArrowIcon />
+              <PlayCircleIcon sx={{ fontSize: 28 }} />
             </IconButton>
           </Tooltip>
         ) : (
@@ -593,6 +594,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
               sx={{
                 width: 48,
                 height: 48,
+                borderRadius: '50%',
                 bgcolor: customColors.endSession.background,
                 color: 'white',
                 '&:hover': {
@@ -703,7 +705,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
           </Box>
         </Tooltip>
 
-        {/* Headphone/Translation Status - Uses Idle.svg (which was the old question translation icon) */}
+        {/* Translation Status - Uses TranslateIcon */}
         <Tooltip title={isMuted ? 'Enable Audio' : (translationConnected ? 'Mute Audio' : 'Start session to enable')}>
           <Box
             onClick={() => {
@@ -732,14 +734,10 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
               } : {},
             }}
           >
-            <Box
-              component="img"
-              src="/icons/Idle.svg"
-              alt="Audio"
+            <TranslateIcon
               sx={{ 
-                width: 20, 
-                height: 20,
-                opacity: isMuted ? 0.5 : (translationConnected ? 1 : 0.5),
+                fontSize: 20, 
+                color: isMuted ? 'text.disabled' : (translationConnected ? customColors.brandGreen : 'text.disabled'),
               }}
             />
             <Typography
