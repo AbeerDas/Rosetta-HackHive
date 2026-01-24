@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   Box,
   Paper,
@@ -71,6 +71,10 @@ interface AudioControlsProps {
   sourceLanguage: string;
   targetLanguage: string;
   isActive: boolean;
+}
+
+export interface AudioControlsHandle {
+  stop: () => void;
 }
 
 // Map language codes to Web Speech API locale codes
@@ -177,7 +181,8 @@ function isLikelyEcho(transcript: string, ttsBuffer: TTSBufferEntry[]): boolean 
   return false;
 }
 
-export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isActive }: AudioControlsProps) {
+export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>(
+  function AudioControls({ sessionId, sourceLanguage, targetLanguage, isActive }, ref) {
   const {
     status,
     volume,
@@ -555,6 +560,11 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     updateCurrentSegment('');
   };
 
+  // Expose stop method to parent via ref
+  useImperativeHandle(ref, () => ({
+    stop: handleStop,
+  }), []);
+
   // Sync volume with playback
   useEffect(() => {
     audioPlayback.updateVolume(volume);
@@ -832,3 +842,4 @@ export function AudioControls({ sessionId, sourceLanguage, targetLanguage, isAct
     </Paper>
   );
 }
+);

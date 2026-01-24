@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   Box,
@@ -9,25 +9,74 @@ import {
   Chip,
   CircularProgress,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import StopIcon from '@mui/icons-material/Stop';
 import SettingsIcon from '@mui/icons-material/Settings';
 import TranslateIcon from '@mui/icons-material/Translate';
-import { useQuery } from '@tanstack/react-query';
+import DescriptionIcon from '@mui/icons-material/Description';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
 import { useTranscriptionStore } from '../../stores/transcriptionStore';
 import { TranscriptionPanel } from './TranscriptionPanel';
 import { CitationPanel } from './CitationPanel';
 import { DocumentPanel } from './DocumentPanel';
-import { AudioControls } from './AudioControls';
+import { AudioControls, AudioControlsHandle } from './AudioControls';
 import { QuestionTranslator } from './QuestionTranslator';
+import { NotesPanel } from './NotesPanel';
 
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
+  const queryClient = useQueryClient();
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
+  const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
+  const [showNotesPanel, setShowNotesPanel] = useState(false);
+  const [autoGenerateNotes, setAutoGenerateNotes] = useState(false);
+  const audioControlsRef = useRef<AudioControlsHandle | null>(null);
 
   const isTranscribing = useTranscriptionStore((s) => s.isTranscribing);
+  const clearSegments = useTranscriptionStore((s) => s.clearSegments);
+  const setTranscribing = useTranscriptionStore((s) => s.setTranscribing);
+
+  // End session mutation
+  const endSessionMutation = useMutation({
+    mutationFn: (generateNotes: boolean) =>
+      sessionApi.end(sessionId!, { generate_notes: generateNotes }),
+    onSuccess: (_, generateNotes) => {
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      
+      // Clear transcription state
+      clearSegments();
+      setTranscribing(false);
+      
+      // Close dialog
+      setEndSessionDialogOpen(false);
+      
+      // Show notes panel if generating notes
+      if (generateNotes) {
+        setAutoGenerateNotes(true);
+        setShowNotesPanel(true);
+      }
+    },
+  });
+
+  const handleEndSession = (generateNotes: boolean) => {
+    // Stop transcription if active
+    if (audioControlsRef.current) {
+      audioControlsRef.current.stop();
+    }
+    setTranscribing(false);
+    
+    // Call the API
+    endSessionMutation.mutate(generateNotes);
+  };
 
   // Fetch session details
   const { data: session, isLoading } = useQuery({
@@ -111,6 +160,7 @@ export function SessionPage() {
               color="error"
               size="small"
               startIcon={<StopIcon />}
+              onClick={() => setEndSessionDialogOpen(true)}
             >
               End Session
             </Button>
@@ -118,27 +168,63 @@ export function SessionPage() {
         </Box>
       </Paper>
 
-      {/* Main Content - Three Panel Layout */}
-      <Box sx={{ display: 'flex', flex: 1, gap: 2, overflow: 'hidden' }}>
-        {/* Left Panel - Documents */}
-        <Paper
-          sx={{
-            width: 300,
-            flexShrink: 0,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Documents
-            </Typography>
-          </Box>
-          <DocumentPanel sessionId={sessionId!} />
-        </Paper>
+      {/* End Session Confirmation Dialog */}
+      <Dialog
+        open={endSessionDialogOpen}
+        onClose={() => !endSessionMutation.isPending && setEndSessionDialogOpen(false)}
+      >
+        <DialogTitle>End Session</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Would you like to generate structured notes from the transcription, or save the transcript only?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setEndSessionDialogOpen(false)}
+            disabled={endSessionMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => handleEndSession(false)}
+            disabled={endSessionMutation.isPending}
+          >
+            {endSessionMutation.isPending ? 'Ending...' : 'Save Transcript Only'}
+          </Button>
+          <Button
+            onClick={() => handleEndSession(true)}
+            variant="contained"
+            disabled={endSessionMutation.isPending}
+          >
+            {endSessionMutation.isPending ? 'Ending...' : 'Generate Notes'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {/* Center Panel - Transcription */}
+      {/* Main Content - Two/Three Panel Layout */}
+      <Box sx={{ display: 'flex', flex: 1, gap: 2, overflow: 'hidden' }}>
+        {/* Left Panel - Documents (hidden when showing notes) */}
+        {!showNotesPanel && (
+          <Paper
+            sx={{
+              width: 300,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Documents
+              </Typography>
+            </Box>
+            <DocumentPanel sessionId={sessionId!} />
+          </Paper>
+        )}
+
+        {/* Center Panel - Transcription or Notes */}
         <Paper
           sx={{
             flex: 1,
@@ -157,11 +243,26 @@ export function SessionPage() {
               justifyContent: 'space-between',
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              Live Transcription
-            </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {isTranscribing && (
+              {showNotesPanel ? (
+                <DescriptionIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+              ) : null}
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {showNotesPanel ? 'Lecture Notes' : 'Live Transcription'}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {/* Toggle between Notes and Transcription when session is completed */}
+              {!isActive && (
+                <Button
+                  size="small"
+                  variant={showNotesPanel ? 'outlined' : 'contained'}
+                  onClick={() => setShowNotesPanel(!showNotesPanel)}
+                >
+                  {showNotesPanel ? 'View Transcript' : 'View Notes'}
+                </Button>
+              )}
+              {isTranscribing && !showNotesPanel && (
                 <Chip
                   label="Transcribing"
                   color="success"
@@ -193,7 +294,15 @@ export function SessionPage() {
               )}
             </Box>
           </Box>
-          <TranscriptionPanel />
+          {showNotesPanel ? (
+            <NotesPanel
+              sessionId={sessionId!}
+              sessionName={session.name}
+              autoGenerate={autoGenerateNotes}
+            />
+          ) : (
+            <TranscriptionPanel />
+          )}
         </Paper>
 
         {/* Right Panel - Citations */}
@@ -217,6 +326,7 @@ export function SessionPage() {
 
       {/* Bottom Audio Controls */}
       <AudioControls
+        ref={audioControlsRef}
         sessionId={sessionId!}
         sourceLanguage={session.source_language}
         targetLanguage={session.target_language}
