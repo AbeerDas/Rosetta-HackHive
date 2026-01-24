@@ -2,13 +2,13 @@
 
 ## Overview
 
-Live Transcription Display provides real-time speech-to-text transcription of the professor's lecture using the Google Web Speech API. The transcript appears dynamically in the center panel, with in-text citations inserted by the RAG pipeline. This visual representation complements the audio translation, giving students both auditory and visual access to lecture content.
+Live Transcription Display provides real-time speech-to-text transcription of the professor's lecture using the browser's Web Speech API. The transcript appears dynamically in the center panel, with in-text citations inserted by the RAG pipeline. This visual representation complements the audio translation, giving students both auditory and visual access to lecture content.
 
 **Key Design Decisions:**
 
-1. **Browser-Native Speech Recognition** — Uses Google Web Speech API directly in the browser, eliminating server-side STT costs and latency.
+1. **Browser-Native Speech Recognition** — Uses the Web Speech API directly in the browser, eliminating server-side STT costs and latency.
 
-2. **Parallel to Translation** — Transcription runs independently of and in parallel with the translation pipeline, using the same audio source.
+2. **Parallel to Translation** — Transcription runs independently of and in parallel with the translation pipeline.
 
 3. **In-Text Citation Integration** — RAG citations appear as superscript numbers inline with the transcript text.
 
@@ -101,9 +101,10 @@ After the session ends, the student can reopen the session to view the full tran
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Google Web Speech API Integration
+### Web Speech API Integration
 
 **Configuration:**
+
 - Language: English (en-US)
 - Continuous: true (keeps listening)
 - Interim results: true (show partial results)
@@ -111,37 +112,43 @@ After the session ends, the student can reopen the session to view the full tran
 **Event Handling:**
 
 `onresult`: Fires with recognition results
+
 - `event.results[i].isFinal`: Whether the result is finalized
 - `event.results[i][0].transcript`: The recognized text
 - `event.results[i][0].confidence`: Confidence score (0-1)
 
 `onerror`: Fires on recognition errors
+
 - `no-speech`: No speech detected
 - `audio-capture`: No microphone available
 - `not-allowed`: Permission denied
 - `network`: Network error
 
 `onend`: Recognition stopped
+
 - Auto-restart if session is still active
 
 ### Transcript Segment Management
 
 **Interim Results:**
+
 - Displayed immediately in "current" text area
 - Updated as recognition improves
 - Not sent to backend yet
 
 **Final Results:**
+
 - Marked complete when SpeechRecognition finalizes
 - Added to transcript history
 - Sent to backend for storage and RAG
 
 **Segment Structure:**
+
 ```typescript
 interface TranscriptSegment {
   id: string;
   text: string;
-  startTime: number;  // Relative to session start
+  startTime: number; // Relative to session start
   endTime: number;
   isFinal: boolean;
   confidence: number;
@@ -152,6 +159,7 @@ interface TranscriptSegment {
 ### RAG Integration
 
 When a transcript segment is finalized:
+
 1. Segment is sent to backend via WebSocket
 2. Backend accumulates segments into sliding window
 3. When window is complete (2-3 sentences), RAG query triggers
@@ -159,18 +167,19 @@ When a transcript segment is finalized:
 5. Frontend inserts citation superscripts into the relevant segment
 
 **Citation Insertion Logic:**
+
 - Citations attach to the segment that triggered the RAG query
 - Superscripts appear after the final word of that segment
 - Format: `<sup>1, 2, 3</sup>` with opacity styling
 
 ### Latency Targets
 
-| Stage | Target |
-|-------|--------|
-| Speech to interim text | < 300ms |
-| Interim to final | 500-1500ms (depends on pause detection) |
-| Final to backend | < 100ms |
-| Citation insertion | ~500ms after RAG completes |
+| Stage                  | Target                                  |
+| ---------------------- | --------------------------------------- |
+| Speech to interim text | < 300ms                                 |
+| Interim to final       | 500-1500ms (depends on pause detection) |
+| Final to backend       | < 100ms                                 |
+| Citation insertion     | ~500ms after RAG completes              |
 
 ---
 
@@ -183,6 +192,7 @@ WebSocket /api/v1/transcribe/stream
 ```
 
 **Connection Parameters:**
+
 ```
 session_id: UUID (required)
 ```
@@ -241,6 +251,7 @@ POST /api/v1/sessions/{session_id}/transcript
 ```
 
 Request Schema:
+
 ```
 {
   text: string (required),
@@ -251,6 +262,7 @@ Request Schema:
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -268,6 +280,7 @@ GET /api/v1/sessions/{session_id}/transcript
 ```
 
 Response Schema:
+
 ```
 {
   segments: [
@@ -353,6 +366,7 @@ The transcription panel occupies the center of the session view:
 ```
 
 **Panel Header:**
+
 - Title: "Live Transcription"
 - Font size button (Aa): Opens accessibility settings
 - Pause button (⏸): Pause/resume transcription
@@ -361,17 +375,20 @@ The transcription panel occupies the center of the session view:
 ### Text Display
 
 **Finalized Segments:**
+
 - Standard body text styling
 - Timestamp markers at start of significant segments
 - Citation superscripts inline with text
 - Click to select and highlight
 
 **Current Segment:**
+
 - Highlighted with subtle background color
 - "Typing" effect as words appear
 - No citations yet (appear after finalization)
 
 **Auto-Scroll:**
+
 - Panel scrolls automatically to show latest content
 - User scroll up disables auto-scroll (shows "Jump to Latest" button)
 - Scrolling to bottom re-enables auto-scroll
@@ -379,6 +396,7 @@ The transcription panel occupies the center of the session view:
 ### Citation Superscripts
 
 **Appearance:**
+
 - Superscript numbers: ¹ ² ³
 - Relevance-based opacity:
   - Rank 1: 100% opacity (darkest)
@@ -386,31 +404,37 @@ The transcription panel occupies the center of the session view:
   - Rank 3: 50% opacity (lightest)
 
 **Hover Behavior:**
+
 - Tooltip shows: "Document Name, page X"
 - 200ms delay before tooltip appears
 
 **Click Behavior:**
+
 - Scrolls citation panel to show details
 - Highlights the clicked citation card
 
 ### Accessibility Settings
 
 **Font Size:**
+
 - Range: 14px to 24px
 - Default: 16px
 - Persisted in user preferences
 
 **High Contrast Mode:**
+
 - Increases text/background contrast
 - Uses accessible color palette
 
 **Line Spacing:**
+
 - Options: Normal, Wide, Extra Wide
 - Default: Normal
 
 ### State Management
 
 **Client State (Zustand):**
+
 ```typescript
 interface TranscriptionState {
   segments: TranscriptSegment[];
@@ -420,7 +444,7 @@ interface TranscriptionState {
   autoScroll: boolean;
   fontSize: number;
   highContrast: boolean;
-  
+
   // Actions
   addSegment: (segment: TranscriptSegment) => void;
   updateCurrentSegment: (text: string) => void;
@@ -431,6 +455,7 @@ interface TranscriptionState {
 ```
 
 **Speech Recognition Hook:**
+
 ```typescript
 function useSpeechRecognition() {
   return {
@@ -449,14 +474,15 @@ function useSpeechRecognition() {
 
 ### Browser Compatibility
 
-| Browser | Support |
-|---------|---------|
-| Chrome | Full support |
-| Edge | Full support |
-| Safari | Partial (no continuous mode) |
-| Firefox | Not supported |
+| Browser | Support                      |
+| ------- | ---------------------------- |
+| Chrome  | Full support                 |
+| Edge    | Full support                 |
+| Safari  | Partial (no continuous mode) |
+| Firefox | Not supported                |
 
 **Unsupported Browser:**
+
 - Display message: "Live transcription requires Chrome or Edge"
 - Provide alternative: Manual notes mode
 
@@ -476,11 +502,11 @@ async def transcription_stream(
 ):
     await websocket.accept()
     window_buffer = SlidingWindowBuffer()
-    
+
     try:
         async for message in websocket.iter_text():
             data = json.loads(message)
-            
+
             if data["type"] == "segment":
                 # Save segment
                 segment = await transcript_service.save_segment(
@@ -490,10 +516,10 @@ async def transcription_stream(
                     "type": "segment_saved",
                     "segment_id": str(segment.id)
                 })
-                
+
                 # Add to window buffer
                 window_buffer.add(segment)
-                
+
                 # Check if RAG should trigger
                 if window_buffer.is_complete():
                     citations = await rag_service.query(
@@ -508,7 +534,7 @@ async def transcription_stream(
                         "citations": [c.dict() for c in citations]
                     })
                     window_buffer.advance()
-                    
+
     except WebSocketDisconnect:
         pass
 ```
@@ -516,6 +542,7 @@ async def transcription_stream(
 ### Service Layer
 
 **TranscriptService:**
+
 ```python
 class TranscriptService:
     def save_segment(self, session_id: UUID, segment: SegmentCreate) -> Transcript
@@ -526,6 +553,7 @@ class TranscriptService:
 ### Repository Layer
 
 **TranscriptRepository:**
+
 ```python
 class TranscriptRepository:
     def create(self, session_id: UUID, segment: SegmentCreate) -> Transcript
@@ -541,18 +569,18 @@ class SlidingWindowBuffer:
         self.segments: list[Transcript] = []
         self.target_sentences = target_sentences
         self.index = 0
-    
+
     def add(self, segment: Transcript) -> None:
         self.segments.append(segment)
-    
+
     def is_complete(self) -> bool:
         text = self.get_text()
         sentence_count = len(re.findall(r'[.!?]', text))
         return sentence_count >= self.target_sentences
-    
+
     def get_text(self) -> str:
         return " ".join(s.text for s in self.segments)
-    
+
     def advance(self) -> None:
         # Keep last segment for overlap
         if self.segments:
@@ -562,11 +590,11 @@ class SlidingWindowBuffer:
 
 ### Error Handling
 
-| Scenario | Handling |
-|----------|----------|
-| WebSocket disconnect | Clean up, no error |
-| Invalid segment format | Skip segment, log warning |
-| Database write failure | Return error, client retries |
+| Scenario                | Handling                     |
+| ----------------------- | ---------------------------- |
+| WebSocket disconnect    | Clean up, no error           |
+| Invalid segment format  | Skip segment, log warning    |
+| Database write failure  | Return error, client retries |
 | RAG service unavailable | Save segment, skip citations |
 
 ---
@@ -576,6 +604,7 @@ class SlidingWindowBuffer:
 ### Segment Batching
 
 To reduce database writes:
+
 - Buffer segments client-side for 2-3 seconds
 - Send as batch if multiple segments complete quickly
 - Individual sends for slow speech
@@ -589,7 +618,7 @@ To reduce database writes:
 ### Transcript Virtualization
 
 For long lectures:
+
 - Virtualize transcript list (only render visible segments)
 - Lazy load older segments on scroll up
 - Keep ~100 segments in memory at a time
-

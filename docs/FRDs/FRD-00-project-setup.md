@@ -82,41 +82,42 @@ lecturelens/
 
 ### Frontend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **React** | 18.x | UI framework |
-| **TypeScript** | 5.x | Type-safe JavaScript |
-| **Vite** | 5.x | Build tool and dev server |
-| **Material UI** | 5.x | Component library |
-| **React Router** | 6.x | Client-side routing |
-| **TanStack Query** | 5.x | Server state management |
-| **Zustand** | 4.x | Client state management |
-| **TipTap** | 2.x | Rich text editor |
-| **react-pdf** | 7.x | PDF rendering and export |
+| Technology         | Version | Purpose                   |
+| ------------------ | ------- | ------------------------- |
+| **React**          | 18.x    | UI framework              |
+| **TypeScript**     | 5.x     | Type-safe JavaScript      |
+| **Vite**           | 5.x     | Build tool and dev server |
+| **Material UI**    | 5.x     | Component library         |
+| **React Router**   | 6.x     | Client-side routing       |
+| **TanStack Query** | 5.x     | Server state management   |
+| **Zustand**        | 4.x     | Client state management   |
+| **TipTap**         | 2.x     | Rich text editor          |
+| **react-pdf**      | 7.x     | PDF rendering and export  |
 
 ### Backend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **FastAPI** | 0.109+ | Web framework |
-| **Python** | 3.11+ | Runtime |
-| **Pydantic** | 2.x | Data validation and serialization |
-| **SQLAlchemy** | 2.x | ORM for PostgreSQL |
-| **Alembic** | 1.x | Database migrations |
-| **Uvicorn** | 0.27+ | ASGI server |
-| **httpx** | 0.26+ | Async HTTP client |
-| **python-multipart** | 0.x | File upload handling |
-| **PyPDF2** | 3.x | PDF text extraction |
-| **sentence-transformers** | 2.x | Cross-encoder re-ranking |
+| Technology                | Version | Purpose                           |
+| ------------------------- | ------- | --------------------------------- |
+| **FastAPI**               | 0.109+  | Web framework                     |
+| **Python**                | 3.11+   | Runtime                           |
+| **Pydantic**              | 2.x     | Data validation and serialization |
+| **SQLAlchemy**            | 2.x     | ORM for PostgreSQL                |
+| **Alembic**               | 1.x     | Database migrations               |
+| **Uvicorn**               | 0.27+   | ASGI server                       |
+| **httpx**                 | 0.26+   | Async HTTP client                 |
+| **python-multipart**      | 0.x     | File upload handling              |
+| **PyPDF2**                | 3.x     | PDF text extraction               |
+| **sentence-transformers** | 2.x     | Embeddings and re-ranking         |
+| **keybert**               | 0.x     | Keyword extraction                |
 
 ### Infrastructure
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **PostgreSQL** | 16 | Relational database |
-| **Chroma** | 0.4+ | Vector database |
-| **Docker** | 24+ | Container runtime |
-| **Docker Compose** | 2.20+ | Service orchestration |
+| Technology         | Version | Purpose               |
+| ------------------ | ------- | --------------------- |
+| **PostgreSQL**     | 16      | Relational database   |
+| **Chroma**         | 0.4+    | Vector database       |
+| **Docker**         | 24+     | Container runtime     |
+| **Docker Compose** | 2.20+   | Service orchestration |
 
 ---
 
@@ -125,12 +126,14 @@ lecturelens/
 ### Services
 
 **PostgreSQL Container:**
+
 - Image: `postgres:16-alpine`
 - Port: 5432
 - Persistent volume for data
 - Health check enabled
 
 **Chroma Container:**
+
 - Image: `chromadb/chroma:latest`
 - Port: 8000
 - Persistent volume for embeddings
@@ -178,6 +181,7 @@ volumes:
 ### Layer Responsibilities
 
 **Controller Layer (app/api/routes/):**
+
 - Define API endpoints with FastAPI decorators
 - Handle request/response serialization via Pydantic schemas
 - Validate input parameters
@@ -185,18 +189,21 @@ volumes:
 - Return appropriate HTTP status codes
 
 **Service Layer (app/services/):**
+
 - Implement business logic
 - Orchestrate calls to repositories and external APIs
 - Handle transactions and error recovery
 - Enforce business rules and validation
 
 **Repository Layer (app/repositories/):**
+
 - Abstract database operations
 - Execute SQLAlchemy queries
 - Handle Chroma vector operations
 - Provide clean interfaces for data access
 
 **External Layer (app/external/):**
+
 - Wrap external API clients (ElevenLabs, OpenRouter)
 - Handle authentication and error mapping
 - Implement retry logic and rate limiting
@@ -231,6 +238,7 @@ def get_folder_service(
 ### Standard Response Formats
 
 **Success Response:**
+
 ```json
 {
   "data": { ... },
@@ -239,6 +247,7 @@ def get_folder_service(
 ```
 
 **Error Response:**
+
 ```json
 {
   "detail": "Error description",
@@ -249,24 +258,24 @@ def get_folder_service(
 
 ### Common HTTP Status Codes
 
-| Code | Usage |
-|------|-------|
-| 200 | Successful GET, PUT |
-| 201 | Successful POST (resource created) |
-| 204 | Successful DELETE |
-| 400 | Validation error, bad request |
-| 401 | Authentication required |
-| 404 | Resource not found |
-| 422 | Unprocessable entity (Pydantic validation) |
-| 500 | Internal server error |
+| Code | Usage                                      |
+| ---- | ------------------------------------------ |
+| 200  | Successful GET, PUT                        |
+| 201  | Successful POST (resource created)         |
+| 204  | Successful DELETE                          |
+| 400  | Validation error, bad request              |
+| 401  | Authentication required                    |
+| 404  | Resource not found                         |
+| 422  | Unprocessable entity (Pydantic validation) |
+| 500  | Internal server error                      |
 
 ### Health Endpoints
 
-| Endpoint | Purpose |
-|----------|---------|
-| `GET /health` | Basic health check |
-| `GET /health/db` | Database connectivity |
-| `GET /health/chroma` | Chroma connectivity |
+| Endpoint                 | Purpose                     |
+| ------------------------ | --------------------------- |
+| `GET /health`            | Basic health check          |
+| `GET /health/db`         | Database connectivity       |
+| `GET /health/chroma`     | Chroma connectivity         |
 | `GET /health/elevenlabs` | ElevenLabs API key validity |
 | `GET /health/openrouter` | OpenRouter API key validity |
 
@@ -277,11 +286,13 @@ def get_folder_service(
 ### Component Organization
 
 **components/** — Reusable, stateless UI components:
+
 - Layout components (Header, Sidebar, Panel)
 - Form components (Input, Select, Button)
 - Display components (Card, List, Modal)
 
 **features/** — Feature-specific modules with co-located components, hooks, and logic:
+
 - folders/ — Folder management UI
 - sessions/ — Session management UI
 - documents/ — Document upload and management
@@ -294,11 +305,13 @@ def get_folder_service(
 ### State Management
 
 **Server State (TanStack Query):**
+
 - API data fetching and caching
 - Optimistic updates
 - Background refetching
 
 **Client State (Zustand):**
+
 - UI state (sidebar open/closed)
 - Audio playback state
 - Session recording state
@@ -326,15 +339,15 @@ interface ApiClient {
 
 ### Core Tables
 
-| Table | Purpose |
-|-------|---------|
-| `folders` | Course/subject organization |
-| `sessions` | Lecture recording sessions |
-| `documents` | Uploaded PDF metadata |
+| Table             | Purpose                                             |
+| ----------------- | --------------------------------------------------- |
+| `folders`         | Course/subject organization                         |
+| `sessions`        | Lecture recording sessions                          |
+| `documents`       | Uploaded PDF metadata                               |
 | `document_chunks` | Chunked document segments with embeddings reference |
-| `transcripts` | Session transcription segments |
-| `citations` | Retrieved citations per transcript segment |
-| `notes` | Generated lecture notes |
+| `transcripts`     | Session transcription segments                      |
+| `citations`       | Retrieved citations per transcript segment          |
+| `notes`           | Generated lecture notes                             |
 
 ### Relationships
 
@@ -354,23 +367,23 @@ documents (1) ──── (n) session_documents
 
 ### Required Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable             | Description                             |
+| -------------------- | --------------------------------------- |
 | `ELEVENLABS_API_KEY` | ElevenLabs API key for speech-to-speech |
-| `OPENROUTER_API_KEY` | OpenRouter API key for LLM access |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `CHROMA_HOST` | Chroma server hostname |
-| `CHROMA_PORT` | Chroma server port |
+| `OPENROUTER_API_KEY` | OpenRouter API key for LLM access       |
+| `DATABASE_URL`       | PostgreSQL connection string            |
+| `CHROMA_HOST`        | Chroma server hostname                  |
+| `CHROMA_PORT`        | Chroma server port                      |
 
 ### Optional Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed frontend origins |
-| `DEBUG` | `true` | Enable debug mode |
-| `LOG_LEVEL` | `INFO` | Logging verbosity |
-| `EMBEDDING_MODEL_REALTIME` | `openai/text-embedding-3-large` | Model for real-time RAG queries (must match indexing) |
-| `EMBEDDING_MODEL_INDEXING` | `openai/text-embedding-3-large` | Model for document indexing |
+| Variable          | Default                                  | Description              |
+| ----------------- | ---------------------------------------- | ------------------------ |
+| `CORS_ORIGINS`    | `http://localhost:5173`                  | Allowed frontend origins |
+| `DEBUG`           | `true`                                   | Enable debug mode        |
+| `LOG_LEVEL`       | `INFO`                                   | Logging verbosity        |
+| `EMBEDDING_MODEL` | `BAAI/bge-base-en-v1.5`                  | Local embedding model    |
+| `RERANKER_MODEL`  | `cross-encoder/ms-marco-TinyBERT-L-2-v2` | Cross-encoder model      |
 
 ---
 
@@ -378,25 +391,26 @@ documents (1) ──── (n) session_documents
 
 ### Backend (Python)
 
-| Tool | Purpose |
-|------|---------|
-| **Ruff** | Linting and formatting |
-| **mypy** | Static type checking |
-| **pytest** | Testing framework |
-| **pytest-cov** | Coverage reporting |
+| Tool           | Purpose                |
+| -------------- | ---------------------- |
+| **Ruff**       | Linting and formatting |
+| **mypy**       | Static type checking   |
+| **pytest**     | Testing framework      |
+| **pytest-cov** | Coverage reporting     |
 
 ### Frontend (TypeScript)
 
-| Tool | Purpose |
-|------|---------|
-| **ESLint** | Linting |
-| **Prettier** | Code formatting |
-| **TypeScript** | Type checking |
-| **Vitest** | Testing framework |
+| Tool           | Purpose           |
+| -------------- | ----------------- |
+| **ESLint**     | Linting           |
+| **Prettier**   | Code formatting   |
+| **TypeScript** | Type checking     |
+| **Vitest**     | Testing framework |
 
 ### Git Hooks
 
 Pre-commit hooks for:
+
 - Linting (Ruff, ESLint)
 - Formatting (Ruff, Prettier)
 - Type checking (mypy, tsc)
@@ -523,4 +537,3 @@ python-dotenv>=1.0.0
   }
 }
 ```
-

@@ -49,26 +49,30 @@ The lecture has ended. The student clicks the "End Session" button in the sessio
 ### Folder Operations
 
 **Create Folder:**
-- Validates name is non-empty and unique for the user
+
+- Validates name is non-empty
 - Creates folder record with current timestamp
 - Returns created folder with ID
 
 **List Folders:**
-- Returns all non-archived folders for the user
+
+- Returns all non-archived folders
 - Ordered alphabetically by name
 - Includes session count per folder
 
 **Get Folder:**
+
 - Returns folder details with list of sessions
 - Sessions ordered by start date descending
 - Includes session metadata (name, dates, status, has_notes)
 
 **Update Folder:**
+
 - Updates folder name
-- Validates new name is unique for the user
 - Returns updated folder
 
 **Delete Folder:**
+
 - Soft-deletes folder (sets archived_at timestamp)
 - Cascades archive to all sessions in folder
 - Sessions retain their data for potential recovery
@@ -76,22 +80,26 @@ The lecture has ended. The student clicks the "End Session" button in the sessio
 ### Session Operations
 
 **Create Session:**
+
 - Validates folder exists and is not archived
 - Creates session in "active" state
 - Sets started_at to current timestamp
 - Returns created session with ID
 
 **Get Session:**
+
 - Returns full session details
 - Includes linked documents
 - Includes notes if generated
 
 **Update Session:**
+
 - Updates session name
 - Cannot change folder_id after creation
 - Returns updated session
 
 **End Session:**
+
 - Validates session is in "active" state
 - Sets ended_at to current timestamp
 - Changes status to "completed"
@@ -99,6 +107,7 @@ The lecture has ended. The student clicks the "End Session" button in the sessio
 - Returns completed session
 
 **Delete Session:**
+
 - Soft-deletes session (sets archived_at timestamp)
 - Retains all associated data for recovery
 - Does not delete linked documents (they may be used elsewhere)
@@ -130,11 +139,13 @@ The lecture has ended. The student clicks the "End Session" button in the sessio
 ### Folders
 
 **List Folders**
+
 ```
 GET /api/v1/folders
 ```
 
 Response Schema:
+
 ```
 {
   folders: [
@@ -150,11 +161,13 @@ Response Schema:
 ```
 
 **Create Folder**
+
 ```
 POST /api/v1/folders
 ```
 
 Request Schema:
+
 ```
 {
   name: string (required, max 255 chars)
@@ -162,6 +175,7 @@ Request Schema:
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -173,11 +187,13 @@ Response Schema:
 ```
 
 **Get Folder**
+
 ```
 GET /api/v1/folders/{folder_id}
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -201,11 +217,13 @@ Response Schema:
 ```
 
 **Update Folder**
+
 ```
 PUT /api/v1/folders/{folder_id}
 ```
 
 Request Schema:
+
 ```
 {
   name: string (required, max 255 chars)
@@ -213,6 +231,7 @@ Request Schema:
 ```
 
 **Delete Folder**
+
 ```
 DELETE /api/v1/folders/{folder_id}
 ```
@@ -222,11 +241,13 @@ Response: 204 No Content
 ### Sessions
 
 **Create Session**
+
 ```
 POST /api/v1/folders/{folder_id}/sessions
 ```
 
 Request Schema:
+
 ```
 {
   name: string (required, max 255 chars),
@@ -236,6 +257,7 @@ Request Schema:
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -251,11 +273,13 @@ Response Schema:
 ```
 
 **Get Session**
+
 ```
 GET /api/v1/sessions/{session_id}
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -279,11 +303,13 @@ Response Schema:
 ```
 
 **Update Session**
+
 ```
 PUT /api/v1/sessions/{session_id}
 ```
 
 Request Schema:
+
 ```
 {
   name: string (optional, max 255 chars)
@@ -291,11 +317,13 @@ Request Schema:
 ```
 
 **End Session**
+
 ```
 POST /api/v1/sessions/{session_id}/end
 ```
 
 Request Schema:
+
 ```
 {
   generate_notes: boolean (default: false)
@@ -303,6 +331,7 @@ Request Schema:
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -313,6 +342,7 @@ Response Schema:
 ```
 
 **Delete Session**
+
 ```
 DELETE /api/v1/sessions/{session_id}
 ```
@@ -373,6 +403,7 @@ Folder (1) ──────────── (n) Session
 The sidebar displays a tree of folders with expandable sections for sessions.
 
 **Folder List:**
+
 - Folders sorted alphabetically by name
 - Each folder shows name and session count badge
 - Click to expand and show sessions
@@ -380,6 +411,7 @@ The sidebar displays a tree of folders with expandable sections for sessions.
 - "New Folder" button at the bottom
 
 **Session List (within folder):**
+
 - Sessions sorted by date (newest first)
 - Each session shows name, date, and status icon
 - Active sessions highlighted with pulsing indicator
@@ -390,6 +422,7 @@ The sidebar displays a tree of folders with expandable sections for sessions.
 ### Folder/Session Cards
 
 **Session Card Contents:**
+
 - Session name (editable on double-click)
 - Date and time
 - Duration (if completed)
@@ -400,11 +433,13 @@ The sidebar displays a tree of folders with expandable sections for sessions.
 ### State Management
 
 **Client State (Zustand):**
+
 - `selectedFolderId`: Currently selected folder
 - `expandedFolderIds`: Set of expanded folder IDs
 - `sidebarWidth`: Resizable sidebar width
 
 **Server State (TanStack Query):**
+
 - `useFolders()`: List of all folders
 - `useFolder(folderId)`: Single folder with sessions
 - `useSession(sessionId)`: Single session details
@@ -419,10 +454,12 @@ The sidebar displays a tree of folders with expandable sections for sessions.
 ### Empty States
 
 **No Folders:**
+
 - Large illustration with "Create your first folder" prompt
 - Prominent "New Folder" button
 
 **Empty Folder:**
+
 - Message: "No sessions yet"
 - "Start a Session" button
 
@@ -439,6 +476,7 @@ The sidebar displays a tree of folders with expandable sections for sessions.
 ### Repository Layer
 
 **FolderRepository:**
+
 ```python
 class FolderRepository:
     def list_all(self, include_archived: bool = False) -> list[Folder]
@@ -451,6 +489,7 @@ class FolderRepository:
 ```
 
 **SessionRepository:**
+
 ```python
 class SessionRepository:
     def get_by_id(self, session_id: UUID) -> Session | None
@@ -465,6 +504,7 @@ class SessionRepository:
 ### Service Layer
 
 **FolderService:**
+
 ```python
 class FolderService:
     def list_folders(self) -> list[FolderSummary]
@@ -475,6 +515,7 @@ class FolderService:
 ```
 
 **SessionService:**
+
 ```python
 class SessionService:
     def get_session(self, session_id: UUID) -> SessionDetail
@@ -487,28 +528,28 @@ class SessionService:
 ### Validation Rules
 
 **Folder Name:**
+
 - Required, non-empty
 - Maximum 255 characters
-- Must be unique (case-insensitive)
 - Trimmed of leading/trailing whitespace
 
 **Session Name:**
+
 - Required, non-empty
 - Maximum 255 characters
 - Trimmed of leading/trailing whitespace
 
 **Language Codes:**
+
 - Must be valid ISO 639-1 codes
 - Must be in supported language list: en, hi, zh, fr, es, bn
 
 ### Error Responses
 
-| Scenario | Status | Code |
-|----------|--------|------|
-| Folder name already exists | 409 | FOLDER_NAME_EXISTS |
-| Folder not found | 404 | FOLDER_NOT_FOUND |
-| Session not found | 404 | SESSION_NOT_FOUND |
-| Session not active (for end) | 400 | SESSION_NOT_ACTIVE |
-| Invalid language code | 400 | INVALID_LANGUAGE |
-| Folder is archived | 400 | FOLDER_ARCHIVED |
-
+| Scenario                     | Status | Code               |
+| ---------------------------- | ------ | ------------------ |
+| Folder not found             | 404    | FOLDER_NOT_FOUND   |
+| Session not found            | 404    | SESSION_NOT_FOUND  |
+| Session not active (for end) | 400    | SESSION_NOT_ACTIVE |
+| Invalid language code        | 400    | INVALID_LANGUAGE   |
+| Folder is archived           | 400    | FOLDER_ARCHIVED    |

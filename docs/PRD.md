@@ -9,8 +9,9 @@ Rosetta is a real-time lecture translation and learning assistant that breaks do
 **Core Value Proposition:** Enable equitable classroom participation regardless of native language through AI-powered real-time translation with contextual learning support.
 
 **Key Capabilities:**
-- Real-time speech translation via ElevenLabs Speech-to-Speech API
-- Live transcription display via Google Web Speech API
+
+- Real-time text translation via OpenRouter LLM + ElevenLabs Text-to-Speech
+- Live transcription display via Web Speech API (browser-native)
 - RAG-powered citation retrieval from uploaded course materials (PDFs)
 - Folder-based organization for sessions and notes
 - Post-lecture structured note generation with embedded citations
@@ -36,20 +37,20 @@ International and ESL students face significant barriers when attending lectures
 
 Existing solutions fail to address the complete problem:
 
-| Solution | Limitation |
-|----------|------------|
-| Live human interpreters | Expensive, not scalable, unavailable for most courses |
-| Post-lecture transcription | No real-time benefit; students still lost during class |
-| Generic translation apps | No course context; cannot align with learning materials |
-| Recorded lecture translation | Delays learning; no immediate engagement |
+| Solution                     | Limitation                                              |
+| ---------------------------- | ------------------------------------------------------- |
+| Live human interpreters      | Expensive, not scalable, unavailable for most courses   |
+| Post-lecture transcription   | No real-time benefit; students still lost during class  |
+| Generic translation apps     | No course context; cannot align with learning materials |
+| Recorded lecture translation | Delays learning; no immediate engagement                |
 
 ### AI-First Justification
 
 LectureLens requires sophisticated multi-model AI orchestration that goes far beyond basic API calls:
 
-1. **Parallel Speech Processing**: Simultaneous speech-to-text (for transcription/RAG) and speech-to-speech translation (for audio output)
-2. **Real-Time Semantic Understanding**: Sliding window embedding of professor speech for contextual RAG queries
-3. **Agentic RAG Pipeline**: Keyword extraction, query enrichment, semantic search, and re-ranking to surface the 3 most relevant course documents
+1. **Parallel Speech Processing**: Simultaneous speech-to-text (for transcription/RAG) and text translation with TTS (for audio output)
+2. **Real-Time Semantic Understanding**: Sliding window processing of transcript for contextual RAG queries
+3. **Optimized RAG Pipeline**: KeyBERT keyword extraction, local BGE embeddings, ChromaDB search, and TinyBERT cross-encoder re-ranking
 4. **Citation Alignment**: Matching English course materials to translated output with page references
 5. **Intelligent Summarization**: LLM-powered note generation that preserves structure and citations
 
@@ -97,12 +98,14 @@ After the lecture concludes, students can generate comprehensive, structured not
 - Spends 2-3 hours after each lecture reviewing and reconstructing notes
 
 **Needs:**
+
 - Understand lecture content in real-time without cognitive translation burden
 - Connect spoken concepts to course readings
 - Generate comprehensive notes for later review
 - Ask questions in class without language anxiety
 
 **Success Criteria:**
+
 - Can follow along with lecture in Mandarin while professor speaks English
 - Relevant textbook pages appear automatically when professor discusses concepts
 - Post-lecture notes capture all key points with proper citations
@@ -118,11 +121,13 @@ After the lecture concludes, students can generate comprehensive, structured not
 - Wants to improve English while still understanding content
 
 **Needs:**
+
 - Live transcription to follow along visually while listening
 - Quick reference to course materials during confusing explanations
 - Study notes that help reinforce both subject matter and English vocabulary
 
 **Success Criteria:**
+
 - Sees real-time transcription appearing as professor speaks
 - Can click on citations to review relevant course material sections
 - Notes include original English terms alongside Hindi explanations
@@ -136,11 +141,13 @@ After the lecture concludes, students can generate comprehensive, structured not
 - Concerned about privacy, scalability, and ease of deployment
 
 **Needs:**
+
 - Solution that works across multiple departments and courses
 - Clear data handling policies for compliance
 - Minimal setup burden for students and faculty
 
 **Success Criteria:**
+
 - Students can self-serve without IT intervention
 - System supports multiple language pairs
 - Clear documentation on data retention and privacy
@@ -158,41 +165,41 @@ flowchart TB
     subgraph input [Audio Input]
         MIC[Microphone/Audio Stream]
     end
-    
+
     subgraph parallel [Parallel Processing]
         direction LR
         subgraph stt [Speech-to-Text Pipeline]
-            GWSAPI[Google Web Speech API]
+            GWSAPI[Web Speech API]
             TRANSCRIPT[Real-time Transcript]
             GWSAPI --> TRANSCRIPT
         end
-        
+
         subgraph translation [Translation Pipeline]
-            ELEVEN[ElevenLabs Speech-to-Speech]
+            ELEVEN[OpenRouter + ElevenLabs TTS]
             AUDIO_OUT[Translated Audio Output]
             ELEVEN --> AUDIO_OUT
         end
     end
-    
+
     subgraph rag [RAG Pipeline]
         WINDOW[Sliding Window 2-3 sentences]
         EMBED[Lightweight Embedding]
         SEARCH[Vector DB Search]
         RERANK[Re-ranker 10 to 3]
         CITATIONS[Top 3 Citations with Page Refs]
-        
+
         WINDOW --> EMBED
         EMBED --> SEARCH
         SEARCH --> RERANK
         RERANK --> CITATIONS
     end
-    
+
     subgraph output [User Interface]
         TRANSCRIPTION[Live Transcription with In-Text Citations]
         SPEAKER[Audio Speaker]
         SIDEBAR[Citation Details Panel]
     end
-    
+
     MIC --> GWSAPI
     MIC --> ELEVEN
     TRANSCRIPT --> TRANSCRIPTION
@@ -204,14 +211,15 @@ flowchart TB
 
 ### Pipeline Timing Targets
 
-| Stage | Target Latency |
-|-------|----------------|
-| Speech-to-Text (Google Web Speech) | < 300ms |
-| Speech-to-Speech Translation (ElevenLabs) | < 2000ms |
-| Sliding Window Accumulation | ~5-10 seconds (2-3 sentences) |
-| Embedding Generation | < 100ms |
-| Vector Search + Re-ranking | < 200ms |
-| Total RAG Pipeline | < 500ms after window completion |
+| Stage                           | Target Latency                 |
+| ------------------------------- | ------------------------------ |
+| Speech-to-Text (Web Speech API) | < 300ms                        |
+| Text Translation (OpenRouter)   | < 1000ms                       |
+| Text-to-Speech (ElevenLabs)     | < 1000ms                       |
+| Sliding Window Accumulation     | ~5-10 seconds (2-3 sentences)  |
+| Local Embedding Generation      | < 50ms                         |
+| Vector Search + Re-ranking      | < 100ms                        |
+| Total RAG Pipeline              | ~100ms after window completion |
 
 ---
 
@@ -219,31 +227,35 @@ flowchart TB
 
 ### Feature 1: Real-Time Speech Translation
 
-**Description:** Capture professor speech via microphone and output natural-sounding translated audio through ElevenLabs Speech-to-Speech API.
+**Description:** Capture professor speech via browser Web Speech API, translate text via OpenRouter LLM, and output natural-sounding audio through ElevenLabs Text-to-Speech.
 
 **Requirements:**
-- Continuous audio capture from device microphone or system audio
-- Real-time streaming to ElevenLabs Speech-to-Speech API
-- Natural voice synthesis in target language (not robotic TTS)
+
+- Browser-based speech recognition via Web Speech API
+- Real-time text translation via OpenRouter (Claude 3 Haiku)
+- Natural voice synthesis via ElevenLabs TTS (eleven_turbo_v2_5 model)
 - Audio output through device speakers or headphones
 - Volume control and mute functionality
-- Language selection from supported options
+- Voice selection from ElevenLabs available voices
+- Echo detection to prevent TTS audio from being re-transcribed
 
-**Supported Language Pairs:**
-- English ↔ Hindi
-- English ↔ Chinese (Mandarin)
-- English ↔ French
-- English ↔ Spanish
-- English ↔ Bengali
+**Supported Target Languages:**
+
+- Chinese (Mandarin) - zh
+- Hindi - hi
+- Spanish - es
+- French - fr
+- Bengali - bn
 
 **Latency Target:** Less than 2 seconds from speech to translated audio output
 
 ### Feature 2: Live Transcription Display
 
-**Description:** Display real-time voice-to-text transcription as the professor speaks, rendered dynamically in a dedicated panel using Google Web Speech API, with in-text citations from the RAG pipeline.
+**Description:** Display real-time voice-to-text transcription as the professor speaks, rendered dynamically in a dedicated panel using the browser's Web Speech API, with in-text citations from the RAG pipeline.
 
 **Requirements:**
-- Real-time speech-to-text via Google Web Speech API
+
+- Real-time speech-to-text via Web Speech API (browser-native)
 - Live transcription appearing word-by-word or phrase-by-phrase as detected
 - Dedicated center panel for transcription display
 - **In-text citations:** Superscript citation numbers appear inline after relevant segments (e.g., "...fundamental theorem...<sup>1, 2, 3</sup>")
@@ -255,6 +267,7 @@ flowchart TB
 - Timestamp markers for key segments
 
 **Visual Design:**
+
 - Text appears dynamically as speech is detected, creating a "typing" effect
 - Current sentence highlighted or distinguished from previous content
 - Citation numbers styled as clickable superscripts with hover effects
@@ -268,6 +281,7 @@ flowchart TB
 **Description:** Allow users to upload, view, and manage course materials (PDF documents) that are automatically chunked, embedded, and indexed for RAG retrieval.
 
 **Requirements:**
+
 - Support for PDF file uploads (text-based documents only, no slides)
 - Automatic text extraction with page number preservation
 - Intelligent chunking with appropriate segment sizes
@@ -280,6 +294,7 @@ flowchart TB
   - **Delete**: Remove documents and their associated embeddings
 
 **Document Management UI (Side Panel):**
+
 - List view of all uploaded documents
 - Upload button with drag-and-drop support
 - Document cards showing name, page count, and upload date
@@ -288,6 +303,7 @@ flowchart TB
 - Search/filter functionality for documents
 
 **Document Enrichment Process:**
+
 1. Extract text from PDF with page boundaries
 2. Chunk into appropriate segments with overlap for context continuity
 3. Extract section headings where available
@@ -296,6 +312,7 @@ flowchart TB
 6. Store with metadata for efficient retrieval
 
 **Supported Document Types:**
+
 - PDF files containing text-based lecture notes, textbook chapters, or reading materials
 - Note: Slide decks and image-heavy documents are not supported in this version
 
@@ -304,15 +321,16 @@ flowchart TB
 **Description:** Continuously analyze professor speech to surface relevant course materials as in-text citations embedded directly within the live transcription.
 
 **Requirements:**
+
 - Sliding window trigger that accumulates 2-3 sentences before initiating RAG query
-- Lightweight embedding generation for low latency
-- Semantic search against course document index
-- Agentic query enrichment for improved retrieval accuracy
-- Re-ranking from 10 candidates to 3 final citations
-- **In-text citation display:** Citations appear inline at the end of relevant transcript segments (e.g., "...and that is what the fundamental theorem of calculus is...<sup>1, 2, 3</sup>")
+- KeyBERT keyword extraction for query enrichment
+- Local BGE embeddings (BAAI/bge-base-en-v1.5, 768 dimensions)
+- Semantic search against ChromaDB document index
+- Distance-based early exit (skip re-ranking if min distance > 1.5)
+- TinyBERT cross-encoder re-ranking (ms-marco-TinyBERT-L-2-v2)
+- **In-text citation display:** Citations appear inline at the end of relevant transcript segments
 - Citations ranked best to worst (1 = most relevant, 3 = least relevant)
-- **Relevance-based styling:** Citation numbers use darker opacity/color for higher relevance (citation 1 darkest, citation 3 lightest)
-- Clickable citations to preview document content in sidebar or modal
+- Clickable citations to preview document content in sidebar
 
 **Agentic RAG Flow:**
 
@@ -325,7 +343,7 @@ flowchart LR
         TRANSCRIPT --> DETECT
         DETECT --> WINDOW
     end
-    
+
     subgraph enrich [Query Enrichment]
         KEYWORDS[Keyword Extraction]
         CONCEPTS[Concept Expansion]
@@ -334,7 +352,7 @@ flowchart LR
         KEYWORDS --> CONCEPTS
         CONCEPTS --> QUERY
     end
-    
+
     subgraph retrieve [Retrieval]
         EMBED[Embed Query]
         SEARCH[Vector Search Top 10]
@@ -345,7 +363,7 @@ flowchart LR
         SEARCH --> RERANK
         RERANK --> TOP3
     end
-    
+
     subgraph display [Display]
         CITATIONS[Citation Cards]
         TOP3 --> CITATIONS
@@ -353,6 +371,7 @@ flowchart LR
 ```
 
 **Query Enrichment Strategy:**
+
 1. **Keyword Extraction:** Extract key terms and entities from the transcript window
 2. **Concept Expansion:** Expand query with related academic concepts
 3. **Query Formulation:** Combine original window text with extracted keywords and concepts
@@ -364,6 +383,7 @@ flowchart LR
 **Description:** Enable students to type questions in their native language and receive an English translation they can ask the professor, facilitating active classroom participation.
 
 **Requirements:**
+
 - Text input field for typing questions in any supported language
 - Real-time translation to English via OpenRouter LLM
 - Copy-to-clipboard functionality for the translated question
@@ -371,6 +391,7 @@ flowchart LR
 - Language auto-detection or manual selection
 
 **UI Design:**
+
 - Accessible via a collapsible panel or modal
 - Clear input field with placeholder text: "Type your question in your language..."
 - Translated output displayed below with copy button
@@ -378,6 +399,7 @@ flowchart LR
 - Option to speak the translated question (text-to-speech)
 
 **Use Case Flow:**
+
 1. Student has a question but is unsure how to phrase it in English
 2. Student opens Question Assistant and types question in native language
 3. System translates to grammatically correct English
@@ -388,6 +410,7 @@ flowchart LR
 **Description:** Generate comprehensive, structured lecture notes from the full translated transcript with embedded citations, with full editing capabilities.
 
 **Requirements:**
+
 - Trigger via "Structure into Notes" button located in the top-left of the text editor interface
 - Button can be pressed at any point during or after the lecture
 - Compile full translated transcript with all citations
@@ -398,6 +421,7 @@ flowchart LR
 - **Full text editor functionality** when reopening saved notes
 
 **Note Editor Features:**
+
 - Rich text editing capabilities
 - "Structure into Notes" button prominently placed in top-left toolbar
 - Real-time editing with auto-save
@@ -406,6 +430,7 @@ flowchart LR
 - Material UI-styled editor interface
 
 **Note Structure:**
+
 - Key Concepts section with bullet point summary of main topics
 - Detailed Notes organized under logical section headings
 - Points include citation references in standard format
@@ -438,6 +463,7 @@ flowchart LR
 ### Folder Management
 
 **Requirements:**
+
 - Create new folders (courses/subjects)
 - Rename folders
 - Delete folders (with confirmation and cascade delete warning)
@@ -445,6 +471,7 @@ flowchart LR
 - Search across all folders and notes
 
 **Folder Properties:**
+
 - Name
 - Created date
 - Last modified date
@@ -454,17 +481,20 @@ flowchart LR
 ### Session Lifecycle
 
 **Starting a Session:**
+
 1. User navigates to a folder (or creates one)
 2. User clicks "Start New Session"
 3. User uploads PDF context documents for this session (optional)
 4. User begins lecture with translation/transcription active
 
 **During a Session:**
+
 - Real-time transcription and translation active
 - Citations from uploaded PDFs appear in sidebar
 - Session state saved continuously
 
 **Ending a Session:**
+
 1. User clicks "End Session"
 2. System prompts: "Generate structured notes now or save transcript only?"
 3. If generating notes: LLM processes transcript into structured format
@@ -475,15 +505,16 @@ flowchart LR
 
 ### Stored Content Per Session
 
-| Content Type | Description | Editable | Exportable |
-|--------------|-------------|----------|------------|
-| Post-Lecture Notes | LLM-generated structured notes | Yes (text editor) | PDF only |
-| PDF Context Documents | Uploaded course materials | No (read-only) | N/A (already PDFs) |
-| Session Metadata | Date, duration, languages | No | Included in notes |
+| Content Type          | Description                    | Editable          | Exportable         |
+| --------------------- | ------------------------------ | ----------------- | ------------------ |
+| Post-Lecture Notes    | LLM-generated structured notes | Yes (text editor) | PDF only           |
+| PDF Context Documents | Uploaded course materials      | No (read-only)    | N/A (already PDFs) |
+| Session Metadata      | Date, duration, languages      | No                | Included in notes  |
 
 ### Notes Retrieval and Editing
 
 **Reopening Notes:**
+
 1. Navigate to folder → session
 2. Click on "Post-Lecture Notes"
 3. Notes open in full text editor view
@@ -492,6 +523,7 @@ flowchart LR
 6. Export to PDF when ready
 
 **Editor Toolbar (Top):**
+
 - **Left Side:** "Structure into Notes" button (re-generate from transcript)
 - **Center:** Formatting options (bold, italic, headers, lists)
 - **Right Side:** Export to PDF button
@@ -499,6 +531,7 @@ flowchart LR
 ### Data Model for Storage
 
 **Folders Table:**
+
 - `id`: Unique identifier
 - `name`: Folder name
 - `user_id`: Owner
@@ -506,6 +539,7 @@ flowchart LR
 - `updated_at`: Timestamp
 
 **Sessions Table:**
+
 - `id`: Unique identifier
 - `folder_id`: Parent folder reference
 - `name`: Session name/title
@@ -516,6 +550,7 @@ flowchart LR
 - `status`: (active, completed, archived)
 
 **Notes Table:**
+
 - `id`: Unique identifier
 - `session_id`: Parent session reference
 - `content_markdown`: Structured notes in Markdown
@@ -524,6 +559,7 @@ flowchart LR
 - `version`: Version number for edit history
 
 **Session Documents Table:**
+
 - `id`: Unique identifier
 - `session_id`: Parent session reference
 - `document_id`: Reference to uploaded document
@@ -543,45 +579,45 @@ flowchart TB
         DISPLAY[Display Components]
         EDITOR[Note Text Editor]
     end
-    
+
     subgraph backend [Backend]
         subgraph controllers [Controller Layer]
             API[API Endpoints]
         end
-        
+
         subgraph services [Service Layer]
             TRANS[Translation Service]
             RAG[RAG Service]
             NOTES[Note Generation Service]
             STORAGE[Storage Service]
         end
-        
+
         subgraph repositories [Repository Layer]
             VECTOR[Vector DB Repository]
             DOC[Document Repository]
             FOLDER[Folder Repository]
         end
     end
-    
+
     subgraph external [External Services]
         ELEVEN[ElevenLabs API]
-        GOOGLE[Google Web Speech API]
+        WEBSPEECH[Web Speech API]
         OPENROUTER[OpenRouter API]
     end
-    
+
     subgraph storage [Data Storage]
         VECTORDB[(Vector Database)]
         RELDB[(Relational Database)]
         FILESTORE[(File Storage)]
     end
-    
+
     UI --> API
     API --> TRANS
     API --> RAG
     API --> NOTES
     API --> STORAGE
     TRANS --> ELEVEN
-    TRANS --> GOOGLE
+    TRANS --> WEBSPEECH
     RAG --> OPENROUTER
     RAG --> VECTOR
     NOTES --> OPENROUTER
@@ -593,24 +629,23 @@ flowchart TB
 
 ### Technology Stack
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| Frontend | React + TypeScript | User interface, audio capture, real-time display |
-| UI Framework | Material UI (MUI) | Sleek, modern component library |
-| Styling | Material UI + Custom Theming | Consistent design system |
-| Backend | FastAPI + Python | API endpoints, business logic |
-| Validation | Pydantic | Request/response schema validation |
-| Vector Database | Chroma | Course document and session embedding storage |
-| Relational Database | SQLite/PostgreSQL | User sessions, folders, notes, document metadata |
-| File Storage | Local filesystem / S3 | PDF document storage |
-| Speech-to-Speech | ElevenLabs API | Real-time translation with natural voice |
-| Speech-to-Text | Google Web Speech API | Live transcription, RAG input |
-| Embeddings | OpenRouter API | Access to multiple embedding models |
-| LLM | OpenRouter API | Query enrichment, note generation, question translation |
-| Re-ranking | Sentence Transformers | Cross-encoder for citation ranking |
-| Real-time Communication | WebSocket | Streaming audio and transcription |
-| Text Editor | TipTap or Slate.js | Rich text editing for notes |
-| PDF Generation | react-pdf or pdfmake | Export notes to PDF |
+| Component               | Technology             | Purpose                                  |
+| ----------------------- | ---------------------- | ---------------------------------------- |
+| Frontend                | React + TypeScript     | User interface, real-time display        |
+| UI Framework            | Material UI (MUI)      | Modern component library                 |
+| Backend                 | FastAPI + Python       | API endpoints, business logic            |
+| Validation              | Pydantic               | Request/response schema validation       |
+| Vector Database         | ChromaDB               | Document embedding storage               |
+| Relational Database     | PostgreSQL             | Sessions, folders, notes, metadata       |
+| File Storage            | Local filesystem       | PDF document storage                     |
+| Text-to-Speech          | ElevenLabs API         | eleven_turbo_v2_5 model                  |
+| Speech-to-Text          | Web Speech API         | Browser-native transcription             |
+| Embeddings              | Local BGE model        | BAAI/bge-base-en-v1.5 (768 dim)          |
+| LLM                     | OpenRouter API         | Translation, notes, question translation |
+| Re-ranking              | TinyBERT Cross-Encoder | ms-marco-TinyBERT-L-2-v2                 |
+| Keywords                | KeyBERT                | Query enrichment                         |
+| Real-time Communication | WebSocket              | Transcription and translation            |
+| Text Editor             | TipTap                 | Rich text editing for notes              |
 
 ### Backend Architecture Pattern
 
@@ -626,34 +661,34 @@ The backend follows the Controller-Service-Repository pattern with dependency in
 
 ### API Endpoints Overview
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| **Session Management** | | |
-| `/folders` | GET | List all folders |
-| `/folders` | POST | Create new folder |
-| `/folders/{id}` | PUT | Update folder |
-| `/folders/{id}` | DELETE | Delete folder |
-| `/folders/{id}/sessions` | GET | List sessions in folder |
-| `/sessions` | POST | Start new session |
-| `/sessions/{id}` | PUT | Update session |
-| `/sessions/{id}/end` | POST | End session |
-| **Translation & Transcription** | | |
-| `/translate/stream` | WebSocket | Stream audio for translation |
-| `/transcribe/stream` | WebSocket | Stream audio for speech-to-text |
-| `/translate/question` | POST | Translate question text |
-| **Document Management** | | |
-| `/documents` | GET | List all documents |
-| `/documents` | POST | Upload new document |
-| `/documents/{id}` | GET | Get document details |
-| `/documents/{id}` | DELETE | Delete document |
-| `/documents/{id}/status` | GET | Check indexing progress |
-| **RAG & Citations** | | |
-| `/rag/query` | POST | Query for citations |
-| **Notes** | | |
-| `/sessions/{id}/notes` | GET | Get session notes |
-| `/sessions/{id}/notes` | PUT | Update session notes |
-| `/sessions/{id}/notes/generate` | POST | Generate structured notes |
-| `/sessions/{id}/notes/export` | GET | Export notes as PDF |
+| Endpoint                        | Method    | Purpose                         |
+| ------------------------------- | --------- | ------------------------------- |
+| **Session Management**          |           |                                 |
+| `/folders`                      | GET       | List all folders                |
+| `/folders`                      | POST      | Create new folder               |
+| `/folders/{id}`                 | PUT       | Update folder                   |
+| `/folders/{id}`                 | DELETE    | Delete folder                   |
+| `/folders/{id}/sessions`        | GET       | List sessions in folder         |
+| `/sessions`                     | POST      | Start new session               |
+| `/sessions/{id}`                | PUT       | Update session                  |
+| `/sessions/{id}/end`            | POST      | End session                     |
+| **Translation & Transcription** |           |                                 |
+| `/translate/stream`             | WebSocket | Stream audio for translation    |
+| `/transcribe/stream`            | WebSocket | Stream audio for speech-to-text |
+| `/translate/question`           | POST      | Translate question text         |
+| **Document Management**         |           |                                 |
+| `/documents`                    | GET       | List all documents              |
+| `/documents`                    | POST      | Upload new document             |
+| `/documents/{id}`               | GET       | Get document details            |
+| `/documents/{id}`               | DELETE    | Delete document                 |
+| `/documents/{id}/status`        | GET       | Check indexing progress         |
+| **RAG & Citations**             |           |                                 |
+| `/rag/query`                    | POST      | Query for citations             |
+| **Notes**                       |           |                                 |
+| `/sessions/{id}/notes`          | GET       | Get session notes               |
+| `/sessions/{id}/notes`          | PUT       | Update session notes            |
+| `/sessions/{id}/notes/generate` | POST      | Generate structured notes       |
+| `/sessions/{id}/notes/export`   | GET       | Export notes as PDF             |
 
 ### Data Model Overview
 
@@ -675,29 +710,30 @@ The backend follows the Controller-Service-Repository pattern with dependency in
 
 Based on research into available tools and hackathon constraints:
 
-| Component | Recommendation | Rationale |
-|-----------|----------------|-----------|
-| Vector DB | Chroma | Python-native, lightweight, easy local setup, no external dependencies |
-| LLM Access | OpenRouter | Single API for multiple models (GPT-4, Claude, Llama), flexible pricing |
-| RAG Query Embedding | text-embedding-3-large (via OpenRouter) | Must match document indexing model for vector search compatibility |
-| Course Doc Embedding | text-embedding-3-large (via OpenRouter) | Higher quality, no latency constraint during indexing |
-| Re-ranker | Cross-encoder MiniLM | Fast (~12ms per comparison), high accuracy, runs locally |
-| Note Generation | Claude 3 Haiku / GPT-4o-mini (via OpenRouter) | Fast inference, cost-effective, excellent at structured formatting |
-| Query Enrichment | Claude 3 Haiku (via OpenRouter) | Can extract keywords and expand concepts efficiently |
-| Question Translation | GPT-4o-mini (via OpenRouter) | Fast, accurate translation with context awareness |
-| UI Framework | Material UI v5 | Modern, accessible, comprehensive component library |
-| Text Editor | TipTap | Headless, customizable, Markdown support |
-| Embedding Storage | Chroma with session tags | Unified search, easy cleanup via metadata filter |
+| Component       | Implementation                | Rationale                                    |
+| --------------- | ----------------------------- | -------------------------------------------- |
+| Vector DB       | ChromaDB                      | Python-native, lightweight, easy local setup |
+| LLM Access      | OpenRouter                    | Single API for Claude, GPT-4o-mini           |
+| Embeddings      | BAAI/bge-base-en-v1.5 (local) | 768 dimensions, fast local inference (~50ms) |
+| Keywords        | KeyBERT + MiniLM              | sentence-transformers/all-MiniLM-L6-v2       |
+| Re-ranker       | TinyBERT Cross-encoder        | ms-marco-TinyBERT-L-2-v2 (~12ms)             |
+| Translation     | Claude 3 Haiku                | Fast inference, good quality                 |
+| Note Generation | Claude 3 Haiku                | Excellent structured formatting              |
+| TTS             | ElevenLabs eleven_turbo_v2_5  | Low latency, natural voice                   |
+| UI Framework    | Material UI v5                | Modern, accessible components                |
+| Text Editor     | TipTap                        | Headless, Markdown support                   |
 
 ### OpenRouter Integration
 
 **Benefits:**
+
 - Single API key for multiple model providers
 - Automatic fallback if a model is unavailable
 - Cost tracking and rate limiting built-in
 - Access to latest models without code changes
 
 **Model Selection Strategy:**
+
 - Use faster, cheaper models for real-time operations (embeddings, query enrichment)
 - Use higher-quality models for note generation (better structure and coherence)
 - Configure fallback chains for reliability
@@ -705,11 +741,13 @@ Based on research into available tools and hackathon constraints:
 ### Embedding Storage Strategy
 
 **For Course Documents (Persistent):**
+
 - Stored in dedicated collection
 - Includes metadata for document ID, page number, heading, and user ID
 - Persists across sessions
 
 **For Session Transcripts (Ephemeral):**
+
 - Stored in separate collection with session tagging
 - Includes metadata for session ID, timestamp, and window index
 - Automatically cleaned up when session ends
@@ -748,34 +786,34 @@ The note editing interface provides a full-featured text editing workspace. A to
 
 ### Core Performance Metrics
 
-| Metric | Target | Measurement Method |
-|--------|--------|-------------------|
-| Translation Latency | < 2 seconds | Time from speech end to audio output start |
-| Transcription Latency | < 300ms | Time from speech to text display |
-| RAG Query Latency | < 500ms | Time from window trigger to citation display |
-| Translation Quality | User satisfaction 4+/5 | Post-session rating |
-| Citation Relevance | 80%+ precision | User feedback on displayed citations |
-| Note Quality | Captures 90%+ concepts | Comparison with manual notes |
+| Metric                | Target                 | Measurement Method                           |
+| --------------------- | ---------------------- | -------------------------------------------- |
+| Translation Latency   | < 2 seconds            | Time from speech end to audio output start   |
+| Transcription Latency | < 300ms                | Time from speech to text display             |
+| RAG Query Latency     | < 500ms                | Time from window trigger to citation display |
+| Translation Quality   | User satisfaction 4+/5 | Post-session rating                          |
+| Citation Relevance    | 80%+ precision         | User feedback on displayed citations         |
+| Note Quality          | Captures 90%+ concepts | Comparison with manual notes                 |
 
 ### Hackathon Demo Metrics
 
-| Metric | Target |
-|--------|--------|
+| Metric              | Target                                                |
+| ------------------- | ----------------------------------------------------- |
 | Supported Languages | 6 (English, Hindi, Chinese, French, Spanish, Bengali) |
-| Document Types | PDF (text-based) |
-| Concurrent Users | 1 (demo mode) |
-| Session Duration | Up to 2 hours |
-| Document Size | Up to 100 pages |
+| Document Types      | PDF (text-based)                                      |
+| Concurrent Users    | 1 (demo mode)                                         |
+| Session Duration    | Up to 2 hours                                         |
+| Document Size       | Up to 100 pages                                       |
 
 ### User Experience Metrics
 
-| Metric | Target |
-|--------|--------|
-| Time to First Translation | < 5 seconds after session start |
-| Time to First Citation | < 15 seconds after relevant content spoken |
-| Note Generation Time | < 30 seconds for 1-hour lecture |
-| Setup Time | < 2 minutes (folder creation + document upload + language selection) |
-| Question Translation | < 2 seconds |
+| Metric                    | Target                                                               |
+| ------------------------- | -------------------------------------------------------------------- |
+| Time to First Translation | < 5 seconds after session start                                      |
+| Time to First Citation    | < 15 seconds after relevant content spoken                           |
+| Note Generation Time      | < 30 seconds for 1-hour lecture                                      |
+| Setup Time                | < 2 minutes (folder creation + document upload + language selection) |
+| Question Translation      | < 2 seconds                                                          |
 
 ---
 
@@ -825,15 +863,16 @@ The note editing interface provides a full-featured text editing workspace. A to
 
 LectureLens directly addresses accessibility by removing language barriers that prevent millions of students from fully participating in education.
 
-| Criterion | How LectureLens Addresses It |
-|-----------|------------------------------|
-| Real Problem | 6M+ international students struggle with language barriers in lectures |
-| Underrepresented Users | ESL students, immigrants, students from non-English speaking countries |
-| Multi-Sensory | Audio translation plus visual transcription plus written citations |
-| Inclusive Design | Screen reader support, keyboard navigation, high contrast, Material UI a11y |
-| Measurable Impact | Improved comprehension, reduced cognitive load, better retention |
+| Criterion              | How LectureLens Addresses It                                                |
+| ---------------------- | --------------------------------------------------------------------------- |
+| Real Problem           | 6M+ international students struggle with language barriers in lectures      |
+| Underrepresented Users | ESL students, immigrants, students from non-English speaking countries      |
+| Multi-Sensory          | Audio translation plus visual transcription plus written citations          |
+| Inclusive Design       | Screen reader support, keyboard navigation, high contrast, Material UI a11y |
+| Measurable Impact      | Improved comprehension, reduced cognitive load, better retention            |
 
 **Accessibility Features:**
+
 1. Real-time audio translation eliminates need for mental translation
 2. Live transcription display provides visual reinforcement
 3. Citation sidebar provides contextual reference to concepts
@@ -845,15 +884,16 @@ LectureLens directly addresses accessibility by removing language barriers that 
 
 LectureLens showcases ElevenLabs as the core enabler of the translation experience.
 
-| Criterion | How LectureLens Uses ElevenLabs |
-|-----------|--------------------------------|
-| Central to Product | Speech-to-Speech API is the primary translation engine |
-| Real-Time Streaming | Continuous audio output during live lectures |
-| Natural Voice Quality | Human-like synthesis, not robotic TTS |
-| Multi-Language | Leverages ElevenLabs' language support for 6 target languages |
-| User Value | Natural-sounding translation enables comfortable listening for hours |
+| Criterion             | How LectureLens Uses ElevenLabs                                      |
+| --------------------- | -------------------------------------------------------------------- |
+| Central to Product    | Text-to-Speech API is the primary voice synthesis engine             |
+| Real-Time Streaming   | Audio output during live lectures                                    |
+| Natural Voice Quality | Human-like synthesis via eleven_turbo_v2_5 model                     |
+| Multi-Language        | Supports voice selection for different languages                     |
+| User Value            | Natural-sounding translation enables comfortable listening for hours |
 
 **ElevenLabs Integration Highlights:**
+
 1. Primary translation pipeline, not just a supplementary feature
 2. WebSocket streaming for minimal latency
 3. Voice quality that does not cause listener fatigue
@@ -896,37 +936,39 @@ LectureLens showcases ElevenLabs as the core enabler of the translation experien
 
 ### A. Supported Languages
 
-| Language | Code | ElevenLabs Support | Google STT Support |
-|----------|------|-------------------|-------------------|
-| English | en | Yes | Yes |
-| Hindi | hi | Yes | Yes |
-| Chinese (Mandarin) | zh | Yes | Yes |
-| French | fr | Yes | Yes |
-| Spanish | es | Yes | Yes |
-| Bengali | bn | Yes | Yes |
+| Language           | Code | ElevenLabs Support | Web Speech API Support |
+| ------------------ | ---- | ------------------ | ---------------------- |
+| English            | en   | Yes                | Yes                    |
+| Hindi              | hi   | Yes                | Yes                    |
+| Chinese (Mandarin) | zh   | Yes                | Yes                    |
+| French             | fr   | Yes                | Yes                    |
+| Spanish            | es   | Yes                | Yes                    |
+| Bengali            | bn   | Yes                | Yes                    |
 
 ### B. Glossary
 
-| Term | Definition |
-|------|------------|
-| RAG | Retrieval-Augmented Generation - technique to enhance LLM responses with retrieved context |
-| STT | Speech-to-Text - converting spoken audio to written text |
-| TTS | Text-to-Speech - converting written text to spoken audio |
-| Embedding | Vector representation of text for semantic similarity comparison |
-| Re-ranking | Process of reordering search results using a more sophisticated model |
-| Sliding Window | Technique of processing text in overlapping segments |
-| Cross-encoder | Model that scores relevance between query and document pairs |
-| OpenRouter | API aggregator providing unified access to multiple LLM providers |
-| Material UI | React component library implementing Google's Material Design |
+| Term           | Definition                                                                                 |
+| -------------- | ------------------------------------------------------------------------------------------ |
+| RAG            | Retrieval-Augmented Generation - technique to enhance LLM responses with retrieved context |
+| STT            | Speech-to-Text - converting spoken audio to written text                                   |
+| TTS            | Text-to-Speech - converting written text to spoken audio                                   |
+| Embedding      | Vector representation of text for semantic similarity comparison                           |
+| Re-ranking     | Process of reordering search results using a more sophisticated model                      |
+| Sliding Window | Technique of processing text in overlapping segments                                       |
+| Cross-encoder  | Model that scores relevance between query and document pairs                               |
+| OpenRouter     | API aggregator providing unified access to multiple LLM providers                          |
+| Material UI    | React component library implementing Google's Material Design                              |
 
 ### C. Dependencies
 
 **External APIs:**
-- ElevenLabs Speech-to-Speech API
-- Google Web Speech API
-- OpenRouter API (for LLM and embeddings access)
+
+- ElevenLabs Text-to-Speech API
+- Web Speech API (browser-native)
+- OpenRouter API (for LLM access)
 
 **Key Libraries:**
+
 - Chroma (vector database)
 - Sentence Transformers (re-ranking)
 - FastAPI (backend framework)
@@ -951,7 +993,7 @@ LectureLens showcases ElevenLabs as the core enabler of the translation experien
 
 ## Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | 2026-01-24 | LectureLens Team | Initial PRD for HackHive 2026 |
-| 1.1 | 2026-01-24 | LectureLens Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
+| Version | Date       | Author           | Changes                                                                                                                                                                                                                                                                                    |
+| ------- | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.0     | 2026-01-24 | LectureLens Team | Initial PRD for HackHive 2026                                                                                                                                                                                                                                                              |
+| 1.1     | 2026-01-24 | LectureLens Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |

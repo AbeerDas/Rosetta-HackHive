@@ -31,6 +31,7 @@ After a few seconds, the status changes to "Ready" with a green checkmark. The s
 ### Viewing Document Processing Status
 
 A student uploads a large textbook chapter (100 pages). The upload completes quickly, but processing takes longer. The document card shows:
+
 - Upload: Complete (checkmark)
 - Status: "Processing... 45%"
 - Estimated time remaining
@@ -40,6 +41,7 @@ The student can start the lecture while processing continues. Any documents that
 ### Previewing an Uploaded Document
 
 Before starting a lecture, the student wants to verify they uploaded the correct document. They click on a document card and a preview modal opens showing:
+
 - Document name and page count
 - Thumbnail view of pages
 - Full-page view on click
@@ -111,46 +113,51 @@ The document uploads and begins processing. Once ready, it joins the other docum
 ### Document Processing Pipeline
 
 **Step 1: Text Extraction**
+
 - Use PyPDF2 to extract text from each page
 - Preserve page boundaries for citation references
 - Handle encoding issues gracefully
 
 **Step 2: Section Detection**
+
 - Identify headings based on formatting patterns
 - Extract section titles for metadata enrichment
 - Fall back to page numbers if no headings detected
 
 **Step 3: Chunking Strategy**
-- Target chunk size: 500 tokens
+
+- Target chunk size: 512 tokens
 - Overlap: 50 tokens between chunks
 - Respect paragraph boundaries when possible
 - Never split mid-sentence
 
 **Step 4: Embedding Generation**
-- Use `text-embedding-3-large` via OpenRouter for high quality
-- Batch embeddings for efficiency (up to 100 chunks per request)
-- Store embedding dimension: 3072
+
+- Use local BAAI/bge-base-en-v1.5 model for embeddings
+- Batch embeddings for efficiency
+- Store embedding dimension: 768
 
 **Step 5: Vector Storage**
+
 - Store in Chroma with document and session metadata
 - Metadata includes: document_id, session_id, page_number, section_heading, chunk_index
 
 ### Document Status States
 
-| Status | Description |
-|--------|-------------|
-| `pending` | File uploaded, processing not started |
+| Status       | Description                               |
+| ------------ | ----------------------------------------- |
+| `pending`    | File uploaded, processing not started     |
 | `processing` | Text extraction and embedding in progress |
-| `ready` | Processing complete, available for RAG |
-| `error` | Processing failed, retry available |
+| `ready`      | Processing complete, available for RAG    |
+| `error`      | Processing failed, retry available        |
 
 ### File Validation
 
-| Check | Requirement |
-|-------|-------------|
-| File type | Must be `application/pdf` |
-| File size | Maximum 50 MB |
-| Page count | Maximum 500 pages |
+| Check        | Requirement                   |
+| ------------ | ----------------------------- |
+| File type    | Must be `application/pdf`     |
+| File size    | Maximum 50 MB                 |
+| Page count   | Maximum 500 pages             |
 | Text content | Must contain extractable text |
 
 ---
@@ -164,6 +171,7 @@ GET /api/v1/sessions/{session_id}/documents
 ```
 
 Response Schema:
+
 ```
 {
   documents: [
@@ -191,9 +199,11 @@ Content-Type: multipart/form-data
 ```
 
 Request:
+
 - `file`: PDF file (required)
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -211,6 +221,7 @@ GET /api/v1/documents/{document_id}
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -234,6 +245,7 @@ GET /api/v1/documents/{document_id}/status
 ```
 
 Response Schema:
+
 ```
 {
   status: "pending" | "processing" | "ready" | "error",
@@ -253,6 +265,7 @@ DELETE /api/v1/documents/{document_id}
 Response: 204 No Content
 
 Side Effects:
+
 - Removes file from storage
 - Removes embeddings from Chroma
 - Removes citation references
@@ -264,6 +277,7 @@ GET /api/v1/documents/{document_id}/preview
 ```
 
 Response Schema:
+
 ```
 {
   url: string,
@@ -278,6 +292,7 @@ POST /api/v1/documents/{document_id}/retry
 ```
 
 Response Schema:
+
 ```
 {
   id: UUID,
@@ -332,6 +347,7 @@ DocumentChunk (1) ──── (1) Chroma Embedding
 Collection: `session_documents`
 
 Metadata per embedding:
+
 ```
 {
   document_id: string (UUID),
@@ -352,17 +368,20 @@ Metadata per embedding:
 The document panel appears in the left sidebar during session view.
 
 **Panel Header:**
+
 - "Documents" title
 - Document count badge
 - Collapse/expand toggle
 
 **Upload Area:**
+
 - Drag-and-drop zone with dashed border
 - "Drop PDF files here or click to browse" text
 - Click to open file picker
 - Supports multiple file selection
 
 **Document List:**
+
 - Scrollable list of document cards
 - Sorted by upload time (newest first)
 - Shows processing status for each
@@ -370,6 +389,7 @@ The document panel appears in the left sidebar during session view.
 ### Document Card
 
 **Card Contents:**
+
 - Document icon (PDF)
 - Filename (truncated with tooltip)
 - File size and page count
@@ -381,17 +401,20 @@ The document panel appears in the left sidebar during session view.
 - Actions: Preview, Delete
 
 **Hover State:**
+
 - Slight elevation change
 - Preview and delete icons become visible
 
 ### Upload Progress
 
 During upload:
+
 - Progress bar fills as upload progresses
 - Percentage shown
 - Cancel button available
 
 After upload:
+
 - Status changes to "Processing"
 - Progress bar shows processing percentage
 - Polling updates progress every 2 seconds
@@ -399,6 +422,7 @@ After upload:
 ### Preview Modal
 
 **Modal Contents:**
+
 - Document name in header
 - Page navigation (prev/next, page number input)
 - Zoom controls
@@ -407,6 +431,7 @@ After upload:
 - Close button
 
 **Keyboard Navigation:**
+
 - Left/Right arrows: Navigate pages
 - Escape: Close modal
 - +/-: Zoom in/out
@@ -414,17 +439,20 @@ After upload:
 ### Error States
 
 **Upload Error:**
+
 - Red border on upload area
 - Error message: "Upload failed: [reason]"
 - Retry button
 
 **Processing Error:**
+
 - Document card shows error state
 - "Processing failed" message
 - "Retry" button on card
 - Click for error details modal
 
 **Invalid File:**
+
 - Immediate feedback before upload
 - "Only PDF files are supported"
 - "File too large (max 50 MB)"
@@ -432,12 +460,14 @@ After upload:
 ### State Management
 
 **Server State (TanStack Query):**
+
 - `useSessionDocuments(sessionId)`: List documents with polling for processing status
 - `useDocument(documentId)`: Single document details
 - `useUploadDocument()`: Mutation for file upload
 - `useDeleteDocument()`: Mutation for deletion
 
 **Polling Strategy:**
+
 - Poll every 2 seconds while any document is in "pending" or "processing" state
 - Stop polling when all documents are "ready" or "error"
 
@@ -448,6 +478,7 @@ After upload:
 ### Repository Layer
 
 **DocumentRepository:**
+
 ```python
 class DocumentRepository:
     def list_by_session(self, session_id: UUID) -> list[Document]
@@ -459,6 +490,7 @@ class DocumentRepository:
 ```
 
 **DocumentChunkRepository:**
+
 ```python
 class DocumentChunkRepository:
     def create_batch(self, chunks: list[DocumentChunkCreate]) -> list[DocumentChunk]
@@ -469,6 +501,7 @@ class DocumentChunkRepository:
 ### Service Layer
 
 **DocumentService:**
+
 ```python
 class DocumentService:
     def list_documents(self, session_id: UUID) -> list[DocumentSummary]
@@ -480,6 +513,7 @@ class DocumentService:
 ```
 
 **DocumentProcessingService:**
+
 ```python
 class DocumentProcessingService:
     def process_document(self, document_id: UUID) -> None
@@ -492,12 +526,14 @@ class DocumentProcessingService:
 ### External Integrations
 
 **OpenRouter Embeddings:**
+
 ```python
 class OpenRouterClient:
     def create_embeddings(self, texts: list[str], model: str) -> list[list[float]]
 ```
 
 **Chroma Client:**
+
 ```python
 class ChromaClient:
     def add_embeddings(self, collection: str, ids: list[str], embeddings: list[list[float]], metadatas: list[dict]) -> None
@@ -527,7 +563,7 @@ async def upload_document(
 def chunk_text(pages: list[PageContent], target_size: int = 500, overlap: int = 50) -> list[Chunk]:
     """
     Chunk document text with overlap.
-    
+
     - Respects page boundaries for metadata
     - Tries to split at paragraph boundaries
     - Falls back to sentence boundaries
@@ -538,12 +574,11 @@ def chunk_text(pages: list[PageContent], target_size: int = 500, overlap: int = 
 
 ### Error Handling
 
-| Scenario | Status | Code |
-|----------|--------|------|
-| File not PDF | 400 | INVALID_FILE_TYPE |
-| File too large | 400 | FILE_TOO_LARGE |
-| Document not found | 404 | DOCUMENT_NOT_FOUND |
-| Session not found | 404 | SESSION_NOT_FOUND |
-| Processing failed | 500 | PROCESSING_ERROR |
-| No extractable text | 400 | NO_TEXT_CONTENT |
-
+| Scenario            | Status | Code               |
+| ------------------- | ------ | ------------------ |
+| File not PDF        | 400    | INVALID_FILE_TYPE  |
+| File too large      | 400    | FILE_TOO_LARGE     |
+| Document not found  | 404    | DOCUMENT_NOT_FOUND |
+| Session not found   | 404    | SESSION_NOT_FOUND  |
+| Processing failed   | 500    | PROCESSING_ERROR   |
+| No extractable text | 400    | NO_TEXT_CONTENT    |

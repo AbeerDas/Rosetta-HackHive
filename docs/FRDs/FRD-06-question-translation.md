@@ -35,6 +35,7 @@ The translation is well-formed, grammatically correct, and appropriate for askin
 During the lecture, the student translates three different questions. They want to go back to the first question they translated. The Question Assistant panel shows a history section below the input area.
 
 Each history item shows:
+
 - The original text (in the source language)
 - The translated English text
 - A timestamp
@@ -104,6 +105,7 @@ The student types a question, but the translation fails due to a network error. 
 The system uses the LLM to detect the input language as part of the translation request. This is more reliable than client-side detection libraries and handles mixed-language input gracefully.
 
 **Supported Languages:**
+
 - Chinese (Mandarin) - zh
 - Hindi - hi
 - Spanish - es
@@ -114,6 +116,7 @@ The system uses the LLM to detect the input language as part of the translation 
 ### Translation Prompt Design
 
 The LLM is instructed to:
+
 1. Detect the source language
 2. Translate to natural, conversational English
 3. Preserve the question's intent and specificity
@@ -137,6 +140,7 @@ POST /api/v1/translate/question
 ```
 
 Request Schema:
+
 ```
 {
   text: string (required, max 1000 chars),
@@ -146,6 +150,7 @@ Request Schema:
 ```
 
 Response Schema:
+
 ```
 {
   original_text: string,
@@ -159,10 +164,11 @@ Response Schema:
 ### Speak (Text-to-Speech) — ElevenLabs
 
 ```
-POST /api/v1/tts/speak
+POST /api/v1/translate/tts/speak
 ```
 
 Request Schema:
+
 ```
 {
   text: string (required, max 1000 chars — the English translation to speak)
@@ -170,30 +176,31 @@ Request Schema:
 ```
 
 Response:
+
 - **Success (200):** `Content-Type: audio/mpeg`, body = raw audio bytes (MP3). Frontend streams and plays via `<audio>` or `fetch` + `AudioContext` / `HTMLAudioElement`.
 - **Alternative:** Return a short-lived signed URL to an audio blob if streaming raw bytes is not preferred.
 
 **Error Responses:**
 
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | TEXT_EMPTY | Input text is empty |
-| 400 | TEXT_TOO_LONG | Input exceeds 1000 characters |
-| 429 | TTS_RATE_LIMIT | ElevenLabs or app rate limit exceeded |
-| 500 | TTS_ERROR | ElevenLabs request failed |
-| 503 | TTS_UNAVAILABLE | ElevenLabs service unavailable |
+| Status | Code            | Description                           |
+| ------ | --------------- | ------------------------------------- |
+| 400    | TEXT_EMPTY      | Input text is empty                   |
+| 400    | TEXT_TOO_LONG   | Input exceeds 1000 characters         |
+| 429    | TTS_RATE_LIMIT  | ElevenLabs or app rate limit exceeded |
+| 500    | TTS_ERROR       | ElevenLabs request failed             |
+| 503    | TTS_UNAVAILABLE | ElevenLabs service unavailable        |
 
 **Configuration:** `ELEVENLABS_API_KEY` is required. `ELEVENLABS_VOICE_ID` is optional; if unset, use a default English voice supported by ElevenLabs.
 
 ### Error Responses (Translate)
 
-| Status | Code | Description |
-|--------|------|-------------|
-| 400 | TEXT_EMPTY | Input text is empty |
-| 400 | TEXT_TOO_LONG | Input exceeds 1000 characters |
-| 400 | UNSUPPORTED_LANGUAGE | Detected language not in supported list |
-| 500 | TRANSLATION_ERROR | LLM translation failed |
-| 503 | SERVICE_UNAVAILABLE | OpenRouter unavailable |
+| Status | Code                 | Description                             |
+| ------ | -------------------- | --------------------------------------- |
+| 400    | TEXT_EMPTY           | Input text is empty                     |
+| 400    | TEXT_TOO_LONG        | Input exceeds 1000 characters           |
+| 400    | UNSUPPORTED_LANGUAGE | Detected language not in supported list |
+| 500    | TRANSLATION_ERROR    | LLM translation failed                  |
+| 503    | SERVICE_UNAVAILABLE  | OpenRouter unavailable                  |
 
 ---
 
@@ -204,6 +211,7 @@ Response:
 Translation history is stored in client-side state (Zustand) and persists only for the browser session. This is a deliberate privacy decision — question translations are ephemeral and not stored on the server.
 
 **Translation History Item:**
+
 ```typescript
 interface TranslationHistoryItem {
   id: string;
@@ -215,6 +223,7 @@ interface TranslationHistoryItem {
 ```
 
 **Store State:**
+
 ```typescript
 interface QuestionTranslationState {
   history: TranslationHistoryItem[];
@@ -236,6 +245,7 @@ interface QuestionTranslationState {
 The Question Assistant appears as a slide-out panel from the right side of the screen, similar to a chat interface.
 
 **Panel Layout:**
+
 ```
 ┌────────────────────────────────┐
 │  Question Translation    [X]  │
@@ -272,6 +282,7 @@ The Question Assistant appears as a slide-out panel from the right side of the s
 ### Trigger Button
 
 A floating action button appears in the bottom-right corner of the session view:
+
 - Icon: Speech bubble with translation symbol
 - Tooltip: "Translate Question (Ctrl+Shift+Q)"
 - Badge: Number of translations in history (if > 0)
@@ -279,17 +290,20 @@ A floating action button appears in the bottom-right corner of the session view:
 ### Input Area
 
 **Text Input:**
+
 - Multi-line textarea
 - Placeholder: "Type your question in your language..."
 - Character counter showing current/max (e.g., "45/1000")
 - Auto-grows up to 4 lines
 
 **Language Indicator:**
+
 - Appears below input after typing starts
 - Shows detected language with confidence
 - Updates as user types (debounced)
 
 **Translate Button:**
+
 - Primary action button
 - Disabled when input is empty
 - Shows loading spinner during translation
@@ -298,14 +312,16 @@ A floating action button appears in the bottom-right corner of the session view:
 ### Translation Result
 
 **Result Display:**
+
 - Appears after successful translation
 - Shows English translation in a distinct card
-- **Speak button** (primary): Tooltip "Speak aloud" — calls `POST /api/v1/tts/speak` with the translation, receives MP3, and plays it in-browser so the **system** reads the translation (ElevenLabs). The student does not have to speak it themselves. Icon indicates playing state when TTS is active; supports stop.
+- **Speak button** (primary): Tooltip "Speak aloud" — calls `POST /api/v1/translate/tts/speak` with the translation, receives MP3, and plays it in-browser so the **system** reads the translation (ElevenLabs). The student does not have to speak it themselves. Icon indicates playing state when TTS is active; supports stop.
 - **Copy button**: Tooltip "Copy to clipboard" — copies translation for pasting into chat
 - Optional: **Auto-speak** — after translation, TTS can optionally play automatically (user preference, off by default)
 - Visual feedback on successful copy (icon changes to checkmark)
 
 **Error Display:**
+
 - Red-bordered card for errors
 - Error message with retry button
 - Input preserved for retry
@@ -317,21 +333,24 @@ The system **speaks the English translation aloud** so the student does not have
 **Provider: ElevenLabs.** TTS is powered by **ElevenLabs** for high-quality, natural-sounding English speech. The backend proxies requests to the ElevenLabs API (API key kept server-side only).
 
 **Implementation:**
-- **Flow**: Frontend calls `POST /api/v1/tts/speak` with the translation text → backend calls ElevenLabs Text-to-Speech API → returns audio (e.g. `mp3`) → frontend plays via `<audio>` or `Audio` API.
+
+- **Flow**: Frontend calls `POST /api/v1/translate/tts/speak` with the translation text → backend calls ElevenLabs Text-to-Speech API → returns audio (e.g. `mp3`) → frontend plays via `<audio>` or `Audio` API.
 - **Voice**: Use a configurable ElevenLabs `voice_id` (e.g. default English voice). Stored in backend config; optionally allow voice selection in settings later.
 - **Model**: Use **Eleven Turbo v2.5** or **Flash v2.5** for low latency; suitable for short question-length utterances.
 - **Output format**: `mp3_44100_128` (or equivalent) for broad browser support.
 - **Playback controls**: Speak plays from start; clicking again stops. When TTS is playing, icon switches to "stop" state.
 - **Only one at a time**: Starting TTS for another translation (or history item) stops any currently playing audio.
-- **Loading state**: While fetching from `/api/v1/tts/speak`, show a loading indicator on the Speak button (e.g. spinner). Disable duplicate requests for the same text until the first completes or fails.
+- **Loading state**: While fetching from `/api/v1/translate/tts/speak`, show a loading indicator on the Speak button (e.g. spinner). Disable duplicate requests for the same text until the first completes or fails.
 - **Fallback**: If TTS fails (e.g. ElevenLabs unavailable, rate limit), show error tooltip/toast and keep Speak button retryable.
 
 **User preference (optional):**
+
 - **Auto-speak after translate**: When enabled, the translation is spoken automatically as soon as it appears. Default: off.
 
 ### History Section
 
 **History List:**
+
 - Scrollable list of past translations
 - Most recent at top
 - Each item shows:
@@ -343,31 +362,35 @@ The system **speaks the English translation aloud** so the student does not have
 - Maximum 20 items stored
 
 **Clear History:**
+
 - Text button at bottom of history
 - Confirmation dialog before clearing
 
 ### Keyboard Navigation
 
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + Shift + Q` | Open/close panel |
-| `Enter` | Translate (when input focused) |
+| Shortcut               | Action                                        |
+| ---------------------- | --------------------------------------------- |
+| `Ctrl/Cmd + Shift + Q` | Open/close panel                              |
+| `Enter`                | Translate (when input focused)                |
 | `Ctrl/Cmd + Shift + S` | Speak translation aloud (when result focused) |
-| `Escape` | Close panel / stop TTS |
-| `Tab` | Navigate between elements |
+| `Escape`               | Close panel / stop TTS                        |
+| `Tab`                  | Navigate between elements                     |
 
 ### Responsive Behavior
 
 **Desktop:**
+
 - Panel slides in from right
 - Width: 400px
 - Overlays main content
 
 **Tablet:**
+
 - Full-width modal
 - Slides up from bottom
 
 **Mobile:**
+
 - Full-screen modal
 - Slides up from bottom
 
@@ -378,6 +401,7 @@ The system **speaks the English translation aloud** so the student does not have
 ### Service Layer
 
 **QuestionTranslationService:**
+
 ```python
 class QuestionTranslationService:
     def translate(self, text: str, source_language: str | None = None) -> TranslationResult
@@ -385,6 +409,7 @@ class QuestionTranslationService:
 ```
 
 **TranslationResult:**
+
 ```python
 class TranslationResult:
     original_text: str
@@ -397,6 +422,7 @@ class TranslationResult:
 ### OpenRouter Integration
 
 **Translation Prompt:**
+
 ```
 You are a translation assistant helping students participate in English-language classrooms.
 
@@ -421,6 +447,7 @@ Respond in this exact JSON format:
 ```
 
 **Model Selection:**
+
 - Use `openai/gpt-4o-mini` for fast, accurate translation
 - Temperature: 0.3 (low creativity, high accuracy)
 - Max tokens: 500
@@ -428,16 +455,19 @@ Respond in this exact JSON format:
 ### External Clients
 
 **OpenRouterClient (translation):**
+
 ```python
 class OpenRouterClient:
     async def translate_question(self, text: str, source_lang: str | None) -> TranslationResult
 ```
 
 **ElevenLabsClient (TTS):**
+
 ```python
 class ElevenLabsClient:
     async def text_to_speech(self, text: str, voice_id: str | None = None) -> bytes
 ```
+
 - Calls `POST https://api.elevenlabs.io/v1/text-to-speech/{voice_id}` with `xi-api-key` header.
 - Request body: `{"text": text, "model_id": "eleven_turbo_v2_5"}` (or `eleven_flash_v2_5`). Use `output_format: "mp3_44100_128"`.
 - Returns raw MP3 bytes. Propagates rate limits (429) and service errors (5xx).
@@ -445,29 +475,31 @@ class ElevenLabsClient:
 ### TTS Service Layer
 
 **TTSService (or extend QuestionTranslationService):**
+
 ```python
 class TTSService:
     def __init__(self, client: ElevenLabsClient, voice_id: str | None): ...
     async def speak(self, text: str) -> bytes
 ```
+
 - Validates `text` (non-empty, max 1000 chars). Uses `ELEVENLABS_VOICE_ID` or default English voice.
 
 ### Error Handling
 
-| Scenario | Handling |
-|----------|----------|
-| **Translation** | |
-| Empty input | Return 400 before calling LLM |
-| Input too long | Return 400, truncate suggestion |
-| Unsupported language detected | Return 400 with supported list |
-| LLM timeout | Retry once, then return 503 |
-| Invalid LLM response | Return 500 with generic message |
-| Translate rate limit exceeded | Return 429 with retry-after header |
-| **TTS (ElevenLabs)** | |
-| Empty / too long text | Return 400 before calling ElevenLabs |
-| ElevenLabs 429 | Return 429 TTS_RATE_LIMIT, optionally retry-after |
-| ElevenLabs 5xx or timeout | Return 503 TTS_UNAVAILABLE or 500 TTS_ERROR |
-| Missing `ELEVENLABS_API_KEY` | Fail fast at startup; 503 if misconfigured at request time |
+| Scenario                      | Handling                                                   |
+| ----------------------------- | ---------------------------------------------------------- |
+| **Translation**               |                                                            |
+| Empty input                   | Return 400 before calling LLM                              |
+| Input too long                | Return 400, truncate suggestion                            |
+| Unsupported language detected | Return 400 with supported list                             |
+| LLM timeout                   | Retry once, then return 503                                |
+| Invalid LLM response          | Return 500 with generic message                            |
+| Translate rate limit exceeded | Return 429 with retry-after header                         |
+| **TTS (ElevenLabs)**          |                                                            |
+| Empty / too long text         | Return 400 before calling ElevenLabs                       |
+| ElevenLabs 429                | Return 429 TTS_RATE_LIMIT, optionally retry-after          |
+| ElevenLabs 5xx or timeout     | Return 503 TTS_UNAVAILABLE or 500 TTS_ERROR                |
+| Missing `ELEVENLABS_API_KEY`  | Fail fast at startup; 503 if misconfigured at request time |
 
 ### Rate Limiting
 
@@ -496,4 +528,3 @@ class TTSService:
 - High contrast text
 - Clear visual distinction between input and output
 - Error states use both color and icons
-

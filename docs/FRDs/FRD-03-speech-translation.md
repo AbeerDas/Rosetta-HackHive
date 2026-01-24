@@ -2,19 +2,21 @@
 
 ## Overview
 
-Real-Time Speech Translation captures professor speech via the device microphone and outputs natural-sounding translated audio through ElevenLabs' Speech-to-Speech API. This is the core feature that enables students to hear lectures in their preferred language in real-time.
+Real-Time Speech Translation captures professor speech via the browser's Web Speech API, translates text via OpenRouter LLM, and outputs natural-sounding audio through ElevenLabs Text-to-Speech API. This is the core feature that enables students to hear lectures in their preferred language in real-time.
 
 **Key Design Decisions:**
 
-1. **Browser-Based Audio Capture** — Audio is captured directly in the browser using the Web Audio API, avoiding server-side recording complexity.
+1. **Browser-Based Speech Recognition** — Audio is captured and transcribed directly in the browser using Web Speech API.
 
-2. **WebSocket Streaming** — Audio streams to the backend via WebSocket for low-latency, bidirectional communication with ElevenLabs.
+2. **Text-Based Translation** — Transcribed text is sent to OpenRouter (Claude 3 Haiku) for translation to the target language.
 
-3. **Natural Voice Synthesis** — ElevenLabs provides human-like voice output, avoiding the robotic quality of traditional TTS.
+3. **WebSocket Streaming** — Transcript segments stream to the backend via WebSocket for translation and TTS.
 
-4. **Client-Side Audio Playback** — Translated audio streams back to the browser and plays through the user's speakers or headphones.
+4. **Natural Voice Synthesis** — ElevenLabs TTS (eleven_turbo_v2_5 model) provides human-like voice output.
 
-5. **Source Language: English Only** — The professor speaks in English; translation is from English to the student's selected target language.
+5. **Echo Detection** — The system filters TTS playback audio to prevent it from being re-transcribed.
+
+6. **Source Language: English Only** — The professor speaks in English; translation is from English to the student's selected target language.
 
 ---
 
@@ -95,83 +97,32 @@ The student realizes they selected the wrong language. They click the language d
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Audio Format Specifications
-
-**Capture Format (Browser → Backend):**
-- Format: PCM 16-bit
-- Sample rate: 16000 Hz
-- Channels: Mono
-- Chunk size: 4096 samples (~256ms)
-
-**Translation Format (Backend → Browser):**
-- Format: MP3 or PCM (as provided by ElevenLabs)
-- Sample rate: 22050 Hz or 44100 Hz
-- Channels: Mono
-
-### WebSocket Protocol
-
-**Connection Handshake:**
-```
-Client → Server: WebSocket upgrade request
-                 Headers: session_id, target_language
-Server → Client: Connection accepted
-                 Message: { type: "connected", session_id: "..." }
-```
-
-**Audio Streaming:**
-```
-Client → Server: Binary frame (PCM audio chunk)
-Server → Client: Binary frame (translated audio chunk)
-```
-
-**Control Messages:**
-```
-Client → Server: { type: "mute" }
-Client → Server: { type: "unmute" }
-Client → Server: { type: "change_language", language: "hi" }
-Server → Client: { type: "status", status: "live" | "muted" | "reconnecting" }
-Server → Client: { type: "error", message: "..." }
-```
-
-### Language Configuration
-
-**Supported Target Languages:**
-| Language | Code | ElevenLabs Voice ID |
-|----------|------|---------------------|
-| Chinese (Mandarin) | zh | (configured in env) |
-| Hindi | hi | (configured in env) |
-| Spanish | es | (configured in env) |
-| French | fr | (configured in env) |
-| Bengali | bn | (configured in env) |
-
-**Source Language:** English (en) — fixed for this version.
-
 ### ElevenLabs Integration
 
-**API Endpoint:** Speech-to-Speech Streaming
+**API Endpoint:** Text-to-Speech
 
 **Request Configuration:**
-- Model: `eleven_multilingual_sts_v2`
-- Voice: Language-specific voice ID
-- Stability: 0.5 (balanced)
-- Similarity boost: 0.75
+
+- Model: `eleven_turbo_v2_5`
+- Voice: User-selected from available voices API
+- Output format: MP3 or PCM
 
 **Streaming Behavior:**
-- ElevenLabs accepts audio in chunks
-- Returns translated audio as it's processed
-- Latency: typically 1-2 seconds end-to-end
+
+- Text sent to ElevenLabs TTS
+- Returns audio as it's generated
+- Latency: typically < 1 second
 
 ### Latency Breakdown
 
-| Stage | Target Latency |
-|-------|----------------|
-| Audio capture + buffering | ~250ms |
-| WebSocket to backend | ~50ms |
-| Backend to ElevenLabs | ~100ms |
-| ElevenLabs processing | ~1000-1500ms |
-| Response to browser | ~100ms |
-| Audio playback buffering | ~100ms |
-| **Total end-to-end** | **< 2000ms** |
+| Stage                               | Target Latency |
+| ----------------------------------- | -------------- |
+| Speech recognition (Web Speech API) | ~300ms         |
+| WebSocket to backend                | ~50ms          |
+| Text translation (OpenRouter)       | ~500ms         |
+| TTS generation (ElevenLabs)         | ~500ms         |
+| Response to browser                 | ~100ms         |
+| **Total end-to-end**                | **< 2000ms**   |
 
 ---
 
@@ -184,6 +135,7 @@ WebSocket /api/v1/translate/stream
 ```
 
 **Connection Parameters (Query String):**
+
 ```
 session_id: UUID (required)
 target_language: string (required, e.g., "zh", "hi")
@@ -194,6 +146,7 @@ target_language: string (required, e.g., "zh", "hi")
 Binary frames: Raw PCM audio data
 
 JSON control messages:
+
 ```
 { "type": "mute" }
 { "type": "unmute" }
@@ -206,6 +159,7 @@ JSON control messages:
 Binary frames: Translated audio data
 
 JSON status messages:
+
 ```
 { "type": "connected", "session_id": "...", "language": "zh" }
 { "type": "status", "status": "live" | "muted" | "reconnecting" }
@@ -221,6 +175,7 @@ GET /api/v1/translate/languages
 ```
 
 Response Schema:
+
 ```
 {
   languages: [
@@ -243,6 +198,7 @@ Response Schema:
 Translation state is ephemeral — it exists only during active WebSocket connections and is not persisted to the database.
 
 **In-Memory State Per Connection:**
+
 ```python
 class TranslationSession:
     session_id: UUID
@@ -301,6 +257,7 @@ The audio controls appear at the bottom of the session view:
 ```
 
 **Controls:**
+
 - Language dropdown: Select target language
 - Start/Stop button: Begin or end translation
 - Volume slider: 0-100%
@@ -310,11 +267,13 @@ The audio controls appear at the bottom of the session view:
 ### Language Selector
 
 **Dropdown Behavior:**
+
 - Shows language name and native name
 - Disabled when translation is starting (brief moment)
 - Change triggers reconnection if active
 
 **Dropdown Options:**
+
 ```
 Chinese (Mandarin) - 中文
 Hindi - हिन्दी
@@ -325,52 +284,58 @@ Bengali - বাংলা
 
 ### Status Indicators
 
-| Status | Visual | Description |
-|--------|--------|-------------|
-| Ready | Gray dot | Not translating, ready to start |
-| Connecting | Yellow pulse | Establishing connection |
-| Live | Green pulse | Active translation |
-| Muted | Orange dot | Connected but audio muted |
+| Status       | Visual       | Description                          |
+| ------------ | ------------ | ------------------------------------ |
+| Ready        | Gray dot     | Not translating, ready to start      |
+| Connecting   | Yellow pulse | Establishing connection              |
+| Live         | Green pulse  | Active translation                   |
+| Muted        | Orange dot   | Connected but audio muted            |
 | Reconnecting | Yellow blink | Lost connection, attempting recovery |
-| Error | Red dot | Connection failed, needs restart |
+| Error        | Red dot      | Connection failed, needs restart     |
 
 ### Audio Playback
 
 **Playback Management:**
+
 - Audio plays through Web Audio API
 - Respects volume slider setting
 - Buffers ~100ms to prevent choppy playback
 - Handles gaps gracefully (silence, no clicks/pops)
 
 **Device Selection:**
+
 - Uses system default audio output
 - Future enhancement: Custom output device selection
 
 ### Error Handling
 
 **Connection Errors:**
+
 - Display: "Connection failed. Check your internet and try again."
 - Action: "Retry" button
 
 **ElevenLabs Errors:**
+
 - Display: "Translation service unavailable. Please try again later."
 - Action: Auto-retry after 5 seconds, max 3 attempts
 
 **Microphone Permission Denied:**
+
 - Display: "Microphone access required. Please allow access and refresh."
 - Action: Link to browser permission settings
 
 ### State Management
 
 **Client State (Zustand):**
+
 ```typescript
 interface TranslationState {
-  status: 'ready' | 'connecting' | 'live' | 'muted' | 'reconnecting' | 'error';
+  status: "ready" | "connecting" | "live" | "muted" | "reconnecting" | "error";
   targetLanguage: string;
   volume: number;
   isMuted: boolean;
   error: string | null;
-  
+
   // Actions
   setTargetLanguage: (lang: string) => void;
   setVolume: (vol: number) => void;
@@ -381,6 +346,7 @@ interface TranslationState {
 ```
 
 **WebSocket Hook:**
+
 ```typescript
 function useTranslationStream(sessionId: string, targetLanguage: string) {
   // Returns connection state and controls
@@ -425,7 +391,7 @@ async def translation_stream(
     service: TranslationService = Depends(get_translation_service)
 ):
     await websocket.accept()
-    
+
     try:
         # Validate session and language
         # Establish ElevenLabs connection
@@ -441,11 +407,12 @@ async def translation_stream(
 ### Service Layer
 
 **TranslationService:**
+
 ```python
 class TranslationService:
     def __init__(self, elevenlabs_client: ElevenLabsClient):
         self.client = elevenlabs_client
-    
+
     async def create_stream(self, target_language: str) -> TranslationStream
     async def translate_chunk(self, audio: bytes, stream: TranslationStream) -> bytes
     async def change_language(self, stream: TranslationStream, language: str) -> None
@@ -459,15 +426,15 @@ class ElevenLabsClient:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.elevenlabs.io/v1"
-    
+
     async def create_s2s_stream(
         self,
         target_language: str,
         voice_id: str
     ) -> ElevenLabsStream
-    
+
     async def send_audio(self, stream: ElevenLabsStream, chunk: bytes) -> None
-    
+
     async def receive_audio(self, stream: ElevenLabsStream) -> AsyncGenerator[bytes, None]
 ```
 
@@ -488,22 +455,24 @@ def get_voice_id(language: str) -> str:
 
 ### Error Handling
 
-| Scenario | Server Response | Client Behavior |
-|----------|-----------------|-----------------|
-| Invalid session_id | Close with 4000 | Show error, no retry |
-| Invalid language | Close with 4001 | Show error, no retry |
-| ElevenLabs rate limit | Send error message | Auto-retry after delay |
-| ElevenLabs down | Send error message | Show error, manual retry |
-| Client disconnect | Clean up resources | — |
+| Scenario              | Server Response    | Client Behavior          |
+| --------------------- | ------------------ | ------------------------ |
+| Invalid session_id    | Close with 4000    | Show error, no retry     |
+| Invalid language      | Close with 4001    | Show error, no retry     |
+| ElevenLabs rate limit | Send error message | Auto-retry after delay   |
+| ElevenLabs down       | Send error message | Show error, manual retry |
+| Client disconnect     | Clean up resources | —                        |
 
 ### Connection Management
 
 **Keepalive:**
+
 - Client sends ping every 30 seconds
 - Server responds with pong
 - No response for 60 seconds → connection considered dead
 
 **Reconnection:**
+
 - Client handles reconnection automatically
 - Server does not maintain state between connections
 - Fresh ElevenLabs stream on each connection
@@ -515,19 +484,21 @@ def get_voice_id(language: str) -> str:
 ### Audio Buffer Management
 
 **Client-Side:**
+
 - Ring buffer for incoming audio (1 second capacity)
 - Jitter buffer for smooth playback
 - Drop old audio if falling behind (prefer low latency over completeness)
 
 **Server-Side:**
+
 - Minimal buffering — forward audio immediately
 - No server-side storage of audio
 
 ### Bandwidth Requirements
 
-| Direction | Rate |
-|-----------|------|
-| Upload (mic audio) | ~256 kbps (16kHz, 16-bit PCM) |
+| Direction              | Rate                                     |
+| ---------------------- | ---------------------------------------- |
+| Upload (mic audio)     | ~256 kbps (16kHz, 16-bit PCM)            |
 | Download (translation) | ~128 kbps (MP3) or ~352 kbps (22kHz PCM) |
 
 ### Resource Limits
@@ -535,4 +506,3 @@ def get_voice_id(language: str) -> str:
 - One translation stream per session
 - ElevenLabs concurrent stream limits (per plan)
 - WebSocket connection timeout: 2 hours (matches max lecture length)
-
