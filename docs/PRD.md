@@ -1,8 +1,8 @@
-# Product Requirements Document - LectureLens
+# Product Requirements Document - BootyLens
 
 ## Executive Summary
 
-LectureLens is a real-time lecture translation and learning assistant that breaks down language barriers for students in educational settings. The application captures professor speech, translates it in real-time through natural-sounding voice synthesis, and intelligently surfaces relevant course materials as citations alongside the translation.
+BootyLens is a real-time lecture translation and learning assistant that breaks down language barriers for students in educational settings. The application captures professor speech, translates it in real-time through natural-sounding voice synthesis, and intelligently surfaces relevant course materials as citations alongside the translation.
 
 **Hackathon Context:** HackHive 2026 | Tracks: Best Accessibility Hack + Best Use of ElevenLabs
 
@@ -45,7 +45,7 @@ Existing solutions fail to address the complete problem:
 
 ### AI-First Justification
 
-LectureLens requires sophisticated multi-model AI orchestration that goes far beyond basic API calls:
+BootyLens requires sophisticated multi-model AI orchestration that goes far beyond basic API calls:
 
 1. **Parallel Speech Processing**: Simultaneous speech-to-text (for transcription/RAG) and speech-to-speech translation (for audio output)
 2. **Real-Time Semantic Understanding**: Sliding window embedding of professor speech for contextual RAG queries
@@ -67,7 +67,7 @@ This multi-stage pipeline creates genuine AI-first value that cannot be replicat
 
 ## Product Description
 
-LectureLens is a web application that transforms the lecture experience for students facing language barriers. The system operates in real-time during live lectures, providing three parallel outputs:
+BootyLens is a web application that transforms the lecture experience for students facing language barriers. The system operates in real-time during live lectures, providing three parallel outputs:
 
 1. **Translated Audio**: Natural-sounding speech in the student's preferred language, delivered through their device speakers or headphones
 2. **Live Transcription Display**: Real-time voice-to-text transcription appearing dynamically as the professor speaks, displayed in a visual panel
@@ -823,9 +823,9 @@ The note editing interface provides a full-featured text editing workspace. A to
 
 ### Best Accessibility Hack
 
-LectureLens directly addresses accessibility by removing language barriers that prevent millions of students from fully participating in education.
+BootyLens directly addresses accessibility by removing language barriers that prevent millions of students from fully participating in education.
 
-| Criterion | How LectureLens Addresses It |
+| Criterion | How BootyLens Addresses It |
 |-----------|------------------------------|
 | Real Problem | 6M+ international students struggle with language barriers in lectures |
 | Underrepresented Users | ESL students, immigrants, students from non-English speaking countries |
@@ -843,9 +843,9 @@ LectureLens directly addresses accessibility by removing language barriers that 
 
 ### Best Use of ElevenLabs
 
-LectureLens showcases ElevenLabs as the core enabler of the translation experience.
+BootyLens showcases ElevenLabs as the core enabler of the translation experience.
 
-| Criterion | How LectureLens Uses ElevenLabs |
+| Criterion | How BootyLens Uses ElevenLabs |
 |-----------|--------------------------------|
 | Central to Product | Speech-to-Speech API is the primary translation engine |
 | Real-Time Streaming | Continuous audio output during live lectures |
@@ -953,5 +953,5 @@ LectureLens showcases ElevenLabs as the core enabler of the translation experien
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0 | 2026-01-24 | LectureLens Team | Initial PRD for HackHive 2026 |
-| 1.1 | 2026-01-24 | LectureLens Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
+| 1.0 | 2026-01-24 | BootyLens Team | Initial PRD for HackHive 2026 |
+| 1.1 | 2026-01-24 | BootyLens Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
