@@ -20,9 +20,18 @@ class OpenRouterClient:
         self.api_key = api_key
         self._http_client: Optional[httpx.AsyncClient] = None
 
+    def _validate_api_key(self) -> None:
+        """Validate that API key is configured."""
+        if not self.api_key or not self.api_key.strip():
+            raise ValueError(
+                "OpenRouter API key is not configured. "
+                "Please set OPENROUTER_API_KEY in your .env file."
+            )
+
     @property
     def http_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
+        self._validate_api_key()
         if self._http_client is None or self._http_client.is_closed:
             self._http_client = httpx.AsyncClient(
                 base_url=self.BASE_URL,
