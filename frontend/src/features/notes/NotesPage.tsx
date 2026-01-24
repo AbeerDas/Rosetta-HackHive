@@ -23,9 +23,12 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DescriptionIcon from '@mui/icons-material/Description';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { notesApi, sessionApi } from '../../services/api';
+import { useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 import { TipTapEditor } from './TipTapEditor';
 
 // Auto-save debounce time in milliseconds
@@ -35,6 +38,7 @@ export function NotesPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useLanguageStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
@@ -336,9 +340,12 @@ export function NotesPage() {
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
               {session.name}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Lecture Notes
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DescriptionIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+              <Typography variant="caption" color="text.secondary">
+                {t.lectureNotes}
+              </Typography>
+            </Box>
           </Box>
         </Box>
 
@@ -357,6 +364,23 @@ export function NotesPage() {
             </Box>
           ) : null}
           
+          {/* View Transcript Toggle Button */}
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigate(`/session/${sessionId}`)}
+            sx={{
+              textTransform: 'none',
+              borderColor: customColors.brandGreen,
+              color: customColors.brandGreen,
+              '&:hover': {
+                borderColor: '#005F54',
+                bgcolor: 'rgba(0, 126, 112, 0.04)',
+              },
+            }}
+          >
+            {t.viewTranscript}
+          </Button>
           <Button
             variant="contained"
             startIcon={saveMutation.isPending ? <CircularProgress size={16} /> : <SaveIcon />}

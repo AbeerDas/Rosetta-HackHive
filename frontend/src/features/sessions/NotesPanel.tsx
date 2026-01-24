@@ -20,22 +20,29 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Tooltip } from '@mui/material';
 
 import { notesApi } from '../../services/api';
+import { useLanguageStore } from '../../stores';
+import { customColors } from '../../theme';
 import { TipTapEditor } from '../notes/TipTapEditor';
 
 interface NotesPanelProps {
   readonly sessionId: string;
   readonly sessionName: string;
   readonly autoGenerate?: boolean;
+  readonly onViewTranscript?: () => void;
+  readonly onOpenFullPage?: () => void;
 }
 
 // Auto-save debounce time in milliseconds
 const AUTO_SAVE_DELAY = 5000;
 
-export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: NotesPanelProps) {
+export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onViewTranscript, onOpenFullPage }: NotesPanelProps) {
   const queryClient = useQueryClient();
+  const { t } = useLanguageStore();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
@@ -403,6 +410,33 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false }: Not
 
         {/* Right side - actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* View Transcript button */}
+          {onViewTranscript && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={onViewTranscript}
+              sx={{
+                textTransform: 'none',
+                borderColor: customColors.brandGreen,
+                color: customColors.brandGreen,
+                '&:hover': {
+                  borderColor: '#005F54',
+                  bgcolor: 'rgba(0, 126, 112, 0.04)',
+                },
+              }}
+            >
+              {t.viewTranscript}
+            </Button>
+          )}
+          {/* Open in full page button */}
+          {onOpenFullPage && (
+            <Tooltip title="Open in full-page editor">
+              <IconButton size="small" onClick={onOpenFullPage}>
+                <OpenInNewIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
           <Button
             size="small"
             variant="contained"

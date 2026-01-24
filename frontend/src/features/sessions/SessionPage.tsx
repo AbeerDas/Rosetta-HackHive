@@ -17,7 +17,6 @@ import {
   MenuItem,
 } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
@@ -362,33 +361,24 @@ export function SessionPage() {
               {showNotesPanel ? t.lectureNotes : t.liveTranscription}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              {!isActive && (
-                <>
-                  <Button
-                    size="small"
-                    variant={showNotesPanel ? 'outlined' : 'contained'}
-                    onClick={() => setShowNotesPanel(!showNotesPanel)}
-                    sx={{
-                      textTransform: 'none',
-                      ...(showNotesPanel ? {} : {
-                        bgcolor: customColors.brandGreen,
-                        '&:hover': { bgcolor: '#005F54' },
-                      }),
-                    }}
-                  >
-                    {showNotesPanel ? t.viewTranscript : t.viewNotes}
-                  </Button>
-                  {showNotesPanel && (
-                    <Tooltip title="Open in full-page editor">
-                      <IconButton
-                        size="small"
-                        onClick={() => navigate(`/session/${sessionId}/notes`)}
-                      >
-                        <OpenInNewIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                </>
+              {/* Only show View Notes button when viewing transcript (not notes) */}
+              {!isActive && !showNotesPanel && (
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={() => setShowNotesPanel(true)}
+                  sx={{
+                    textTransform: 'none',
+                    borderColor: customColors.brandGreen,
+                    color: customColors.brandGreen,
+                    '&:hover': {
+                      borderColor: '#005F54',
+                      bgcolor: 'rgba(0, 126, 112, 0.04)',
+                    },
+                  }}
+                >
+                  {t.viewNotes}
+                </Button>
               )}
               {isTranscribing && !showNotesPanel && (
                 <Chip
@@ -424,6 +414,8 @@ export function SessionPage() {
               sessionId={sessionId!}
               sessionName={session.name}
               autoGenerate={autoGenerateNotes}
+              onViewTranscript={() => setShowNotesPanel(false)}
+              onOpenFullPage={() => navigate(`/session/${sessionId}/notes`)}
             />
           ) : (
             <TranscriptionPanel sessionId={sessionId!} isActive={isActive} />
