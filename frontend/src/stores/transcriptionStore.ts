@@ -64,11 +64,17 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
     })),
 
   attachCitations: (segmentId, citations) =>
-    set((state) => ({
-      segments: state.segments.map((seg) =>
-        seg.id === segmentId ? { ...seg, citations } : seg
-      ),
-    })),
+    set((state) => {
+      console.log('[Store] attachCitations called:', { segmentId, citationCount: citations.length });
+      console.log('[Store] Current segments:', state.segments.map(s => ({ id: s.id, text: s.text.substring(0, 30) })));
+      const found = state.segments.some(seg => seg.id === segmentId);
+      console.log('[Store] Segment found:', found);
+      return {
+        segments: state.segments.map((seg) =>
+          seg.id === segmentId ? { ...seg, citations } : seg
+        ),
+      };
+    }),
 
   clearSegments: () =>
     set({

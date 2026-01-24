@@ -96,3 +96,40 @@ async def retry_document_processing(
     )
 
     return document
+
+
+@router.get("/sessions/{session_id}/documents/debug/chroma")
+async def debug_chroma_documents(
+    session_id: UUID,
+    chroma_client: ChromaClientDep,
+):
+    """Debug endpoint to check what's indexed in ChromaDB for a session."""
+    try:
+        # Query all documents for this session
+        collection = await chroma_client._get_or_create_collection("documents")
+        
+        # Get count
+        count = await collection.count()
+        
+        # Get all items for this session
+        results = await collection.get(
+            where={"session_id": str(session_id)},
+            include=["documents", "metadatas"]
+        )
+        
+        return {
+            "total_in_collection": count,
+            "session_documents_count": len(results.get("ids", [])),
+            "session_id": str(session_id),
+            "documents": [
+                {
+                    "id": results["ids"][i],
+                    "document_name": results["metadatas"][i].get("document_name") if results.get("metadatas") else None,
+                    "page_number": results["metadatas"][i].get("page_number") if results.get("metadatas") else None,
+                    "text_preview": results["documents"][i][:100] + "..." if results.get("documents") and len(results["documents"][i]) > 100 else results["documents"][i] if results.get("documents") else None,
+                }
+                for i in range(len(results.get("ids", [])))
+            ][:10]  # Limit to first 10 for readability
+        }
+    except Exception as e:
+        return {"error": str(e)}

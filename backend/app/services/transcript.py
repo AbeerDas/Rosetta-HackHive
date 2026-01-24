@@ -106,8 +106,8 @@ class SlidingWindowBuffer:
     trigger based on segment count and word count as fallback.
     """
 
-    # FRD-05 constants
-    MIN_WORDS = 30
+    # FRD-05 constants - lowered MIN_WORDS for better triggering with speech
+    MIN_WORDS = 15  # Lowered from 30 - speech segments are often short
     MAX_WORDS = 150
     MIN_SEGMENTS = 2  # Fallback: trigger after N segments if no punctuation
     
@@ -176,34 +176,43 @@ class SlidingWindowBuffer:
         """Check if the window meets trigger criteria.
         
         Returns True if ANY of these conditions are met:
-        1. Has enough sentences (target_sentences) AND minimum words (30)
+        1. Has enough sentences (target_sentences) AND minimum words
         2. Max words exceeded (150) - force trigger
-        3. Enough segments (2+) AND minimum words (30) - fallback for speech
+        3. Enough segments (2+) AND minimum words - fallback for speech
            recognition which doesn't add punctuation
         
         This ensures RAG triggers for both:
         - Text with punctuation (traditional sentence detection)
         - Speech recognition output (no punctuation, uses segment count)
         """
+        import logging
+        logger = logging.getLogger(__name__)
+        
         text = self.get_text()
         word_count = self._count_words(text)
         sentence_count = self._count_sentences(text)
         segment_count = len(self.segments)
         
+        logger.info(f"[SlidingWindow] Check complete: words={word_count}, sentences={sentence_count}, segments={segment_count}")
+        
         # Force trigger if max words exceeded
         if word_count >= self.MAX_WORDS:
+            logger.info(f"[SlidingWindow] Triggering: max words exceeded ({word_count} >= {self.MAX_WORDS})")
             return True
         
         # Standard trigger: enough sentences AND minimum words
         if sentence_count >= self.target_sentences and word_count >= self.MIN_WORDS:
+            logger.info(f"[SlidingWindow] Triggering: sentences={sentence_count}, words={word_count}")
             return True
         
         # Fallback for speech recognition (no punctuation):
         # Trigger after MIN_SEGMENTS segments with enough words
         # Each speech segment is roughly a phrase/clause
         if segment_count >= self.MIN_SEGMENTS and word_count >= self.MIN_WORDS:
+            logger.info(f"[SlidingWindow] Triggering: segments={segment_count}, words={word_count}")
             return True
         
+        logger.debug(f"[SlidingWindow] Not triggering yet: need {self.MIN_WORDS} words with {self.MIN_SEGMENTS} segments")
         return False
 
     def get_text(self) -> str:

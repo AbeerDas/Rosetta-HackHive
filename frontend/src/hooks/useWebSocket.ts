@@ -152,6 +152,7 @@ export function useWebSocket({
 
   const disconnect = useCallback(() => {
     console.log('[WebSocket] Disconnect called for:', urlRef.current);
+    console.trace('[WebSocket] Disconnect stack trace:');  // Show where disconnect was called from
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -311,17 +312,24 @@ export function useTranscriptionSocket(
   const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
   const url = `${baseUrl}/api/v1/transcribe/stream?session_id=${sessionId}`;
 
+  // Use ref to store onMessage callback to prevent reconnections when callback changes
+  const onMessageRef = useRef(onMessage);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+
+  // Stable handleMessage that uses ref - no dependencies that could change
   const handleMessage = useCallback(
     (data: unknown) => {
       if (typeof data === 'object' && data !== null) {
         const msg = data as TranscriptionMessage;
         // Ignore pong messages
         if (msg.type !== 'pong') {
-          onMessage(msg);
+          onMessageRef.current(msg);
         }
       }
     },
-    [onMessage]
+    [] // Empty deps - uses ref for callback
   );
 
   const handleOpen = useCallback(() => {

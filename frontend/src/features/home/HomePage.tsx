@@ -1,8 +1,4 @@
-import { Box, Typography, Button, Card, CardContent, Grid, alpha } from '@mui/material';
-import FolderIcon from '@mui/icons-material/Folder';
-import TranslateIcon from '@mui/icons-material/Translate';
-import DescriptionIcon from '@mui/icons-material/Description';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { Box, Typography, alpha } from '@mui/material';
 
 export function HomePage() {
   return (
@@ -69,51 +65,5 @@ export function HomePage() {
         </Box>
       </Box>
     </Box>
-  );
-}
-
-interface FeatureCardProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  color: string;
-}
-
-function FeatureCard({ icon, title, description, color }: FeatureCardProps) {
-  return (
-    <Card
-      sx={{
-        height: '100%',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: (theme) => `0 12px 24px ${alpha(color, 0.2)}`,
-        },
-      }}
-    >
-      <CardContent sx={{ p: 3 }}>
-        <Box
-          sx={{
-            width: 64,
-            height: 64,
-            borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: alpha(color, 0.1),
-            color: color,
-            mb: 2,
-          }}
-        >
-          {icon}
-        </Box>
-        <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-          {title}
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          {description}
-        </Typography>
-      </CardContent>
-    </Card>
   );
 }

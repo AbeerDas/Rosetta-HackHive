@@ -197,6 +197,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
     isTranscribing,
     isPaused, 
     setTranscribing,
+    togglePause,
     updateCurrentSegment,
     addSegment,
     updateSegmentText,
@@ -210,6 +211,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
   const segmentCounterRef = useRef(0);
   const startTimeRef = useRef(0);
   const isActiveRef = useRef(false); // Track if transcription should be active (avoids stale closure)
+  const isPausedRef = useRef(false); // Track pause state for speech recognition handler
   const sendTextForTranslationRef = useRef<((text: string, segmentId: string) => void) | null>(null);
   
   // Echo detection: buffer of recent TTS texts to filter from STT results
@@ -243,10 +245,14 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
 
   // Handle pause/resume for speech recognition per FRD-04
   useEffect(() => {
+    // Keep ref in sync with state for use in callbacks
+    isPausedRef.current = isPaused;
+    
     if (!recognitionRef.current || !isActiveRef.current) return;
     
     if (isPaused) {
       // Pause transcription - stop recognition temporarily (but keep isActiveRef true for resume)
+      console.log('[AudioControls] Pausing speech recognition');
       try {
         recognitionRef.current.stop();
       } catch (e) {
@@ -254,6 +260,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
       }
     } else if (isTranscribing) {
       // Resume transcription - restart recognition
+      console.log('[AudioControls] Resuming speech recognition');
       try {
         recognitionRef.current.start();
       } catch (e) {
@@ -364,6 +371,35 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
     console.log('[RAG Debug] Transcription socket ref updated, isConnected:', transcriptionSocket.isConnected);
   }, [transcriptionSocket, transcriptionSocket.isConnected]);
 
+  // Queue for pending segments when WebSocket is not yet connected
+  const pendingSegmentsRef = useRef<Array<{
+    id: string;
+    text: string;
+    start_time: number;
+    end_time: number;
+    confidence: number;
+  }>>([]);
+
+  // Process pending segments when connection becomes available
+  useEffect(() => {
+    if (transcriptionSocket.isConnected && pendingSegmentsRef.current.length > 0) {
+      console.log(`[RAG Debug] WebSocket connected, flushing ${pendingSegmentsRef.current.length} pending segments`);
+      pendingSegmentsRef.current.forEach(segment => {
+        transcriptionSocket.send({
+          type: 'segment',
+          segment: {
+            id: segment.id,
+            text: segment.text,
+            start_time: segment.start_time,
+            end_time: segment.end_time,
+            confidence: segment.confidence,
+          },
+        });
+      });
+      pendingSegmentsRef.current = [];
+    }
+  }, [transcriptionSocket.isConnected, transcriptionSocket]);
+
   // Send segment to backend via WebSocket
   // Uses ref to avoid stale closure issues when called from speech recognition handler
   const sendSegmentToBackend = useCallback((segment: {
@@ -388,7 +424,9 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
         },
       });
     } else {
-      console.warn('[RAG Debug] Transcription WebSocket not connected, segment not sent');
+      // Queue segment for when connection is ready
+      console.warn('[RAG Debug] Transcription WebSocket not connected, queuing segment');
+      pendingSegmentsRef.current.push(segment);
     }
   }, []); // No dependencies - uses ref
 
@@ -479,14 +517,17 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
     };
 
     recognition.onend = () => {
-      // Auto-restart if still supposed to be transcribing and not paused
-      // Use ref to avoid stale closure issues with isTranscribing state
-      if (isActiveRef.current && recognitionRef.current) {
+      // Auto-restart if still supposed to be transcribing and NOT paused
+      // Use refs to avoid stale closure issues with state
+      if (isActiveRef.current && recognitionRef.current && !isPausedRef.current) {
+        console.log('[AudioControls] Speech recognition ended, auto-restarting');
         try {
           recognitionRef.current.start();
         } catch (e) {
           // Ignore errors from rapid start/stop
         }
+      } else {
+        console.log('[AudioControls] Speech recognition ended, NOT restarting (paused:', isPausedRef.current, ', active:', isActiveRef.current, ')');
       }
     };
 
@@ -530,6 +571,9 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
   };
 
   const handleStop = () => {
+    console.log('[AudioControls] handleStop called');
+    console.trace('[AudioControls] handleStop stack trace:');
+    
     // Mark as inactive first to prevent any auto-restart attempts
     isActiveRef.current = false;
     
@@ -579,16 +623,40 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
   useEffect(() => { transcriptionSocketRef.current = transcriptionSocket; }, [transcriptionSocket]);
   useEffect(() => { translationSocketRef.current = translationSocket; }, [translationSocket]);
 
+  // Track if component is mounted (helps with React StrictMode double-invoke)
+  const isMountedRef = useRef(true);
+  
   // Cleanup on unmount only - use refs to avoid effect re-running
+  // Note: In React StrictMode (dev mode), this will run twice - component mounts, unmounts, remounts
+  // We use a flag to prevent cleanup from running if we're about to remount
   useEffect(() => {
+    isMountedRef.current = true;
+    console.log('[AudioControls] Mount effect running');
+    
     return () => {
+      // Use setTimeout to delay cleanup - allows React StrictMode remount to happen first
+      // If this is a real unmount (not StrictMode), the cleanup will still happen
+      const shouldCleanup = isMountedRef.current;
+      isMountedRef.current = false;
+      
+      console.log('[AudioControls] Cleanup effect running - component unmounting');
+      
+      // Only cleanup if we were actually active (not just a StrictMode ghost unmount)
       if (recognitionRef.current) {
         recognitionRef.current.onend = null;
         recognitionRef.current.stop();
       }
       audioPlaybackRef.current.stop();
-      transcriptionSocketRef.current.disconnect();
-      translationSocketRef.current.disconnect();
+      
+      // For WebSockets, we need to be careful in StrictMode
+      // Only disconnect if we're really unmounting (user navigated away)
+      // Check if the socket was actually connected before trying to disconnect
+      if (transcriptionSocketRef.current.isConnected) {
+        transcriptionSocketRef.current.disconnect();
+      }
+      if (translationSocketRef.current.isConnected) {
+        translationSocketRef.current.disconnect();
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run on unmount
@@ -678,9 +746,6 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
         </Select>
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ height: 32, width: 1, bgcolor: 'divider' }} />
-
       {/* Play/Stop Controls */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         {!isPlaying ? (
@@ -741,9 +806,6 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
         />
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ height: 32, width: 1, bgcolor: 'divider' }} />
-
       {/* Volume Control */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 200 }}>
         <Tooltip title={isMuted ? 'Unmute' : 'Mute'}>
@@ -763,13 +825,15 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
         </Typography>
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ height: 32, width: 1, bgcolor: 'divider' }} />
-
-      {/* Microphone Status */}
+      {/* Microphone Status - Click to pause/resume voice input */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Tooltip title={isTranscribing ? 'Microphone Active' : 'Microphone Off'}>
+        <Tooltip title={isPaused ? 'Resume Listening' : (isTranscribing ? 'Pause Listening' : 'Start session to enable')}>
           <Box
+            onClick={() => {
+              if (isTranscribing) {
+                togglePause();
+              }
+            }}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -777,33 +841,46 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
               px: 1.5,
               py: 0.5,
               borderRadius: 1,
-              bgcolor: isTranscribing
-                ? (theme) => alpha(theme.palette.success.main, 0.1)
-                : 'transparent',
+              cursor: isTranscribing ? 'pointer' : 'default',
+              transition: 'all 0.2s',
+              bgcolor: isPaused
+                ? (theme) => alpha(theme.palette.warning.main, 0.1)
+                : isTranscribing
+                  ? (theme) => alpha(theme.palette.success.main, 0.1)
+                  : 'transparent',
+              '&:hover': isTranscribing ? {
+                bgcolor: isPaused
+                  ? (theme) => alpha(theme.palette.warning.main, 0.2)
+                  : (theme) => alpha(theme.palette.success.main, 0.2),
+              } : {},
             }}
           >
-            {isTranscribing ? (
+            {isPaused ? (
+              <MicOffIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+            ) : isTranscribing ? (
               <MicIcon sx={{ fontSize: 20, color: 'success.main' }} />
             ) : (
               <MicOffIcon sx={{ fontSize: 20, color: 'text.disabled' }} />
             )}
             <Typography
               variant="caption"
-              color={isTranscribing ? 'success.main' : 'text.disabled'}
+              color={isPaused ? 'warning.main' : (isTranscribing ? 'success.main' : 'text.disabled')}
             >
-              {isTranscribing ? 'Listening' : 'Idle'}
+              {isPaused ? 'Paused' : (isTranscribing ? 'Listening' : 'Idle')}
             </Typography>
           </Box>
         </Tooltip>
       </Box>
 
-      {/* Divider */}
-      <Box sx={{ height: 32, width: 1, bgcolor: 'divider' }} />
-
-      {/* Translation Status */}
+      {/* Translation Status - Click to toggle audio output */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Tooltip title={translationConnected ? 'Translation Active' : 'Translation Off'}>
+        <Tooltip title={isMuted ? 'Enable Audio' : (translationConnected ? 'Mute Audio' : 'Start session to enable')}>
           <Box
+            onClick={() => {
+              if (translationConnected || isMuted) {
+                handleMuteToggle();
+              }
+            }}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -811,22 +888,31 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
               px: 1.5,
               py: 0.5,
               borderRadius: 1,
-              bgcolor: translationConnected
-                ? (theme) => alpha(theme.palette.info.main, 0.1)
-                : 'transparent',
+              cursor: (translationConnected || isMuted) ? 'pointer' : 'default',
+              transition: 'all 0.2s',
+              bgcolor: isMuted
+                ? 'transparent'
+                : translationConnected
+                  ? (theme) => alpha(theme.palette.info.main, 0.1)
+                  : 'transparent',
+              '&:hover': (translationConnected || isMuted) ? {
+                bgcolor: isMuted
+                  ? (theme) => alpha(theme.palette.text.disabled, 0.1)
+                  : (theme) => alpha(theme.palette.info.main, 0.2),
+              } : {},
             }}
           >
             <HeadphonesIcon 
               sx={{ 
                 fontSize: 20, 
-                color: translationConnected ? 'info.main' : 'text.disabled' 
+                color: isMuted ? 'text.disabled' : (translationConnected ? 'info.main' : 'text.disabled')
               }} 
             />
             <Typography
               variant="caption"
-              color={translationConnected ? 'info.main' : 'text.disabled'}
+              color={isMuted ? 'text.disabled' : (translationConnected ? 'info.main' : 'text.disabled')}
             >
-              {translationConnected ? 'Translating' : 'Off'}
+              {isMuted ? 'Stopped' : (translationConnected ? 'Translating' : 'Off')}
             </Typography>
           </Box>
         </Tooltip>
