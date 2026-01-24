@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   Box, 
   Typography, 
@@ -14,6 +14,7 @@ import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { transcriptApi } from '../../services/api';
 import type { TranscriptSegment } from '../../types';
 import { customColors } from '../../theme';
+import { getCitationKey, buildCitationNumberMap } from './CitationPanel';
 
 // Check if browser supports Web Speech API
 const isSpeechRecognitionSupported = () => {
@@ -52,6 +53,9 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
   const segments: TranscriptSegment[] = isActive 
     ? liveSegments 
     : (savedTranscript?.segments ?? []) as TranscriptSegment[];
+
+  // Build global citation number map (memoized)
+  const citationNumberMap = useMemo(() => buildCitationNumberMap(segments), [segments]);
 
   const browserSupported = isSpeechRecognitionSupported();
 
@@ -184,7 +188,10 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                 >
                   {segment.translated_text || segment.text}
                   {segment.citations.length > 0 && (
-                    <CitationMarkers citations={segment.citations} />
+                    <CitationMarkers 
+                      citations={segment.citations} 
+                      citationNumberMap={citationNumberMap}
+                    />
                   )}
                 </Typography>
                 {' '}
@@ -263,13 +270,33 @@ interface Citation {
   snippet: string;
 }
 
-const getCitationKey = (citation: Citation) => 
-  `${citation.document_name}-p${citation.page_number}`;
-
-function CitationMarkers({ citations }: { citations: Citation[] }) {
+function CitationMarkers({ 
+  citations, 
+  citationNumberMap 
+}: { 
+  citations: Citation[]; 
+  citationNumberMap: Map<string, number>;
+}) {
   const highlightCitation = useTranscriptionStore((s) => s.highlightCitation);
   
-  const sortedCitations = [...citations].sort((a, b) => a.rank - b.rank);
+  // Sort by global number for consistent display
+  const citationsWithNumbers = citations.map(citation => ({
+    ...citation,
+    globalNumber: citationNumberMap.get(getCitationKey(citation)) ?? 0
+  }));
+  
+  // Deduplicate citations within this segment (same doc+page should only show once)
+  const seenNumbers = new Set<number>();
+  const uniqueCitations = citationsWithNumbers.filter(citation => {
+    if (seenNumbers.has(citation.globalNumber)) {
+      return false;
+    }
+    seenNumbers.add(citation.globalNumber);
+    return true;
+  });
+  
+  // Sort by global number
+  uniqueCitations.sort((a, b) => a.globalNumber - b.globalNumber);
 
   const handleCitationClick = (citation: Citation) => {
     const key = getCitationKey(citation);
@@ -278,9 +305,9 @@ function CitationMarkers({ citations }: { citations: Citation[] }) {
 
   return (
     <Box component="span" sx={{ ml: 0.5 }}>
-      {sortedCitations.map((citation, idx) => (
+      {uniqueCitations.map((citation) => (
         <Tooltip 
-          key={idx}
+          key={citation.globalNumber}
           title={`${citation.document_name}, page ${citation.page_number}`}
           arrow
           enterDelay={200}
@@ -294,13 +321,12 @@ function CitationMarkers({ citations }: { citations: Citation[] }) {
               fontSize: '0.75em',
               fontWeight: 600,
               color: customColors.brandGreen,
-              opacity: 1 - (citation.rank - 1) * 0.25,
               '&:hover': {
                 textDecoration: 'underline',
               },
             }}
           >
-            {citation.rank}
+            {citation.globalNumber}
           </Typography>
         </Tooltip>
       ))}

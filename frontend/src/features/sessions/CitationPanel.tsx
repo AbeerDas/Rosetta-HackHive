@@ -1,15 +1,38 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Box, Card, CardContent, Typography, Chip, alpha, keyframes } from '@mui/material';
 import { useTranscriptionStore, useLanguageStore } from '../../stores';
 import { customColors } from '../../theme';
+import type { TranscriptSegment } from '../../types';
 
 interface CitationPanelProps {
   sessionId: string;
 }
 
 // Generate a unique key for a citation (for deduplication)
-const getCitationKey = (citation: { document_name: string; page_number: number }) => 
+export const getCitationKey = (citation: { document_name: string; page_number: number }) => 
   `${citation.document_name}-p${citation.page_number}`;
+
+/**
+ * Build a global citation number map from all segments.
+ * Citations are numbered in order of first appearance (1, 2, 3, ...).
+ * If the same citation (same document + page) appears again, it reuses the same number.
+ */
+export function buildCitationNumberMap(segments: TranscriptSegment[]): Map<string, number> {
+  const numberMap = new Map<string, number>();
+  let nextNumber = 1;
+  
+  for (const segment of segments) {
+    for (const citation of segment.citations) {
+      const key = getCitationKey(citation);
+      if (!numberMap.has(key)) {
+        numberMap.set(key, nextNumber);
+        nextNumber++;
+      }
+    }
+  }
+  
+  return numberMap;
+}
 
 // Pulse animation for highlighted citation
 const pulseAnimation = keyframes`
@@ -24,16 +47,23 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
   const highlightedCitationKey = useTranscriptionStore((s) => s.highlightedCitationKey);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Collect all citations from segments
+  // Build global citation number map (memoized)
+  const citationNumberMap = useMemo(() => buildCitationNumberMap(segments), [segments]);
+
+  // Collect all citations from segments with global numbers
   const allCitations = segments.flatMap((segment) =>
-    segment.citations.map((citation) => ({
-      ...citation,
-      segmentId: segment.id,
-      key: getCitationKey(citation),
-    }))
+    segment.citations.map((citation) => {
+      const key = getCitationKey(citation);
+      return {
+        ...citation,
+        segmentId: segment.id,
+        key,
+        globalNumber: citationNumberMap.get(key) ?? 0,
+      };
+    })
   );
 
-  // Deduplicate citations
+  // Deduplicate citations (keep first occurrence)
   const seenKeys = new Set<string>();
   const uniqueCitations = allCitations.filter((citation) => {
     if (seenKeys.has(citation.key)) {
@@ -42,6 +72,9 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
     seenKeys.add(citation.key);
     return true;
   });
+  
+  // Sort by global number to maintain consistent ordering
+  uniqueCitations.sort((a, b) => a.globalNumber - b.globalNumber);
 
   // Scroll to highlighted citation
   useEffect(() => {
@@ -100,6 +133,7 @@ interface CitationCardProps {
     page_number: number;
     snippet: string;
     key: string;
+    globalNumber: number;
   };
   isHighlighted: boolean;
 }
@@ -142,15 +176,15 @@ function CitationCard({ citation, isHighlighted }: CitationCardProps) {
       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
           <Chip
-            label={citation.rank}
+            label={citation.globalNumber}
             size="small"
             sx={{
-              width: 24,
+              minWidth: 24,
               height: 24,
               fontSize: '0.75rem',
               fontWeight: 700,
-              bgcolor: alpha(customColors.brandGreen, 0.2 + (4 - citation.rank) * 0.2),
-              color: customColors.brandGreen,
+              bgcolor: alpha(customColors.brandGreen, 0.8),
+              color: 'white',
             }}
           />
           <Typography
