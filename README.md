@@ -1,6 +1,7 @@
 # Rosetta - HackHive 2026
 
 <div align="center">
+        <br />
   <img
     src="https://github.com/user-attachments/assets/a9c7e399-e96f-4730-b020-f67d7dc9cbfb"
     alt="Rosetta Banner"
