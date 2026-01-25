@@ -1,10 +1,29 @@
-# Rosetta
+# Rosetta - HackHive 2026
 
-**Real-time lecture translation and learning assistant**
+<div align="center">
+  <img
+    src="https://github.com/user-attachments/assets/a9c7e399-e96f-4730-b020-f67d7dc9cbfb"
+    alt="Rosetta Banner"
+    width="420"
+  />
+</div>
 
+<div align="center">
+
+  <p align="center">
+    Real-time lecture translation and learning assistant
+    <br />
+    <a href="https://devpost.com/submit-to/26868-hackhive-2026/manage/submissions/914262/project-overview">
+      <strong>HackHive DevPost »</strong>
+               <br />
+    </a>
+    <br />
+  </p>
+</div>
+
+  <p align="center">
 Rosetta helps international students and language learners break through language barriers in real-time. It provides live lecture translation, automatic transcription, intelligent citations from course materials, and structured note generation.
-
-*"Your voice in every language"*
+  </p>
 
 ---
 
