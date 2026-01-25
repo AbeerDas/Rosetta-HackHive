@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 // Supported languages
-export type LanguageCode = 'en' | 'zh' | 'hi' | 'es' | 'fr';
+export type LanguageCode = 'en' | 'zh' | 'hi' | 'es' | 'fr' | 'bn';
 
 // Translation keys
 export interface Translations {
@@ -659,6 +659,113 @@ const fr: Translations = {
   previewVoice: 'Aperçu de la voix',
 };
 
+// Bengali translations
+const bn: Translations = {
+  rosetta: 'Rosetta',
+  settings: 'সেটিংস',
+  help: 'সাহায্য',
+  close: 'বন্ধ করুন',
+  
+  welcomeBack: 'ফিরে আসার স্বাগত',
+  subjects: 'নোটবুক',
+  yourBaseLanguage: 'আপনার মূল ভাষা:',
+  yourBaseLanguageIs: 'আপনার মূল ভাষা হল:',
+  addFolder: 'ফোল্ডার যোগ করুন',
+  noFoldersYet: 'এখনও কোনো ফোল্ডার নেই',
+  createFolder: 'ফোল্ডার তৈরি করুন',
+  sessions: 'সেশন',
+  noSessionsYet: 'এখনও কোনো সেশন নেই',
+  deleteFolder: 'ফোল্ডার মুছুন',
+  deleteSession: 'সেশন মুছুন',
+  
+  active: 'সক্রিয়',
+  sessionEnded: 'সেশন শেষ',
+  endSession: 'সেশন শেষ করুন',
+  documents: 'নথি',
+  liveTranscription: 'লাইভ ট্রান্সক্রিপশন',
+  citations: 'উদ্ধৃতি',
+  citationsEmptyMessage: 'লেকচার চলার সাথে সাথে আপনার কোর্সের উপকরণ থেকে উদ্ধৃতি এখানে প্রদর্শিত হবে।',
+  
+  transcriptionWillAppear: 'সেশন শুরু করলে ট্রান্সক্রিপশন এখানে প্রদর্শিত হবে',
+  enableMicrophone: 'নিশ্চিত করুন যে আপনার মাইক্রোফোন সক্রিয় আছে',
+  noTranscriptAvailable: 'এই সেশনের জন্য কোনো ট্রান্সক্রিপ্ট উপলব্ধ নেই',
+  loadingTranscript: 'ট্রান্সক্রিপ্ট লোড হচ্ছে...',
+  
+  translation: 'অনুবাদ:',
+  ready: 'প্রস্তুত',
+  live: 'লাইভ',
+  connecting: 'সংযুক্ত হচ্ছে...',
+  idle: 'নিষ্ক্রিয়',
+  paused: 'বিরতি',
+  listening: 'শুনছে',
+  translating: 'অনুবাদ হচ্ছে',
+  stopped: 'থামানো',
+  off: 'বন্ধ',
+  volume: 'ভলিউম',
+  
+  dragDropFiles: 'ফাইল টেনে আনুন বা',
+  browse: 'ব্রাউজ করুন',
+  supportedFormats: 'সমর্থিত ফরম্যাট: PDF',
+  noDocumentsYet: 'এখনও কোনো নথি আপলোড করা হয়নি',
+  uploadMaterials: 'স্মার্ট উদ্ধৃতির জন্য কোর্সের উপকরণ আপলোড করুন',
+  processing: 'প্রসেসিং হচ্ছে...',
+  
+  questionTranslation: 'প্রশ্ন অনুবাদ',
+  typeQuestion: 'আপনার ভাষায় আপনার প্রশ্ন টাইপ করুন...',
+  translate: 'অনুবাদ করুন',
+  detected: 'সনাক্ত করা হয়েছে:',
+  history: 'ইতিহাস',
+  clear: 'পরিষ্কার করুন',
+  noTranslationsYet: 'এখনও কোনো অনুবাد নেই',
+  speak: 'বলুন',
+  copy: 'কপি করুন',
+  copied: 'কপি হয়েছে!',
+  
+  createNewFolder: 'নতুন ফোল্ডার তৈরি করুন',
+  folderName: 'ফোল্ডারের নাম',
+  cancel: 'বাতিল করুন',
+  create: 'তৈরি করুন',
+  startNewSession: 'নতুন সেশন শুরু করুন',
+  sessionName: 'সেশনের নাম',
+  targetLanguage: 'লক্ষ্য ভাষা',
+  startSession: 'সেশন শুরু করুন',
+  
+  endSessionConfirm: 'সেশন শেষ করবেন?',
+  endSessionWarning: 'একবার সেশন শেষ হলে, আপনি আর নতুন ট্রান্সক্রিপশন রেকর্ড করতে পারবেন না। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।',
+  generateNotesQuestion: 'আপনি কি ট্রান্সক্রিপশন থেকে সংগঠিত নোট তৈরি করতে চান, নাকি শুধুমাত্র ট্রান্সক্রিপ্ট সংরক্ষণ করতে চান?',
+  saveTranscriptOnly: 'শুধুমাত্র ট্রান্সক্রিপ্ট সংরক্ষণ করুন',
+  endAndGenerateNotes: 'শেষ করুন এবং নোট তৈরি করুন',
+  
+  lectureNotes: 'লেকচার নোট',
+  viewTranscript: 'ট্রান্সক্রিপ্ট দেখুন',
+  viewNotes: 'নোট দেখুন',
+  generatingNotes: 'নোট তৈরি হচ্ছে...',
+  noNotesYet: 'এখনও কোনো নোট নেই',
+  generateNotesFromTranscript: 'আপনার লেকচার ট্রান্সক্রিপ্ট থেকে স্বয়ংক্রিয়ভাবে নোট তৈরি করুন, অথবা শুরু থেকে লেখা শুরু করুন।',
+  startFromScratch: 'শুরু থেকে শুরু করুন',
+  collectingTranscript: 'ট্রান্সক্রিপ্ট অংশ সংগ্রহ করা হচ্ছে...',
+  gatheringCitations: 'উদ্ধৃতি সংগ্রহ করা হচ্ছে...',
+  analyzingNotes: 'AI আপনার নোট বিশ্লেষণ এবং সংগঠিত করছে...',
+  finalizingNotes: 'নোট চূড়ান্ত করা হচ্ছে...',
+  
+  transcribing: 'ট্রান্সক্রাইব হচ্ছে',
+  
+  english: 'ইংরেজি',
+  chinese: 'চীনা (ম্যান্ডারিন)',
+  hindi: 'হিন্দি',
+  spanish: 'স্প্যানিশ',
+  french: 'ফরাসি',
+  bengali: 'বাংলা',
+  
+  voiceForDictation: 'ডিক্টেশনের জন্য ভয়েস',
+  loadingVoices: 'ভয়েস লোড হচ্ছে...',
+  selectVoice: 'ভয়েস নির্বাচন করুন',
+  defaultVoice: 'ডিফল্ট ভয়েস',
+  noPreviewAvailable: 'এই ভয়েসের জন্য কোনো পূর্বরূপ উপলব্ধ নেই',
+  stopPreview: 'পূর্বরূপ বন্ধ করুন',
+  previewVoice: 'ভয়েস পূর্বরূপ',
+};
+
 // All translations
 const translations: Record<LanguageCode, Translations> = {
   en,
@@ -666,6 +773,7 @@ const translations: Record<LanguageCode, Translations> = {
   hi,
   es,
   fr,
+  bn,
 };
 
 interface LanguageState {
@@ -695,6 +803,7 @@ export const getLanguageName = (code: LanguageCode, t: Translations): string => 
     case 'hi': return t.hindi;
     case 'es': return t.spanish;
     case 'fr': return t.french;
+    case 'bn': return t.bengali;
     default: return t.english;
   }
 };
@@ -706,4 +815,5 @@ export const availableLanguages: { code: LanguageCode; nativeName: string }[] = 
   { code: 'hi', nativeName: 'हिन्दी' },
   { code: 'es', nativeName: 'Español' },
   { code: 'fr', nativeName: 'Français' },
+  { code: 'bn', nativeName: 'বাংলা' },
 ];
