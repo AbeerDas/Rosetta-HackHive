@@ -1,24 +1,18 @@
 # Rosetta - HackHive 2026
 
 <div align="center">
-        <br />
-  <img
-    src="https://github.com/user-attachments/assets/a9c7e399-e96f-4730-b020-f67d7dc9cbfb"
-    alt="Rosetta Banner"
-    width="420"
-  />
+
+<br />
+<img width="420" alt="Group 149 (1)" src="https://github.com/user-attachments/assets/44b102a5-9e72-4304-a3f9-d2ec8dd6f83e" />
 </div>
 
-<div align="center">
-
+<div style="margin: -10px 0;" align="center">
+           <br />
   <p align="center">
-    Real-time lecture translation and learning assistant
-    <br />
-    <a href="https://devpost.com/submit-to/26868-hackhive-2026/manage/submissions/914262/project-overview">
-      <strong>HackHive DevPost »</strong>
+    <a href="https://devpost.com/submit-to/26868-hackhive-2026/manage/submissions/914262/project-overview](https://devpost.com/software/rosetta-hq6aby">
+      <strong>« HackHive DevPost »</strong>
                <br />
     </a>
-    <br />
   </p>
 </div>
 
@@ -35,6 +29,12 @@ Over 6 million students study abroad annually. Most attend institutions where in
 Existing solutions fail to address the complete problem. Live human interpreters are expensive and not scalable. Post-lecture transcription offers no real-time benefit. Generic translation apps lack course context and cannot align with learning materials. Recorded lecture translation delays learning and prevents immediate engagement.
 
 Rosetta exists because language should never be a barrier to education.
+
+<div align="center">
+  <a href="https://youtu.be/lfkztHWLoCs">
+    <img src="https://img.shields.io/badge/▶️_Watch_Demo_Video-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Demo Video"/>
+  </a>
+</div>
 
 ---
 
@@ -444,34 +444,6 @@ The project uses modern linting and formatting tools to maintain code quality an
 - **ESLint** with TypeScript support for code linting
 - **Prettier** for code formatting
 - **TypeScript** compiler for type checking
-
-Available commands:
-```bash
-npm run lint          # Check for linting issues
-npm run lint:fix      # Automatically fix linting issues
-npm run format        # Format all source files with Prettier
-npm run format:check  # Check if files are formatted correctly
-npm run typecheck     # Run TypeScript type checking
-```
-
-**Backend:**
-- **Black** for Python code formatting (line length: 100)
-- **isort** for import sorting
-- **Pylint** for linting
-- **mypy** for static type checking
-
-Configuration available in `backend/pyproject.toml`. Install development tools:
-```bash
-pip install black isort pylint mypy
-```
-
-Run formatting:
-```bash
-black backend/app         # Format Python code
-isort backend/app         # Sort imports
-pylint backend/app        # Run linter
-mypy backend/app          # Type check
-```
 
 **Scalability Considerations:**
 
