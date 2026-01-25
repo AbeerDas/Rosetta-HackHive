@@ -1,10 +1,30 @@
-# Rosetta
+# Rosetta - HackHive 2026
 
-**Real-time lecture translation and learning assistant**
+<div align="center">
+        <br />
+  <img
+    src="https://github.com/user-attachments/assets/a9c7e399-e96f-4730-b020-f67d7dc9cbfb"
+    alt="Rosetta Banner"
+    width="420"
+  />
+</div>
 
+<div align="center">
+
+  <p align="center">
+    Real-time lecture translation and learning assistant
+    <br />
+    <a href="https://devpost.com/submit-to/26868-hackhive-2026/manage/submissions/914262/project-overview">
+      <strong>HackHive DevPost »</strong>
+               <br />
+    </a>
+    <br />
+  </p>
+</div>
+
+  <p align="center">
 Rosetta helps international students and language learners break through language barriers in real-time. It provides live lecture translation, automatic transcription, intelligent citations from course materials, and structured note generation.
-
-*"Your voice in every language"*
+  </p>
 
 ---
 
@@ -28,6 +48,14 @@ Rosetta operates through three parallel pipelines during live lectures, each opt
 flowchart TB
     subgraph input [Audio Input]
         MIC[Microphone]
+    end
+
+    subgraph docs [Document Ingestion]
+        PDF[PDF Upload]
+        EXTRACT[Text Extraction]
+        CHUNK[Chunking]
+        DOC_EMBED[BGE Embedding]
+        PDF --> EXTRACT --> CHUNK --> DOC_EMBED
     end
 
     subgraph parallel [Parallel Processing]
@@ -62,6 +90,7 @@ flowchart TB
         SIDEBAR[Citation Panel]
     end
 
+    DOC_EMBED --> CHROMA
     MIC --> WEBSPEECH
     MIC --> OPENROUTER
     TRANSCRIPT --> TRANSCRIPTION
@@ -73,19 +102,25 @@ flowchart TB
 
 ### Translation Pipeline
 
-The translation pipeline captures audio via the browser's Web Speech API, translates text through OpenRouter using Claude 3 Haiku, and outputs natural speech via ElevenLabs TTS. We chose a text-based approach rather than direct speech-to-speech because it enables us to simultaneously display transcripts, trigger RAG queries, and store segments for note generation from a single audio stream.
+The translation pipeline captures audio via the browser's Web Speech API, translates text through OpenRouter using Claude 3 Haiku, and outputs natural speech via ElevenLabs TTS. The text-based approach enables simultaneous display of transcripts, RAG query triggering, and segment storage for note generation from a single audio stream.
 
-The pipeline processes audio in real-time with the professor's speech captured by the browser, transcribed to text, sent to the LLM for translation, and then synthesized into natural-sounding audio in the student's native language. The audio streams directly to the student's headphones with minimal perceptible delay.
+The pipeline processes audio in real-time: the professor's speech is captured by the browser, transcribed to text, sent to the LLM for translation, and synthesized into natural-sounding audio in the student's native language. Audio streams directly to the student's headphones with minimal perceptible delay.
 
 ### RAG Pipeline
 
-The RAG pipeline continuously analyzes professor speech to surface relevant course materials as in-text citations. Transcript segments accumulate in a sliding window of two to three sentences before triggering a query. This windowing approach balances context richness against latency requirements.
+The RAG pipeline continuously analyzes professor speech to surface relevant course materials as in-text citations. Individual transcript segments trigger queries as they arrive, enabling immediate citation retrieval with minimal latency.
 
 Citations appear inline within the transcription as superscript numbers with varying opacity based on relevance. The most relevant citation appears darkest, providing visual hierarchy without cluttering the interface. Clicking a citation number reveals the corresponding document content in the sidebar panel.
 
 ### Note Generation
 
 After the lecture concludes, students can generate comprehensive structured notes that combine the full translated transcript with all citations. The LLM reorganizes content into sections with headings, bullet points, and embedded references. Notes are rendered in a TipTap editor with full editing capabilities and can be exported as PDF.
+
+### Question Assistance
+
+Students can type questions in their native language and hear them spoken aloud in the lecture language using ElevenLabs TTS. The system automatically detects the input language, translates the question to English (or the lecture language), and synthesizes natural-sounding audio that students can play to ask their question in class.
+
+Questions can be saved to a personal collection for quick access to frequently asked phrases. This collection persists across sessions, allowing students to build a library of common questions like "Can you repeat that?" or "Could you explain this concept further?" that they can trigger with a single click.
 
 ---
 
@@ -179,35 +214,35 @@ File storage holds uploaded PDF documents in their original form alongside extra
 
 ### RAG Pipeline Optimization
 
-The citation pipeline needed to feel instantaneous during live lectures. We achieved significant latency reduction through a series of optimizations focused on moving computation from external APIs to local inference.
+The citation pipeline is designed to feel instantaneous during live lectures, using local inference throughout to minimize latency.
 
-**Query Enrichment:** We replaced two sequential LLM API calls for keyword extraction and concept expansion with KeyBERT running locally. KeyBERT uses the sentence-transformers library with the all-MiniLM-L6-v2 model to extract meaningful keywords from transcript windows. This eliminates network round-trip latency entirely for the enrichment stage.
+**Query Enrichment:** KeyBERT runs locally using the sentence-transformers library with the all-MiniLM-L6-v2 model to extract meaningful keywords from transcript segments. Local processing eliminates network round-trip latency entirely for the enrichment stage.
 
-**Embedding Generation:** We switched from OpenAI's text-embedding-3-large model accessed via API to a local BGE model (BAAI/bge-base-en-v1.5). The local model generates 768-dimensional embeddings compared to the 3072-dimensional API embeddings, but we found minimal quality degradation for educational content retrieval while gaining substantially faster inference.
+**Embedding Generation:** The BGE model (BAAI/bge-base-en-v1.5) generates 768-dimensional embeddings locally. This dimensionality provides excellent quality for educational content retrieval while enabling fast inference on the same machine as the application.
 
-**Re-ranking:** The cross-encoder re-ranker moved from ms-marco-MiniLM-L-6-v2 (a 6-layer model) to ms-marco-TinyBERT-L-2-v2 (a 2-layer model). We also reduced the candidate pool from 10 documents to 5 before re-ranking. TinyBERT provides faster inference with acceptable accuracy for our use case.
+**Re-ranking:** A TinyBERT cross-encoder (ms-marco-TinyBERT-L-2-v2) re-ranks the top 5 candidates from vector search. The lightweight 2-layer architecture delivers fast inference while maintaining accuracy for educational content.
 
-**Distance-Based Early Exit:** We implemented a gating mechanism that skips re-ranking entirely when the minimum distance from vector search exceeds a threshold of 1.5. This optimization recognizes that some transcript windows contain no content relevant to uploaded materials, and re-ranking irrelevant results wastes computation.
+**Distance-Based Early Exit:** A gating mechanism skips re-ranking entirely when the minimum distance from vector search exceeds a threshold of 1.5. This recognizes that some transcript segments contain no content relevant to uploaded materials, avoiding unnecessary computation on irrelevant results.
 
-The key insight: local models running on the same machine as the application provide dramatically faster inference than API calls, even when accounting for model loading overhead. For educational content retrieval where perfect semantic understanding is not required, smaller local models deliver acceptable quality.
+Local models running on the same machine as the application provide dramatically faster inference than external API calls. For educational content retrieval, these models deliver excellent quality while keeping the pipeline responsive during live lectures.
 
 ### Real-Time Translation
 
-The translation pipeline prioritizes speed while maintaining natural-sounding output. We chose text-based translation over direct speech-to-speech for several reasons.
+The translation pipeline uses a text-based approach to prioritize both speed and flexibility.
 
-First, the text intermediate representation enables multiple downstream uses. The same transcript text feeds into the RAG pipeline, appears in the transcription display, and accumulates for note generation. A speech-to-speech approach would require separate processing for each use case.
+The text intermediate representation enables multiple downstream uses. The same transcript text feeds into the RAG pipeline, appears in the transcription display, and accumulates for note generation—all from a single audio stream.
 
-Second, text translation through an LLM provides better quality for technical content than current speech-to-speech models. Academic lectures contain specialized vocabulary that benefits from the reasoning capabilities of models like Claude 3 Haiku.
+Text translation through an LLM provides excellent quality for technical content. Academic lectures contain specialized vocabulary that benefits from the reasoning capabilities of models like Claude 3 Haiku.
 
-Third, the modular approach allows independent optimization of each stage. We can swap TTS providers, upgrade the translation model, or adjust transcription settings without rebuilding the entire pipeline.
+The modular architecture allows independent configuration of each stage. TTS providers, translation models, and transcription settings can all be adjusted without affecting other components.
 
-ElevenLabs provides the text-to-speech synthesis using the eleven_turbo_v2_5 model, which balances natural-sounding output against generation speed. Voice selection is configurable per session.
+ElevenLabs provides text-to-speech synthesis using the eleven_turbo_v2_5 model, balancing natural-sounding output with generation speed. Voice selection is configurable per session.
 
 ### Document Processing
 
 Uploaded PDF documents go through a multi-stage processing pipeline before becoming available for RAG queries.
 
-**Text Extraction:** We extract text from PDFs while preserving page boundaries. Page numbers are stored as metadata so citations can reference specific pages for the user to review.
+**Text Extraction:** Text is extracted from PDFs while preserving page boundaries. Page numbers are stored as metadata so citations can reference specific pages for the user to review.
 
 **Chunking:** Extracted text is split into chunks with configurable size and overlap. Overlap ensures that concepts spanning chunk boundaries are not lost. Each chunk maintains a reference to its source page and document.
 
