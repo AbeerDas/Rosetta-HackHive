@@ -32,7 +32,7 @@ export function SessionPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { t } = useLanguageStore();
-  
+
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
   const [endSessionDialogOpen, setEndSessionDialogOpen] = useState(false);
   const [showNotesPanel, setShowNotesPanel] = useState(false);
@@ -40,7 +40,7 @@ export function SessionPage() {
   const [documentsOpen, setDocumentsOpen] = useState(true);
   const [citationsOpen, setCitationsOpen] = useState(true);
   const audioControlsRef = useRef<AudioControlsHandle | null>(null);
-  
+
   // Track current sessionId to detect changes
   const currentSessionIdRef = useRef<string | undefined>(sessionId);
 
@@ -51,17 +51,17 @@ export function SessionPage() {
   // Reset UI state when sessionId changes (switching between sessions)
   useEffect(() => {
     const previousSessionId = currentSessionIdRef.current;
-    
+
     if (previousSessionId && previousSessionId !== sessionId) {
       console.log('[SessionPage] Session changed from', previousSessionId, 'to', sessionId);
-      
+
       setShowNotesPanel(false);
       setAutoGenerateNotes(false);
       setQuestionPanelOpen(false);
       setEndSessionDialogOpen(false);
       clearSegments();
     }
-    
+
     currentSessionIdRef.current = sessionId;
   }, [sessionId, clearSegments]);
 
@@ -72,12 +72,12 @@ export function SessionPage() {
     onSuccess: async (_, generateNotes) => {
       setTranscribing(false);
       setEndSessionDialogOpen(false);
-      
+
       await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
       await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['transcript', sessionId] });
-      
+
       if (generateNotes) {
         setAutoGenerateNotes(true);
         setShowNotesPanel(true);
@@ -127,7 +127,7 @@ export function SessionPage() {
   }
 
   const isActive = session.status === 'active';
-  
+
   const languageNames: Record<string, string> = {
     en: t.english,
     zh: t.chinese,
@@ -152,7 +152,7 @@ export function SessionPage() {
           <Typography variant="h2" sx={{ fontWeight: 500 }}>
             {session.name}
           </Typography>
-          
+
           <Chip
             label={isActive ? t.active : t.sessionEnded}
             size="small"
@@ -172,10 +172,7 @@ export function SessionPage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           {/* Question Translation Button */}
           <Tooltip title={t.questionTranslation}>
-            <IconButton 
-              onClick={() => setQuestionPanelOpen(true)}
-              sx={{ p: 1 }}
-            >
+            <IconButton onClick={() => setQuestionPanelOpen(true)} sx={{ p: 1 }}>
               <Box
                 component="img"
                 src="/icons/questionbutton.svg"
@@ -225,9 +222,7 @@ export function SessionPage() {
           <DialogContentText sx={{ mb: 2 }}>
             <strong>Warning:</strong> {t.endSessionWarning}
           </DialogContentText>
-          <DialogContentText>
-            {t.generateNotesQuestion}
-          </DialogContentText>
+          <DialogContentText>{t.generateNotesQuestion}</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button
@@ -276,19 +271,18 @@ export function SessionPage() {
           >
             {documentsOpen ? (
               <>
-                <Box sx={{ 
-                  p: 1.5, 
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
                   <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
                     {t.documents}
                   </Typography>
-                  <IconButton 
-                    size="small" 
-                    onClick={() => setDocumentsOpen(false)}
-                  >
+                  <IconButton size="small" onClick={() => setDocumentsOpen(false)}>
                     <Box
                       component="img"
                       src="/icons/material-symbols_left-panel-close.svg"
@@ -309,10 +303,7 @@ export function SessionPage() {
                   width: '100%',
                 }}
               >
-                <IconButton 
-                  size="small" 
-                  onClick={() => setDocumentsOpen(true)}
-                >
+                <IconButton size="small" onClick={() => setDocumentsOpen(true)}>
                   <Box
                     component="img"
                     src="/icons/material-symbols_left-panel-open.svg"
@@ -428,19 +419,18 @@ export function SessionPage() {
         >
           {citationsOpen ? (
             <>
-              <Box sx={{ 
-                p: 1.5, 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
                 <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
                   {t.citations}
                 </Typography>
-                <IconButton 
-                  size="small" 
-                  onClick={() => setCitationsOpen(false)}
-                >
+                <IconButton size="small" onClick={() => setCitationsOpen(false)}>
                   <Box
                     component="img"
                     src="/icons/material-symbols_right-panel-close.svg"
@@ -462,10 +452,7 @@ export function SessionPage() {
                 justifyContent: 'flex-end',
               }}
             >
-              <IconButton 
-                size="small" 
-                onClick={() => setCitationsOpen(true)}
-              >
+              <IconButton size="small" onClick={() => setCitationsOpen(true)}>
                 <Box
                   component="img"
                   src="/icons/material-symbols_right-panel-open.svg"
@@ -488,10 +475,7 @@ export function SessionPage() {
       />
 
       {/* Question Translation Drawer - No navbar highlight */}
-      <QuestionTranslator
-        open={questionPanelOpen}
-        onClose={() => setQuestionPanelOpen(false)}
-      />
+      <QuestionTranslator open={questionPanelOpen} onClose={() => setQuestionPanelOpen(false)} />
     </Box>
   );
 }

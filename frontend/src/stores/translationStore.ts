@@ -9,7 +9,7 @@ interface TranslationState {
   volume: number;
   isMuted: boolean;
   error: string | null;
-  
+
   // Actions
   setStatus: (status: TranslationStatus) => void;
   setTargetLanguage: (lang: string) => void;

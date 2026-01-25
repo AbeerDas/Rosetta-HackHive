@@ -5,18 +5,18 @@ interface TranscriptionState {
   // Transcript data
   segments: TranscriptSegment[];
   currentSegment: string;
-  
+
   // UI state
   isTranscribing: boolean;
   isPaused: boolean;
   autoScroll: boolean;
   fontSize: number;
   highContrast: boolean;
-  highlightedCitationKey: string | null;  // For highlighting clicked citations
-  
+  highlightedCitationKey: string | null; // For highlighting clicked citations
+
   // Actions
   addSegment: (segment: TranscriptSegment) => void;
-  setSegments: (segments: TranscriptSegment[]) => void;  // Load segments from backend
+  setSegments: (segments: TranscriptSegment[]) => void; // Load segments from backend
   updateCurrentSegment: (text: string) => void;
   updateSegmentId: (frontendId: string, backendId: string) => void;
   updateSegmentText: (segmentId: string, translatedText: string) => void;
@@ -72,14 +72,18 @@ export const useTranscriptionStore = create<TranscriptionState>((set) => ({
 
   attachCitations: (segmentId, citations) =>
     set((state) => {
-      console.log('[Store] attachCitations called:', { segmentId, citationCount: citations.length });
-      console.log('[Store] Current segments:', state.segments.map(s => ({ id: s.id, text: s.text.substring(0, 30) })));
-      const found = state.segments.some(seg => seg.id === segmentId);
+      console.log('[Store] attachCitations called:', {
+        segmentId,
+        citationCount: citations.length,
+      });
+      console.log(
+        '[Store] Current segments:',
+        state.segments.map((s) => ({ id: s.id, text: s.text.substring(0, 30) }))
+      );
+      const found = state.segments.some((seg) => seg.id === segmentId);
       console.log('[Store] Segment found:', found);
       return {
-        segments: state.segments.map((seg) =>
-          seg.id === segmentId ? { ...seg, citations } : seg
-        ),
+        segments: state.segments.map((seg) => (seg.id === segmentId ? { ...seg, citations } : seg)),
       };
     }),
 

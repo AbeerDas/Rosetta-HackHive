@@ -165,11 +165,17 @@ export function HomePage() {
   const { name } = useUserStore();
   const { language, setLanguage, t } = useLanguageStore();
   const { selectedFolderId, setSelectedFolderId } = useFolderStore();
-  
+
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ el: HTMLElement; folderId: string } | null>(null);
-  const [sessionMenuAnchor, setSessionMenuAnchor] = useState<{ el: HTMLElement; sessionId: string } | null>(null);
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{
+    el: HTMLElement;
+    folderId: string;
+  } | null>(null);
+  const [sessionMenuAnchor, setSessionMenuAnchor] = useState<{
+    el: HTMLElement;
+    sessionId: string;
+  } | null>(null);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionLanguage, setNewSessionLanguage] = useState('zh');
@@ -211,8 +217,15 @@ export function HomePage() {
 
   // Create session mutation
   const createSessionMutation = useMutation({
-    mutationFn: ({ folderId, name, targetLanguage }: { folderId: string; name: string; targetLanguage: string }) =>
-      sessionApi.create(folderId, { name, target_language: targetLanguage }),
+    mutationFn: ({
+      folderId,
+      name,
+      targetLanguage,
+    }: {
+      folderId: string;
+      name: string;
+      targetLanguage: string;
+    }) => sessionApi.create(folderId, { name, target_language: targetLanguage }),
     onSuccess: (session) => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['folder', selectedFolderId] });
@@ -341,10 +354,7 @@ export function HomePage() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             {/* Base Language Selector */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography
-                variant="body2"
-                sx={{ color: 'text.secondary' }}
-              >
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                 {t.yourBaseLanguageIs}
               </Typography>
               <Select
@@ -597,10 +607,7 @@ export function HomePage() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           {/* Base Language Selector */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography
-              variant="body2"
-              sx={{ color: 'text.secondary' }}
-            >
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {t.yourBaseLanguageIs}
             </Typography>
             <Select
@@ -703,7 +710,13 @@ export function HomePage() {
             >
               <CardActionArea onClick={() => handleFolderClick(folder)}>
                 <CardContent sx={{ p: 3 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                    }}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
                       <Box
                         component="img"
@@ -761,8 +774,8 @@ export function HomePage() {
       </Menu>
 
       {/* New Folder Dialog */}
-      <Dialog 
-        open={newFolderDialogOpen} 
+      <Dialog
+        open={newFolderDialogOpen}
         onClose={() => setNewFolderDialogOpen(false)}
         maxWidth="sm"
         fullWidth
@@ -786,9 +799,7 @@ export function HomePage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNewFolderDialogOpen(false)}>
-            {t.cancel}
-          </Button>
+          <Button onClick={() => setNewFolderDialogOpen(false)}>{t.cancel}</Button>
           <Button
             onClick={handleCreateFolder}
             variant="contained"

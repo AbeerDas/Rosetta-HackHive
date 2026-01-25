@@ -40,21 +40,33 @@ export function useWebSocket({
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keepaliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlRef = useRef(url);
-  
+
   // Store callbacks in refs to avoid reconnection on callback changes
   const onMessageRef = useRef(onMessage);
   const onBinaryMessageRef = useRef(onBinaryMessage);
   const onOpenRef = useRef(onOpen);
   const onCloseRef = useRef(onClose);
   const onErrorRef = useRef(onError);
-  
+
   // Keep refs updated
-  useEffect(() => { urlRef.current = url; }, [url]);
-  useEffect(() => { onMessageRef.current = onMessage; }, [onMessage]);
-  useEffect(() => { onBinaryMessageRef.current = onBinaryMessage; }, [onBinaryMessage]);
-  useEffect(() => { onOpenRef.current = onOpen; }, [onOpen]);
-  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
+  useEffect(() => {
+    urlRef.current = url;
+  }, [url]);
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+  }, [onMessage]);
+  useEffect(() => {
+    onBinaryMessageRef.current = onBinaryMessage;
+  }, [onBinaryMessage]);
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+  }, [onOpen]);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -82,7 +94,7 @@ export function useWebSocket({
       console.log('[WebSocket] Already connected, skipping');
       return;
     }
-    
+
     // If WebSocket is in connecting state, don't create a new one
     if (wsRef.current?.readyState === WebSocket.CONNECTING) {
       console.log('[WebSocket] Already connecting, skipping');
@@ -113,7 +125,7 @@ export function useWebSocket({
           onBinaryMessageRef.current?.(event.data);
           return;
         }
-        
+
         try {
           const data = JSON.parse(event.data);
           onMessageRef.current?.(data);
@@ -129,7 +141,14 @@ export function useWebSocket({
       };
 
       ws.onclose = (event) => {
-        console.log('[WebSocket] Connection closed:', urlRef.current, 'Code:', event.code, 'Reason:', event.reason);
+        console.log(
+          '[WebSocket] Connection closed:',
+          urlRef.current,
+          'Code:',
+          event.code,
+          'Reason:',
+          event.reason
+        );
         setIsConnected(false);
         setIsConnecting(false);
         stopKeepalive();
@@ -138,7 +157,12 @@ export function useWebSocket({
         // Attempt reconnection
         if (reconnectCountRef.current < reconnectAttempts) {
           reconnectCountRef.current += 1;
-          console.log('[WebSocket] Attempting reconnection', reconnectCountRef.current, 'of', reconnectAttempts);
+          console.log(
+            '[WebSocket] Attempting reconnection',
+            reconnectCountRef.current,
+            'of',
+            reconnectAttempts
+          );
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
@@ -152,7 +176,7 @@ export function useWebSocket({
 
   const disconnect = useCallback(() => {
     console.log('[WebSocket] Disconnect called for:', urlRef.current);
-    console.trace('[WebSocket] Disconnect stack trace:');  // Show where disconnect was called from
+    console.trace('[WebSocket] Disconnect stack trace:'); // Show where disconnect was called from
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -183,7 +207,9 @@ export function useWebSocket({
 
   // Store autoConnect in a ref for cleanup
   const autoConnectRef = useRef(autoConnect);
-  useEffect(() => { autoConnectRef.current = autoConnect; }, [autoConnect]);
+  useEffect(() => {
+    autoConnectRef.current = autoConnect;
+  }, [autoConnect]);
 
   // Auto-connect on mount if enabled
   // For manually connected WebSockets (autoConnect=false), cleanup is handled by explicit disconnect() calls
@@ -201,7 +227,7 @@ export function useWebSocket({
         wsRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run on mount/unmount
 
   return {
@@ -219,7 +245,7 @@ export function useWebSocket({
 export interface TranscriptionMessage {
   type: 'segment_saved' | 'citations' | 'pong' | 'error';
   segment_id?: string;
-  frontend_id?: string;  // For ID mapping when segment_saved
+  frontend_id?: string; // For ID mapping when segment_saved
   window_index?: number;
   citations?: Array<{
     rank: number;
@@ -260,7 +286,7 @@ export function useTranslationSocket(
   targetLanguage: string,
   voiceId: string | null,
   onAudio: (audioData: ArrayBuffer) => void,
-  onStatusMessage?: (msg: TranslationMessage) => void,
+  onStatusMessage?: (msg: TranslationMessage) => void
 ) {
   const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
   let url = `${baseUrl}/api/v1/translate/stream?session_id=${sessionId}&target_language=${targetLanguage}`;
@@ -312,7 +338,7 @@ export function useTranslationSocket(
  */
 export function useTranscriptionSocket(
   sessionId: string,
-  onMessage: (msg: TranscriptionMessage) => void,
+  onMessage: (msg: TranscriptionMessage) => void
 ) {
   const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
   const url = `${baseUrl}/api/v1/transcribe/stream?session_id=${sessionId}`;

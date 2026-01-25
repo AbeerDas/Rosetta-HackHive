@@ -38,8 +38,9 @@ export function useAudioCapture({
     onAudioChunkRef.current = onAudioChunk;
   }, [onAudioChunk]);
 
-  const isSupported = typeof navigator !== 'undefined' && 
-    navigator.mediaDevices && 
+  const isSupported =
+    typeof navigator !== 'undefined' &&
+    navigator.mediaDevices &&
     typeof navigator.mediaDevices.getUserMedia === 'function';
 
   const start = useCallback(async () => {
@@ -79,14 +80,14 @@ export function useAudioCapture({
 
       processor.onaudioprocess = (event) => {
         const inputData = event.inputBuffer.getChannelData(0);
-        
+
         // Convert Float32 to Int16 PCM
         const pcmData = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
           // Clamp to -1 to 1 range
           const sample = Math.max(-1, Math.min(1, inputData[i]));
           // Convert to 16-bit integer
-          pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+          pcmData[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
         }
 
         // Send to callback
@@ -176,55 +177,61 @@ export function useAudioPlayback() {
     }
   }, [volume, isMuted]);
 
-  const playAudioChunk = useCallback(async (audioData: ArrayBuffer) => {
-    initialize();
-    
-    const audioContext = audioContextRef.current;
-    const gainNode = gainNodeRef.current;
-    
-    if (!audioContext || !gainNode) return;
+  const playAudioChunk = useCallback(
+    async (audioData: ArrayBuffer) => {
+      initialize();
 
-    try {
-      // Resume context if suspended
-      if (audioContext.state === 'suspended') {
-        await audioContext.resume();
-      }
+      const audioContext = audioContextRef.current;
+      const gainNode = gainNodeRef.current;
 
-      // Decode the audio data
-      const audioBuffer = await audioContext.decodeAudioData(audioData.slice(0));
-      
-      // Create source and play
-      const source = audioContext.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(gainNode);
+      if (!audioContext || !gainNode) return;
 
-      // Schedule playback
-      const currentTime = audioContext.currentTime;
-      const startTime = Math.max(currentTime, nextPlayTimeRef.current);
-      source.start(startTime);
-      
-      // Update next play time for smooth buffering
-      nextPlayTimeRef.current = startTime + audioBuffer.duration;
-      
-      setIsPlaying(true);
-      
-      source.onended = () => {
-        // Check if we're still playing
-        if (audioContext.currentTime >= nextPlayTimeRef.current - 0.1) {
-          setIsPlaying(false);
+      try {
+        // Resume context if suspended
+        if (audioContext.state === 'suspended') {
+          await audioContext.resume();
         }
-      };
-    } catch (err) {
-      console.error('Error playing audio chunk:', err);
-    }
-  }, [initialize]);
 
-  const updateVolume = useCallback((newVolume: number) => {
-    setVolume(newVolume);
-    if (gainNodeRef.current && !isMuted) {
-      gainNodeRef.current.gain.value = newVolume / 100;
-    }
-  }, [isMuted]);
+        // Decode the audio data
+        const audioBuffer = await audioContext.decodeAudioData(audioData.slice(0));
+
+        // Create source and play
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(gainNode);
+
+        // Schedule playback
+        const currentTime = audioContext.currentTime;
+        const startTime = Math.max(currentTime, nextPlayTimeRef.current);
+        source.start(startTime);
+
+        // Update next play time for smooth buffering
+        nextPlayTimeRef.current = startTime + audioBuffer.duration;
+
+        setIsPlaying(true);
+
+        source.onended = () => {
+          // Check if we're still playing
+          if (audioContext.currentTime >= nextPlayTimeRef.current - 0.1) {
+            setIsPlaying(false);
+          }
+        };
+      } catch (err) {
+        console.error('Error playing audio chunk:', err);
+      }
+    },
+    [initialize]
+  );
+
+  const updateVolume = useCallback(
+    (newVolume: number) => {
+      setVolume(newVolume);
+      if (gainNodeRef.current && !isMuted) {
+        gainNodeRef.current.gain.value = newVolume / 100;
+      }
+    },
+    [isMuted]
+  );
 
   const toggleMute = useCallback(() => {
     setIsMuted((prev) => {
@@ -263,4 +270,3 @@ export function useAudioPlayback() {
     stop,
   };
 }
-

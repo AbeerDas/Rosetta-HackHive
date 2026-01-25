@@ -5,17 +5,17 @@ type GenerationStatus = 'idle' | 'generating' | 'ready' | 'error';
 interface NoteEditorState {
   // Content
   content: string;
-  
+
   // Editor state
   isDirty: boolean;
   isSaving: boolean;
   lastSavedAt: Date | null;
-  
+
   // Generation state
   generationStatus: GenerationStatus;
   generationProgress: number;
   generationError: string | null;
-  
+
   // Actions
   setContent: (content: string) => void;
   markClean: () => void;

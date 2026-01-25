@@ -5,7 +5,7 @@ interface FolderState {
   selectedFolderId: string | null;
   expandedFolderIds: Set<string>;
   sidebarWidth: number;
-  
+
   // Actions
   setSelectedFolderId: (id: string | null) => void;
   toggleFolderExpanded: (id: string) => void;

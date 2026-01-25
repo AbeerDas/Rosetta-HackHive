@@ -45,10 +45,10 @@ marked.setOptions({
 // Convert markdown to HTML for the editor
 function markdownToHtml(markdown: string): string {
   if (!markdown) return '';
-  
+
   // Handle superscript citations (^1^, ^2^, etc.)
   const withSuperscripts = markdown.replace(/\^(\d+)\^/g, '<sup>$1</sup>');
-  
+
   // Parse markdown to HTML
   const html = marked.parse(withSuperscripts) as string;
   return html;
@@ -92,7 +92,7 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
     if (editor && content) {
       const currentHtml = editor.getHTML();
       const newHtml = markdownToHtml(content);
-      
+
       // Only update if content actually changed (avoid cursor jumping)
       if (htmlToMarkdown(currentHtml) !== content) {
         editor.commands.setContent(newHtml);
@@ -192,25 +192,13 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
 
         {/* Formatting */}
         <ToggleButtonGroup size="small">
-          <ToggleButton
-            value="bold"
-            onClick={toggleBold}
-            selected={editor.isActive('bold')}
-          >
+          <ToggleButton value="bold" onClick={toggleBold} selected={editor.isActive('bold')}>
             <FormatBoldIcon fontSize="small" />
           </ToggleButton>
-          <ToggleButton
-            value="italic"
-            onClick={toggleItalic}
-            selected={editor.isActive('italic')}
-          >
+          <ToggleButton value="italic" onClick={toggleItalic} selected={editor.isActive('italic')}>
             <FormatItalicIcon fontSize="small" />
           </ToggleButton>
-          <ToggleButton
-            value="code"
-            onClick={toggleCode}
-            selected={editor.isActive('code')}
-          >
+          <ToggleButton value="code" onClick={toggleCode} selected={editor.isActive('code')}>
             <CodeIcon fontSize="small" />
           </ToggleButton>
         </ToggleButtonGroup>

@@ -49,7 +49,7 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
     onSuccess: async (newDocument) => {
       // Cancel any in-flight queries to prevent them from overwriting our update
       await queryClient.cancelQueries({ queryKey: ['documents', sessionId] });
-      
+
       queryClient.setQueryData<Document[]>(['documents', sessionId], (oldDocuments) => {
         if (!oldDocuments) return [newDocument];
         const exists = oldDocuments.some((doc) => doc.id === newDocument.id);
@@ -143,7 +143,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
           sx={{ width: 40, height: 40, mb: 1.5, opacity: 0.7 }}
         />
         <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-          {t.dragDropFiles} <Typography component="span" sx={{ color: customColors.brandGreen, fontWeight: 500 }}>{t.browse}</Typography>
+          {t.dragDropFiles}{' '}
+          <Typography component="span" sx={{ color: customColors.brandGreen, fontWeight: 500 }}>
+            {t.browse}
+          </Typography>
         </Typography>
         <Typography variant="caption" color="text.disabled">
           {t.supportedFormats}
@@ -200,9 +203,7 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                   </Box>
                 }
               >
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {getStatusIcon(doc.status)}
-                </ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 36 }}>{getStatusIcon(doc.status)}</ListItemIcon>
                 <ListItemText
                   primary={doc.name}
                   secondary={
@@ -213,9 +214,9 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                           <LinearProgress
                             variant="determinate"
                             value={doc.processing_progress}
-                            sx={{ 
-                              mt: 0.5, 
-                              height: 2, 
+                            sx={{
+                              mt: 0.5,
+                              height: 2,
                               borderRadius: 1,
                               bgcolor: alpha(customColors.brandGreen, 0.1),
                               '& .MuiLinearProgress-bar': {
@@ -252,14 +253,14 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
           <Typography variant="caption" color="text.secondary">
             Uploading...
           </Typography>
-          <LinearProgress 
-            sx={{ 
+          <LinearProgress
+            sx={{
               mt: 1,
               bgcolor: alpha(customColors.brandGreen, 0.1),
               '& .MuiLinearProgress-bar': {
                 bgcolor: customColors.brandGreen,
               },
-            }} 
+            }}
           />
         </Box>
       )}

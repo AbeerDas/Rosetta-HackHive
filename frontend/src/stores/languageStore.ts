@@ -11,7 +11,7 @@ export interface Translations {
   settings: string;
   help: string;
   close: string;
-  
+
   // Home Page
   welcomeBack: string;
   subjects: string;
@@ -24,7 +24,7 @@ export interface Translations {
   noSessionsYet: string;
   deleteFolder: string;
   deleteSession: string;
-  
+
   // Session Page
   active: string;
   sessionEnded: string;
@@ -33,13 +33,13 @@ export interface Translations {
   liveTranscription: string;
   citations: string;
   citationsEmptyMessage: string;
-  
+
   // Transcription Panel
   transcriptionWillAppear: string;
   enableMicrophone: string;
   noTranscriptAvailable: string;
   loadingTranscript: string;
-  
+
   // Audio Controls
   translation: string;
   ready: string;
@@ -52,7 +52,7 @@ export interface Translations {
   stopped: string;
   off: string;
   volume: string;
-  
+
   // Document Panel
   dragDropFiles: string;
   browse: string;
@@ -60,7 +60,7 @@ export interface Translations {
   noDocumentsYet: string;
   uploadMaterials: string;
   processing: string;
-  
+
   // Question Translation
   questionTranslation: string;
   typeQuestion: string;
@@ -72,7 +72,7 @@ export interface Translations {
   speak: string;
   copy: string;
   copied: string;
-  
+
   // Dialogs
   createNewFolder: string;
   folderName: string;
@@ -82,14 +82,14 @@ export interface Translations {
   sessionName: string;
   targetLanguage: string;
   startSession: string;
-  
+
   // End Session Dialog
   endSessionConfirm: string;
   endSessionWarning: string;
   generateNotesQuestion: string;
   saveTranscriptOnly: string;
   endAndGenerateNotes: string;
-  
+
   // Notes
   lectureNotes: string;
   viewTranscript: string;
@@ -102,10 +102,10 @@ export interface Translations {
   gatheringCitations: string;
   analyzingNotes: string;
   finalizingNotes: string;
-  
+
   // Status
   transcribing: string;
-  
+
   // Languages
   english: string;
   chinese: string;
@@ -113,7 +113,7 @@ export interface Translations {
   spanish: string;
   french: string;
   bengali: string;
-  
+
   // Voice Settings
   voiceForDictation: string;
   loadingVoices: string;
@@ -130,7 +130,7 @@ const en: Translations = {
   settings: 'Settings',
   help: 'Help',
   close: 'Close',
-  
+
   welcomeBack: 'Welcome Back',
   subjects: 'Notebooks',
   yourBaseLanguage: 'Your Base Language:',
@@ -142,20 +142,21 @@ const en: Translations = {
   noSessionsYet: 'No sessions yet',
   deleteFolder: 'Delete Folder',
   deleteSession: 'Delete Session',
-  
+
   active: 'Active',
   sessionEnded: 'Session Ended',
   endSession: 'End Session',
   documents: 'Documents',
   liveTranscription: 'Live Transcription',
   citations: 'Citations',
-  citationsEmptyMessage: 'Citations from your course materials will appear here as the lecture progresses.',
-  
+  citationsEmptyMessage:
+    'Citations from your course materials will appear here as the lecture progresses.',
+
   transcriptionWillAppear: 'Transcription will appear here when you start the session',
   enableMicrophone: 'Make sure your microphone is enabled',
   noTranscriptAvailable: 'No transcript available for this session',
   loadingTranscript: 'Loading transcript...',
-  
+
   translation: 'Translation:',
   ready: 'Ready',
   live: 'Live',
@@ -167,14 +168,14 @@ const en: Translations = {
   stopped: 'Stopped',
   off: 'Off',
   volume: 'Volume',
-  
+
   dragDropFiles: 'Drag & drop files or',
   browse: 'Browse',
   supportedFormats: 'Supported formats: PDF',
   noDocumentsYet: 'No documents uploaded yet',
   uploadMaterials: 'Upload course materials for smart citations',
   processing: 'Processing...',
-  
+
   questionTranslation: 'Question Translation',
   typeQuestion: 'Type your question in your language...',
   translate: 'Translate',
@@ -185,7 +186,7 @@ const en: Translations = {
   speak: 'Speak',
   copy: 'Copy',
   copied: 'Copied!',
-  
+
   createNewFolder: 'Create New Folder',
   folderName: 'Folder Name',
   cancel: 'Cancel',
@@ -194,34 +195,37 @@ const en: Translations = {
   sessionName: 'Session Name',
   targetLanguage: 'Target Language',
   startSession: 'Start Session',
-  
+
   endSessionConfirm: 'End Session?',
-  endSessionWarning: 'Once you end the session, you will no longer be able to record new transcriptions. This action cannot be undone.',
-  generateNotesQuestion: 'Would you like to generate structured notes from the transcription, or save the transcript only?',
+  endSessionWarning:
+    'Once you end the session, you will no longer be able to record new transcriptions. This action cannot be undone.',
+  generateNotesQuestion:
+    'Would you like to generate structured notes from the transcription, or save the transcript only?',
   saveTranscriptOnly: 'Save Transcript Only',
   endAndGenerateNotes: 'End & Generate Notes',
-  
+
   lectureNotes: 'Lecture Notes',
   viewTranscript: 'View Transcript',
   viewNotes: 'View Notes',
   generatingNotes: 'Generating Notes...',
   noNotesYet: 'No notes yet',
-  generateNotesFromTranscript: 'Generate notes automatically from your lecture transcripts, or start writing from scratch.',
+  generateNotesFromTranscript:
+    'Generate notes automatically from your lecture transcripts, or start writing from scratch.',
   startFromScratch: 'Start from Scratch',
   collectingTranscript: 'Collecting transcript segments...',
   gatheringCitations: 'Gathering citations...',
   analyzingNotes: 'AI is analyzing and structuring your notes...',
   finalizingNotes: 'Finalizing notes...',
-  
+
   transcribing: 'Transcribing',
-  
+
   english: 'English',
   chinese: 'Chinese (Mandarin)',
   hindi: 'Hindi',
   spanish: 'Spanish',
   french: 'French',
   bengali: 'Bengali',
-  
+
   voiceForDictation: 'Voice for Dictation',
   loadingVoices: 'Loading voices...',
   selectVoice: 'Select Voice',
@@ -237,7 +241,7 @@ const zh: Translations = {
   settings: '设置',
   help: '帮助',
   close: '关闭',
-  
+
   welcomeBack: '欢迎回来',
   subjects: '笔记本',
   yourBaseLanguage: '您的基础语言：',
@@ -249,7 +253,7 @@ const zh: Translations = {
   noSessionsYet: '暂无课程',
   deleteFolder: '删除文件夹',
   deleteSession: '删除课程',
-  
+
   active: '进行中',
   sessionEnded: '课程已结束',
   endSession: '结束课程',
@@ -257,12 +261,12 @@ const zh: Translations = {
   liveTranscription: '实时转录',
   citations: '引用',
   citationsEmptyMessage: '随着讲座的进行，您课程材料中的引用将显示在此处。',
-  
+
   transcriptionWillAppear: '开始课程后，转录内容将显示在此处',
   enableMicrophone: '请确保已启用麦克风',
   noTranscriptAvailable: '此课程暂无转录内容',
   loadingTranscript: '正在加载转录内容...',
-  
+
   translation: '翻译：',
   ready: '就绪',
   live: '直播中',
@@ -274,14 +278,14 @@ const zh: Translations = {
   stopped: '已停止',
   off: '关闭',
   volume: '音量',
-  
+
   dragDropFiles: '拖放文件或',
   browse: '浏览',
   supportedFormats: '支持格式：PDF',
   noDocumentsYet: '尚未上传文档',
   uploadMaterials: '上传课程材料以获取智能引用',
   processing: '处理中...',
-  
+
   questionTranslation: '问题翻译',
   typeQuestion: '用您的语言输入问题...',
   translate: '翻译',
@@ -292,7 +296,7 @@ const zh: Translations = {
   speak: '朗读',
   copy: '复制',
   copied: '已复制！',
-  
+
   createNewFolder: '创建新文件夹',
   folderName: '文件夹名称',
   cancel: '取消',
@@ -301,13 +305,13 @@ const zh: Translations = {
   sessionName: '课程名称',
   targetLanguage: '目标语言',
   startSession: '开始课程',
-  
+
   endSessionConfirm: '结束课程？',
   endSessionWarning: '一旦结束课程，您将无法录制新的转录。此操作无法撤消。',
   generateNotesQuestion: '您想从转录生成结构化笔记，还是仅保存转录？',
   saveTranscriptOnly: '仅保存转录',
   endAndGenerateNotes: '结束并生成笔记',
-  
+
   lectureNotes: '讲座笔记',
   viewTranscript: '查看转录',
   viewNotes: '查看笔记',
@@ -319,16 +323,16 @@ const zh: Translations = {
   gatheringCitations: '正在收集引用...',
   analyzingNotes: 'AI正在分析和整理您的笔记...',
   finalizingNotes: '正在完成笔记...',
-  
+
   transcribing: '转录中',
-  
+
   english: '英语',
   chinese: '中文（普通话）',
   hindi: '印地语',
   spanish: '西班牙语',
   french: '法语',
   bengali: '孟加拉语',
-  
+
   voiceForDictation: '听写语音',
   loadingVoices: '正在加载语音...',
   selectVoice: '选择语音',
@@ -344,7 +348,7 @@ const hi: Translations = {
   settings: 'सेटिंग्स',
   help: 'मदद',
   close: 'बंद करें',
-  
+
   welcomeBack: 'वापसी पर स्वागत है',
   subjects: 'नोटबुक',
   yourBaseLanguage: 'आपकी आधार भाषा:',
@@ -356,7 +360,7 @@ const hi: Translations = {
   noSessionsYet: 'अभी तक कोई सत्र नहीं',
   deleteFolder: 'फ़ोल्डर हटाएं',
   deleteSession: 'सत्र हटाएं',
-  
+
   active: 'सक्रिय',
   sessionEnded: 'सत्र समाप्त',
   endSession: 'सत्र समाप्त करें',
@@ -364,12 +368,12 @@ const hi: Translations = {
   liveTranscription: 'लाइव ट्रांसक्रिप्शन',
   citations: 'उद्धरण',
   citationsEmptyMessage: 'व्याख्यान के दौरान आपकी पाठ्य सामग्री से उद्धरण यहां दिखाई देंगे।',
-  
+
   transcriptionWillAppear: 'सत्र शुरू होने पर ट्रांसक्रिप्शन यहां दिखाई देगा',
   enableMicrophone: 'सुनिश्चित करें कि आपका माइक्रोफ़ोन सक्षम है',
   noTranscriptAvailable: 'इस सत्र के लिए कोई ट्रांसक्रिप्ट उपलब्ध नहीं है',
   loadingTranscript: 'ट्रांसक्रिप्ट लोड हो रहा है...',
-  
+
   translation: 'अनुवाद:',
   ready: 'तैयार',
   live: 'लाइव',
@@ -381,14 +385,14 @@ const hi: Translations = {
   stopped: 'रुका हुआ',
   off: 'बंद',
   volume: 'वॉल्यूम',
-  
+
   dragDropFiles: 'फ़ाइलें खींचें और छोड़ें या',
   browse: 'ब्राउज़ करें',
   supportedFormats: 'समर्थित प्रारूप: PDF',
   noDocumentsYet: 'अभी तक कोई दस्तावेज़ अपलोड नहीं',
   uploadMaterials: 'स्मार्ट उद्धरण के लिए पाठ्य सामग्री अपलोड करें',
   processing: 'प्रोसेसिंग...',
-  
+
   questionTranslation: 'प्रश्न अनुवाद',
   typeQuestion: 'अपनी भाषा में अपना प्रश्न लिखें...',
   translate: 'अनुवाद करें',
@@ -399,7 +403,7 @@ const hi: Translations = {
   speak: 'बोलें',
   copy: 'कॉपी करें',
   copied: 'कॉपी हो गया!',
-  
+
   createNewFolder: 'नया फ़ोल्डर बनाएं',
   folderName: 'फ़ोल्डर का नाम',
   cancel: 'रद्द करें',
@@ -408,34 +412,37 @@ const hi: Translations = {
   sessionName: 'सत्र का नाम',
   targetLanguage: 'लक्ष्य भाषा',
   startSession: 'सत्र शुरू करें',
-  
+
   endSessionConfirm: 'सत्र समाप्त करें?',
-  endSessionWarning: 'एक बार सत्र समाप्त होने पर, आप नई ट्रांसक्रिप्शन रिकॉर्ड नहीं कर पाएंगे। यह क्रिया पूर्ववत नहीं की जा सकती।',
-  generateNotesQuestion: 'क्या आप ट्रांसक्रिप्शन से संरचित नोट्स बनाना चाहेंगे, या केवल ट्रांसक्रिप्ट सहेजना चाहेंगे?',
+  endSessionWarning:
+    'एक बार सत्र समाप्त होने पर, आप नई ट्रांसक्रिप्शन रिकॉर्ड नहीं कर पाएंगे। यह क्रिया पूर्ववत नहीं की जा सकती।',
+  generateNotesQuestion:
+    'क्या आप ट्रांसक्रिप्शन से संरचित नोट्स बनाना चाहेंगे, या केवल ट्रांसक्रिप्ट सहेजना चाहेंगे?',
   saveTranscriptOnly: 'केवल ट्रांसक्रिप्ट सहेजें',
   endAndGenerateNotes: 'समाप्त करें और नोट्स बनाएं',
-  
+
   lectureNotes: 'व्याख्यान नोट्स',
   viewTranscript: 'ट्रांसक्रिप्ट देखें',
   viewNotes: 'नोट्स देखें',
   generatingNotes: 'नोट्स बना रहे हैं...',
   noNotesYet: 'अभी तक कोई नोट्स नहीं',
-  generateNotesFromTranscript: 'व्याख्यान ट्रांसक्रिप्ट से स्वचालित रूप से नोट्स बनाएं, या शुरुआत से लिखें।',
+  generateNotesFromTranscript:
+    'व्याख्यान ट्रांसक्रिप्ट से स्वचालित रूप से नोट्स बनाएं, या शुरुआत से लिखें।',
   startFromScratch: 'शुरुआत से शुरू करें',
   collectingTranscript: 'ट्रांसक्रिप्ट खंड एकत्र कर रहे हैं...',
   gatheringCitations: 'उद्धरण एकत्र कर रहे हैं...',
   analyzingNotes: 'AI आपके नोट्स का विश्लेषण और संरचना कर रहा है...',
   finalizingNotes: 'नोट्स को अंतिम रूप दे रहे हैं...',
-  
+
   transcribing: 'ट्रांसक्राइब हो रहा है',
-  
+
   english: 'अंग्रेज़ी',
   chinese: 'चीनी (मंदारिन)',
   hindi: 'हिंदी',
   spanish: 'स्पेनिश',
   french: 'फ़्रेंच',
   bengali: 'बंगाली',
-  
+
   voiceForDictation: 'डिक्टेशन के लिए आवाज़',
   loadingVoices: 'आवाज़ें लोड हो रही हैं...',
   selectVoice: 'आवाज़ चुनें',
@@ -451,7 +458,7 @@ const es: Translations = {
   settings: 'Configuración',
   help: 'Ayuda',
   close: 'Cerrar',
-  
+
   welcomeBack: 'Bienvenido de nuevo',
   subjects: 'Cuadernos',
   yourBaseLanguage: 'Tu idioma base:',
@@ -463,20 +470,21 @@ const es: Translations = {
   noSessionsYet: 'Aún no hay sesiones',
   deleteFolder: 'Eliminar carpeta',
   deleteSession: 'Eliminar sesión',
-  
+
   active: 'Activo',
   sessionEnded: 'Sesión finalizada',
   endSession: 'Finalizar sesión',
   documents: 'Documentos',
   liveTranscription: 'Transcripción en vivo',
   citations: 'Citas',
-  citationsEmptyMessage: 'Las citas de tus materiales del curso aparecerán aquí a medida que avance la clase.',
-  
+  citationsEmptyMessage:
+    'Las citas de tus materiales del curso aparecerán aquí a medida que avance la clase.',
+
   transcriptionWillAppear: 'La transcripción aparecerá aquí cuando inicies la sesión',
   enableMicrophone: 'Asegúrate de que tu micrófono esté habilitado',
   noTranscriptAvailable: 'No hay transcripción disponible para esta sesión',
   loadingTranscript: 'Cargando transcripción...',
-  
+
   translation: 'Traducción:',
   ready: 'Listo',
   live: 'En vivo',
@@ -488,14 +496,14 @@ const es: Translations = {
   stopped: 'Detenido',
   off: 'Apagado',
   volume: 'Volumen',
-  
+
   dragDropFiles: 'Arrastra y suelta archivos o',
   browse: 'Explorar',
   supportedFormats: 'Formatos admitidos: PDF',
   noDocumentsYet: 'Aún no se han subido documentos',
   uploadMaterials: 'Sube materiales del curso para citas inteligentes',
   processing: 'Procesando...',
-  
+
   questionTranslation: 'Traducción de preguntas',
   typeQuestion: 'Escribe tu pregunta en tu idioma...',
   translate: 'Traducir',
@@ -506,7 +514,7 @@ const es: Translations = {
   speak: 'Hablar',
   copy: 'Copiar',
   copied: '¡Copiado!',
-  
+
   createNewFolder: 'Crear nueva carpeta',
   folderName: 'Nombre de la carpeta',
   cancel: 'Cancelar',
@@ -515,34 +523,37 @@ const es: Translations = {
   sessionName: 'Nombre de la sesión',
   targetLanguage: 'Idioma de destino',
   startSession: 'Iniciar sesión',
-  
+
   endSessionConfirm: '¿Finalizar sesión?',
-  endSessionWarning: 'Una vez que finalices la sesión, ya no podrás grabar nuevas transcripciones. Esta acción no se puede deshacer.',
-  generateNotesQuestion: '¿Te gustaría generar notas estructuradas de la transcripción, o solo guardar la transcripción?',
+  endSessionWarning:
+    'Una vez que finalices la sesión, ya no podrás grabar nuevas transcripciones. Esta acción no se puede deshacer.',
+  generateNotesQuestion:
+    '¿Te gustaría generar notas estructuradas de la transcripción, o solo guardar la transcripción?',
   saveTranscriptOnly: 'Solo guardar transcripción',
   endAndGenerateNotes: 'Finalizar y generar notas',
-  
+
   lectureNotes: 'Notas de clase',
   viewTranscript: 'Ver transcripción',
   viewNotes: 'Ver notas',
   generatingNotes: 'Generando notas...',
   noNotesYet: 'Aún no hay notas',
-  generateNotesFromTranscript: 'Genera notas automáticamente de tus transcripciones de clase, o empieza a escribir desde cero.',
+  generateNotesFromTranscript:
+    'Genera notas automáticamente de tus transcripciones de clase, o empieza a escribir desde cero.',
   startFromScratch: 'Empezar desde cero',
   collectingTranscript: 'Recopilando segmentos de transcripción...',
   gatheringCitations: 'Recopilando citas...',
   analyzingNotes: 'La IA está analizando y estructurando tus notas...',
   finalizingNotes: 'Finalizando notas...',
-  
+
   transcribing: 'Transcribiendo',
-  
+
   english: 'Inglés',
   chinese: 'Chino (Mandarín)',
   hindi: 'Hindi',
   spanish: 'Español',
   french: 'Francés',
   bengali: 'Bengalí',
-  
+
   voiceForDictation: 'Voz para dictado',
   loadingVoices: 'Cargando voces...',
   selectVoice: 'Seleccionar voz',
@@ -558,7 +569,7 @@ const fr: Translations = {
   settings: 'Paramètres',
   help: 'Aide',
   close: 'Fermer',
-  
+
   welcomeBack: 'Bon retour',
   subjects: 'Cahiers',
   yourBaseLanguage: 'Votre langue de base :',
@@ -570,20 +581,21 @@ const fr: Translations = {
   noSessionsYet: 'Pas encore de sessions',
   deleteFolder: 'Supprimer le dossier',
   deleteSession: 'Supprimer la session',
-  
+
   active: 'Actif',
   sessionEnded: 'Session terminée',
   endSession: 'Terminer la session',
   documents: 'Documents',
   liveTranscription: 'Transcription en direct',
   citations: 'Citations',
-  citationsEmptyMessage: 'Les citations de vos supports de cours apparaîtront ici au fur et à mesure du cours.',
-  
+  citationsEmptyMessage:
+    'Les citations de vos supports de cours apparaîtront ici au fur et à mesure du cours.',
+
   transcriptionWillAppear: 'La transcription apparaîtra ici lorsque vous démarrerez la session',
   enableMicrophone: 'Assurez-vous que votre microphone est activé',
   noTranscriptAvailable: 'Aucune transcription disponible pour cette session',
   loadingTranscript: 'Chargement de la transcription...',
-  
+
   translation: 'Traduction :',
   ready: 'Prêt',
   live: 'En direct',
@@ -595,14 +607,14 @@ const fr: Translations = {
   stopped: 'Arrêté',
   off: 'Éteint',
   volume: 'Volume',
-  
+
   dragDropFiles: 'Glissez-déposez des fichiers ou',
   browse: 'Parcourir',
   supportedFormats: 'Formats supportés : PDF',
   noDocumentsYet: 'Aucun document téléchargé',
   uploadMaterials: 'Téléchargez des supports de cours pour des citations intelligentes',
   processing: 'Traitement...',
-  
+
   questionTranslation: 'Traduction de question',
   typeQuestion: 'Tapez votre question dans votre langue...',
   translate: 'Traduire',
@@ -613,7 +625,7 @@ const fr: Translations = {
   speak: 'Parler',
   copy: 'Copier',
   copied: 'Copié !',
-  
+
   createNewFolder: 'Créer un nouveau dossier',
   folderName: 'Nom du dossier',
   cancel: 'Annuler',
@@ -622,40 +634,43 @@ const fr: Translations = {
   sessionName: 'Nom de la session',
   targetLanguage: 'Langue cible',
   startSession: 'Démarrer la session',
-  
+
   endSessionConfirm: 'Terminer la session ?',
-  endSessionWarning: 'Une fois la session terminée, vous ne pourrez plus enregistrer de nouvelles transcriptions. Cette action est irréversible.',
-  generateNotesQuestion: 'Voulez-vous générer des notes structurées à partir de la transcription, ou seulement sauvegarder la transcription ?',
+  endSessionWarning:
+    'Une fois la session terminée, vous ne pourrez plus enregistrer de nouvelles transcriptions. Cette action est irréversible.',
+  generateNotesQuestion:
+    'Voulez-vous générer des notes structurées à partir de la transcription, ou seulement sauvegarder la transcription ?',
   saveTranscriptOnly: 'Sauvegarder uniquement la transcription',
   endAndGenerateNotes: 'Terminer et générer des notes',
-  
+
   lectureNotes: 'Notes de cours',
   viewTranscript: 'Voir la transcription',
   viewNotes: 'Voir les notes',
   generatingNotes: 'Génération des notes...',
   noNotesYet: 'Pas encore de notes',
-  generateNotesFromTranscript: 'Générez des notes automatiquement à partir de vos transcriptions de cours, ou commencez à écrire depuis le début.',
+  generateNotesFromTranscript:
+    'Générez des notes automatiquement à partir de vos transcriptions de cours, ou commencez à écrire depuis le début.',
   startFromScratch: 'Commencer de zéro',
   collectingTranscript: 'Collecte des segments de transcription...',
   gatheringCitations: 'Collecte des citations...',
   analyzingNotes: "L'IA analyse et structure vos notes...",
   finalizingNotes: 'Finalisation des notes...',
-  
+
   transcribing: 'Transcription en cours',
-  
+
   english: 'Anglais',
   chinese: 'Chinois (Mandarin)',
   hindi: 'Hindi',
   spanish: 'Espagnol',
   french: 'Français',
   bengali: 'Bengali',
-  
+
   voiceForDictation: 'Voix pour la dictée',
   loadingVoices: 'Chargement des voix...',
   selectVoice: 'Sélectionner une voix',
   defaultVoice: 'Voix par défaut',
   noPreviewAvailable: 'Aucun aperçu disponible pour cette voix',
-  stopPreview: 'Arrêter l\'aperçu',
+  stopPreview: "Arrêter l'aperçu",
   previewVoice: 'Aperçu de la voix',
 };
 
@@ -665,7 +680,7 @@ const bn: Translations = {
   settings: 'সেটিংস',
   help: 'সাহায্য',
   close: 'বন্ধ করুন',
-  
+
   welcomeBack: 'ফিরে আসার স্বাগত',
   subjects: 'নোটবুক',
   yourBaseLanguage: 'আপনার মূল ভাষা:',
@@ -677,20 +692,21 @@ const bn: Translations = {
   noSessionsYet: 'এখনও কোনো সেশন নেই',
   deleteFolder: 'ফোল্ডার মুছুন',
   deleteSession: 'সেশন মুছুন',
-  
+
   active: 'সক্রিয়',
   sessionEnded: 'সেশন শেষ',
   endSession: 'সেশন শেষ করুন',
   documents: 'নথি',
   liveTranscription: 'লাইভ ট্রান্সক্রিপশন',
   citations: 'উদ্ধৃতি',
-  citationsEmptyMessage: 'লেকচার চলার সাথে সাথে আপনার কোর্সের উপকরণ থেকে উদ্ধৃতি এখানে প্রদর্শিত হবে।',
-  
+  citationsEmptyMessage:
+    'লেকচার চলার সাথে সাথে আপনার কোর্সের উপকরণ থেকে উদ্ধৃতি এখানে প্রদর্শিত হবে।',
+
   transcriptionWillAppear: 'সেশন শুরু করলে ট্রান্সক্রিপশন এখানে প্রদর্শিত হবে',
   enableMicrophone: 'নিশ্চিত করুন যে আপনার মাইক্রোফোন সক্রিয় আছে',
   noTranscriptAvailable: 'এই সেশনের জন্য কোনো ট্রান্সক্রিপ্ট উপলব্ধ নেই',
   loadingTranscript: 'ট্রান্সক্রিপ্ট লোড হচ্ছে...',
-  
+
   translation: 'অনুবাদ:',
   ready: 'প্রস্তুত',
   live: 'লাইভ',
@@ -702,14 +718,14 @@ const bn: Translations = {
   stopped: 'থামানো',
   off: 'বন্ধ',
   volume: 'ভলিউম',
-  
+
   dragDropFiles: 'ফাইল টেনে আনুন বা',
   browse: 'ব্রাউজ করুন',
   supportedFormats: 'সমর্থিত ফরম্যাট: PDF',
   noDocumentsYet: 'এখনও কোনো নথি আপলোড করা হয়নি',
   uploadMaterials: 'স্মার্ট উদ্ধৃতির জন্য কোর্সের উপকরণ আপলোড করুন',
   processing: 'প্রসেসিং হচ্ছে...',
-  
+
   questionTranslation: 'প্রশ্ন অনুবাদ',
   typeQuestion: 'আপনার ভাষায় আপনার প্রশ্ন টাইপ করুন...',
   translate: 'অনুবাদ করুন',
@@ -720,7 +736,7 @@ const bn: Translations = {
   speak: 'বলুন',
   copy: 'কপি করুন',
   copied: 'কপি হয়েছে!',
-  
+
   createNewFolder: 'নতুন ফোল্ডার তৈরি করুন',
   folderName: 'ফোল্ডারের নাম',
   cancel: 'বাতিল করুন',
@@ -729,34 +745,37 @@ const bn: Translations = {
   sessionName: 'সেশনের নাম',
   targetLanguage: 'লক্ষ্য ভাষা',
   startSession: 'সেশন শুরু করুন',
-  
+
   endSessionConfirm: 'সেশন শেষ করবেন?',
-  endSessionWarning: 'একবার সেশন শেষ হলে, আপনি আর নতুন ট্রান্সক্রিপশন রেকর্ড করতে পারবেন না। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।',
-  generateNotesQuestion: 'আপনি কি ট্রান্সক্রিপশন থেকে সংগঠিত নোট তৈরি করতে চান, নাকি শুধুমাত্র ট্রান্সক্রিপ্ট সংরক্ষণ করতে চান?',
+  endSessionWarning:
+    'একবার সেশন শেষ হলে, আপনি আর নতুন ট্রান্সক্রিপশন রেকর্ড করতে পারবেন না। এই কাজটি পূর্বাবস্থায় ফেরানো যাবে না।',
+  generateNotesQuestion:
+    'আপনি কি ট্রান্সক্রিপশন থেকে সংগঠিত নোট তৈরি করতে চান, নাকি শুধুমাত্র ট্রান্সক্রিপ্ট সংরক্ষণ করতে চান?',
   saveTranscriptOnly: 'শুধুমাত্র ট্রান্সক্রিপ্ট সংরক্ষণ করুন',
   endAndGenerateNotes: 'শেষ করুন এবং নোট তৈরি করুন',
-  
+
   lectureNotes: 'লেকচার নোট',
   viewTranscript: 'ট্রান্সক্রিপ্ট দেখুন',
   viewNotes: 'নোট দেখুন',
   generatingNotes: 'নোট তৈরি হচ্ছে...',
   noNotesYet: 'এখনও কোনো নোট নেই',
-  generateNotesFromTranscript: 'আপনার লেকচার ট্রান্সক্রিপ্ট থেকে স্বয়ংক্রিয়ভাবে নোট তৈরি করুন, অথবা শুরু থেকে লেখা শুরু করুন।',
+  generateNotesFromTranscript:
+    'আপনার লেকচার ট্রান্সক্রিপ্ট থেকে স্বয়ংক্রিয়ভাবে নোট তৈরি করুন, অথবা শুরু থেকে লেখা শুরু করুন।',
   startFromScratch: 'শুরু থেকে শুরু করুন',
   collectingTranscript: 'ট্রান্সক্রিপ্ট অংশ সংগ্রহ করা হচ্ছে...',
   gatheringCitations: 'উদ্ধৃতি সংগ্রহ করা হচ্ছে...',
   analyzingNotes: 'AI আপনার নোট বিশ্লেষণ এবং সংগঠিত করছে...',
   finalizingNotes: 'নোট চূড়ান্ত করা হচ্ছে...',
-  
+
   transcribing: 'ট্রান্সক্রাইব হচ্ছে',
-  
+
   english: 'ইংরেজি',
   chinese: 'চীনা (ম্যান্ডারিন)',
   hindi: 'হিন্দি',
   spanish: 'স্প্যানিশ',
   french: 'ফরাসি',
   bengali: 'বাংলা',
-  
+
   voiceForDictation: 'ডিক্টেশনের জন্য ভয়েস',
   loadingVoices: 'ভয়েস লোড হচ্ছে...',
   selectVoice: 'ভয়েস নির্বাচন করুন',
@@ -798,13 +817,20 @@ export const useLanguageStore = create<LanguageState>()(
 // Helper to get language name
 export const getLanguageName = (code: LanguageCode, t: Translations): string => {
   switch (code) {
-    case 'en': return t.english;
-    case 'zh': return t.chinese;
-    case 'hi': return t.hindi;
-    case 'es': return t.spanish;
-    case 'fr': return t.french;
-    case 'bn': return t.bengali;
-    default: return t.english;
+    case 'en':
+      return t.english;
+    case 'zh':
+      return t.chinese;
+    case 'hi':
+      return t.hindi;
+    case 'es':
+      return t.spanish;
+    case 'fr':
+      return t.french;
+    case 'bn':
+      return t.bengali;
+    default:
+      return t.english;
   }
 };
 

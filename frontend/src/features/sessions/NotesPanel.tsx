@@ -39,7 +39,13 @@ interface NotesPanelProps {
 // Auto-save debounce time in milliseconds
 const AUTO_SAVE_DELAY = 5000;
 
-export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onViewTranscript, onOpenFullPage }: NotesPanelProps) {
+export function NotesPanel({
+  sessionId,
+  sessionName,
+  autoGenerate = false,
+  onViewTranscript,
+  onOpenFullPage,
+}: NotesPanelProps) {
   const queryClient = useQueryClient();
   const { t, language } = useLanguageStore();
 
@@ -51,19 +57,24 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
-  
+
   // Ref for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   // Track current sessionId to detect changes
   const currentSessionIdRef = useRef<string>(sessionId);
 
   // Reset state when sessionId changes
   useEffect(() => {
     if (currentSessionIdRef.current !== sessionId) {
-      console.log('[NotesPanel] Session changed from', currentSessionIdRef.current, 'to', sessionId);
+      console.log(
+        '[NotesPanel] Session changed from',
+        currentSessionIdRef.current,
+        'to',
+        sessionId
+      );
       currentSessionIdRef.current = sessionId;
-      
+
       // Reset all state for new session
       setContent('');
       setHasChanges(false);
@@ -73,7 +84,7 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
       setGenerationProgress(0);
       setConfirmRegenerateOpen(false);
       setAnchorEl(null);
-      
+
       // Clear any pending auto-save timer
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -83,7 +94,11 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   }, [sessionId]);
 
   // Fetch existing note
-  const { data: note, isLoading: noteLoading, isError: noteError } = useQuery({
+  const {
+    data: note,
+    isLoading: noteLoading,
+    isError: noteError,
+  } = useQuery({
     queryKey: ['note', sessionId],
     queryFn: () => notesApi.get(sessionId),
     enabled: !!sessionId,
@@ -116,7 +131,12 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   // Set content when note is loaded, or clear when no note exists
   useEffect(() => {
     if (note?.content_markdown) {
-      console.log('[NotesPanel] Note loaded for session:', sessionId, 'length:', note.content_markdown.length);
+      console.log(
+        '[NotesPanel] Note loaded for session:',
+        sessionId,
+        'length:',
+        note.content_markdown.length
+      );
       setContent(note.content_markdown);
       setHasChanges(false);
     } else if (!noteLoading && (noteError || !note)) {
@@ -128,18 +148,21 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   }, [note, noteLoading, noteError, sessionId]);
 
   // Auto-save functionality
-  const saveNotes = useCallback(async (contentToSave: string) => {
-    if (!contentToSave || !note) return;
-    
-    try {
-      await notesApi.update(sessionId, { content_markdown: contentToSave });
-      setHasChanges(false);
-      setLastSavedAt(new Date());
-      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
-    } catch (error) {
-      console.error('Auto-save failed:', error);
-    }
-  }, [sessionId, note, queryClient]);
+  const saveNotes = useCallback(
+    async (contentToSave: string) => {
+      if (!contentToSave || !note) return;
+
+      try {
+        await notesApi.update(sessionId, { content_markdown: contentToSave });
+        setHasChanges(false);
+        setLastSavedAt(new Date());
+        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+      }
+    },
+    [sessionId, note, queryClient]
+  );
 
   // Debounced auto-save
   useEffect(() => {
@@ -148,13 +171,13 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
       }
-      
+
       // Set new timer
       autoSaveTimerRef.current = setTimeout(() => {
         saveNotes(content);
       }, AUTO_SAVE_DELAY);
     }
-    
+
     return () => {
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current);
@@ -173,7 +196,7 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
         );
       }
     };
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges, content, note, sessionId]);
@@ -181,8 +204,18 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
   // Generate note mutation
   const generateMutation = useMutation({
     mutationFn: (forceRegenerate: boolean = false) => {
-      console.log('[NotesPanel] Starting note generation for session:', sessionId, 'forceRegenerate:', forceRegenerate, 'language:', language);
-      return notesApi.generate(sessionId, { force_regenerate: forceRegenerate, output_language: language });
+      console.log(
+        '[NotesPanel] Starting note generation for session:',
+        sessionId,
+        'forceRegenerate:',
+        forceRegenerate,
+        'language:',
+        language
+      );
+      return notesApi.generate(sessionId, {
+        force_regenerate: forceRegenerate,
+        output_language: language,
+      });
     },
     onMutate: () => {
       console.log('[NotesPanel] Generation started, setting isGenerating=true');
@@ -222,7 +255,8 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
 
   // Save note mutation (for manual save)
   const saveMutation = useMutation({
-    mutationFn: (contentMarkdown: string) => notesApi.update(sessionId, { content_markdown: contentMarkdown }),
+    mutationFn: (contentMarkdown: string) =>
+      notesApi.update(sessionId, { content_markdown: contentMarkdown }),
     onSuccess: () => {
       setHasChanges(false);
       setLastSavedAt(new Date());
@@ -247,8 +281,16 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
       console.error('PDF export failed:', error);
       // Offer Markdown export as fallback
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      if (errorMsg.includes('PDF_DEPS_MISSING') || errorMsg.includes('PDF_UNAVAILABLE') || errorMsg.includes('503')) {
-        if (confirm('PDF export requires additional system libraries. Would you like to download as Markdown instead?')) {
+      if (
+        errorMsg.includes('PDF_DEPS_MISSING') ||
+        errorMsg.includes('PDF_UNAVAILABLE') ||
+        errorMsg.includes('503')
+      ) {
+        if (
+          confirm(
+            'PDF export requires additional system libraries. Would you like to download as Markdown instead?'
+          )
+        ) {
           exportMarkdownMutation.mutate();
         }
       } else {
@@ -356,7 +398,11 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
         <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
           {t.generatingNotes}
         </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', maxWidth: 400 }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ textAlign: 'center', maxWidth: 400 }}
+        >
           {generationProgress < 30 && t.collectingTranscript}
           {generationProgress >= 30 && generationProgress < 50 && t.gatheringCitations}
           {generationProgress >= 50 && generationProgress < 90 && t.analyzingNotes}
@@ -443,28 +489,21 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
           <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
             <MoreVertIcon />
           </IconButton>
-          <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={() => setAnchorEl(null)}
-          >
-            <MenuItem
-              onClick={handleGenerate}
-              disabled={generateMutation.isPending}
-            >
+          <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
+            <MenuItem onClick={handleGenerate} disabled={generateMutation.isPending}>
               <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
               {note?.content_markdown ? 'Regenerate Notes' : 'Generate Notes'}
             </MenuItem>
             <Divider />
-            <MenuItem
-              onClick={handleExport}
-              disabled={!content || exportMutation.isPending}
-            >
+            <MenuItem onClick={handleExport} disabled={!content || exportMutation.isPending}>
               <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
               {exportMutation.isPending ? 'Exporting...' : 'Export as PDF'}
             </MenuItem>
             <MenuItem
-              onClick={() => { exportMarkdownMutation.mutate(); setAnchorEl(null); }}
+              onClick={() => {
+                exportMarkdownMutation.mutate();
+                setAnchorEl(null);
+              }}
               disabled={!content || exportMarkdownMutation.isPending}
             >
               <DownloadIcon sx={{ mr: 1, fontSize: 20 }} />
@@ -475,15 +514,12 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
       </Box>
 
       {/* Regenerate Confirmation Dialog */}
-      <Dialog
-        open={confirmRegenerateOpen}
-        onClose={() => setConfirmRegenerateOpen(false)}
-      >
+      <Dialog open={confirmRegenerateOpen} onClose={() => setConfirmRegenerateOpen(false)}>
         <DialogTitle>Regenerate Notes?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This will replace your current notes with a fresh generation from the transcript.
-            Your edits will be lost.
+            This will replace your current notes with a fresh generation from the transcript. Your
+            edits will be lost.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

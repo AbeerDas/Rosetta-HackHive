@@ -14,7 +14,7 @@ interface QuestionTranslationState {
   isOpen: boolean;
   isLoading: boolean;
   error: string | null;
-  
+
   // Actions
   addTranslation: (item: Omit<TranslationHistoryItem, 'id' | 'timestamp'>) => void;
   clearHistory: () => void;

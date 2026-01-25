@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -34,7 +34,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { folderApi, sessionApi } from '../../services/api';
-import { useFolderStore, useLanguageStore } from '../../stores';
+import { useFolderStore, useLanguageStore, type Translations } from '../../stores';
 import { customColors } from '../../theme';
 import type { Folder, SessionSummary } from '../../types';
 
@@ -57,20 +57,19 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
   const queryClient = useQueryClient();
   const { t } = useLanguageStore();
   const [isLogoHovered, setIsLogoHovered] = useState(false);
-  
-  const {
-    selectedFolderId,
-    setSelectedFolderId,
-    expandedFolderIds,
-    toggleFolderExpanded,
-  } = useFolderStore();
+
+  const { selectedFolderId, setSelectedFolderId, expandedFolderIds, toggleFolderExpanded } =
+    useFolderStore();
 
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionLanguage, setNewSessionLanguage] = useState('zh');
-  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ el: HTMLElement; folderId: string } | null>(null);
+  const [folderMenuAnchor, setFolderMenuAnchor] = useState<{
+    el: HTMLElement;
+    folderId: string;
+  } | null>(null);
 
   // Reset hover state when sidebar open/close state changes
   useEffect(() => {
@@ -107,8 +106,15 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
 
   // Create session mutation
   const createSessionMutation = useMutation({
-    mutationFn: ({ folderId, name, targetLanguage }: { folderId: string; name: string; targetLanguage: string }) =>
-      sessionApi.create(folderId, { name, target_language: targetLanguage }),
+    mutationFn: ({
+      folderId,
+      name,
+      targetLanguage,
+    }: {
+      folderId: string;
+      name: string;
+      targetLanguage: string;
+    }) => sessionApi.create(folderId, { name, target_language: targetLanguage }),
     onSuccess: (session) => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
       queryClient.invalidateQueries({ queryKey: ['folder', selectedFolderId] });
@@ -184,8 +190,8 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
             src="/icons/logo/Logo.svg"
             alt="Rosetta"
             onClick={() => navigate('/')}
-            sx={{ 
-              width: 24, 
+            sx={{
+              width: 24,
               height: 24,
               cursor: 'pointer',
               '&:hover': {
@@ -253,8 +259,14 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
       {/* Sidebar content - only show when open */}
       {open && (
         <Box sx={{ p: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}
+          >
+            <Typography
+              variant="subtitle2"
+              color="text.secondary"
+              sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}
+            >
               {t.subjects}
             </Typography>
             <Tooltip title={t.addFolder}>
@@ -284,7 +296,7 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
                 size="small"
                 startIcon={<AddIcon />}
                 onClick={() => setNewFolderDialogOpen(true)}
-                sx={{ 
+                sx={{
                   mt: 2,
                   borderColor: customColors.brandGreen,
                   color: customColors.brandGreen,
@@ -432,8 +444,8 @@ interface FolderItemProps {
   onSessionClick: (sessionId: string) => void;
   onNewSession: () => void;
   onMenuClick: (el: HTMLElement) => void;
-  getStatusIcon: (status: string) => React.ReactNode;
-  t: any;
+  getStatusIcon: (status: string) => ReactNode;
+  t: Translations;
 }
 
 function FolderItem({
@@ -459,28 +471,34 @@ function FolderItem({
 
   return (
     <>
-      <ListItem 
-        disablePadding 
+      <ListItem
+        disablePadding
         secondaryAction={
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Tooltip title={t.startNewSession}>
-              <IconButton size="small" onClick={(e) => { e.stopPropagation(); onNewSession(); }}>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onNewSession();
+                }}
+              >
                 <AddIcon fontSize="small" />
               </IconButton>
             </Tooltip>
-            <IconButton 
-              size="small" 
-              onClick={(e) => { 
-                e.stopPropagation(); 
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
                 onMenuClick(e.currentTarget);
               }}
             >
               <MoreVertIcon fontSize="small" />
             </IconButton>
-            <IconButton 
-              size="small" 
-              onClick={(e) => { 
-                e.stopPropagation(); 
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
                 onClick();
               }}
             >
@@ -523,23 +541,21 @@ function FolderItem({
                 sx={{ py: 0.5, borderRadius: 1 }}
                 onClick={() => onSessionClick(session.id)}
               >
-                <ListItemIcon sx={{ minWidth: 28 }}>
-                  {getStatusIcon(session.status)}
-                </ListItemIcon>
+                <ListItemIcon sx={{ minWidth: 28 }}>{getStatusIcon(session.status)}</ListItemIcon>
                 <ListItemText
                   primary={session.name}
                   primaryTypographyProps={{ variant: 'body2', noWrap: true }}
                 />
                 {session.has_notes && (
-                  <Chip 
-                    label="Notes" 
-                    size="small" 
-                    sx={{ 
-                      height: 20, 
+                  <Chip
+                    label="Notes"
+                    size="small"
+                    sx={{
+                      height: 20,
                       fontSize: '0.65rem',
                       bgcolor: customColors.activePill.background,
                       color: customColors.activePill.text,
-                    }} 
+                    }}
                   />
                 )}
               </ListItemButton>

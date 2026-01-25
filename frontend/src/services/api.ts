@@ -140,7 +140,9 @@ export const sessionApi = {
 export const documentApi = {
   list: async (sessionId: string): Promise<Document[]> => {
     try {
-      const response = await api.get<{ documents: Document[] }>(`/documents/sessions/${sessionId}/documents`);
+      const response = await api.get<{ documents: Document[] }>(
+        `/documents/sessions/${sessionId}/documents`
+      );
       return response.data.documents;
     } catch (error) {
       throw handleApiError(error as AxiosError);
@@ -233,9 +235,13 @@ export const translationApi = {
 
   speak: async (text: string, voiceId?: string | null): Promise<Blob> => {
     try {
-      const response = await api.post('/translate/tts/speak', { text, voice_id: voiceId }, {
-        responseType: 'blob',
-      });
+      const response = await api.post(
+        '/translate/tts/speak',
+        { text, voice_id: voiceId },
+        {
+          responseType: 'blob',
+        }
+      );
       return response.data;
     } catch (error) {
       throw handleApiError(error as AxiosError);

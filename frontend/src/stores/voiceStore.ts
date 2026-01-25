@@ -56,16 +56,16 @@ export const useVoiceStore = create<VoiceState>()(
       selectedVoiceId: null,
       isLoading: false,
       error: null,
-      
+
       setVoices: (voices) => set({ voices }),
       setSelectedVoiceId: (voiceId) => set({ selectedVoiceId: voiceId }),
       setLoading: (loading) => set({ isLoading: loading }),
       setError: (error) => set({ error }),
-      
+
       fetchVoices: async () => {
         const { isLoading } = get();
         if (isLoading) return;
-        
+
         set({ isLoading: true, error: null });
         try {
           const response = await fetch(`${API_BASE_URL}/api/v1/translate/voices`);
@@ -75,9 +75,9 @@ export const useVoiceStore = create<VoiceState>()(
           const data = await response.json();
           set({ voices: data.voices, isLoading: false });
         } catch (error) {
-          set({ 
+          set({
             error: error instanceof Error ? error.message : 'Failed to fetch voices',
-            isLoading: false 
+            isLoading: false,
           });
         }
       },
@@ -85,7 +85,7 @@ export const useVoiceStore = create<VoiceState>()(
     {
       name: 'rosetta-voice',
       storage: createJSONStorage(() => safeStorage),
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         selectedVoiceId: state.selectedVoiceId,
         voices: state.voices,
       }),

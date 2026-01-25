@@ -38,3 +38,9 @@ python-dotenv>=1.0.0
 # Utilities
 python-jose>=3.3.0
 tiktoken>=0.5.0
+
+# Development and Formatting (optional, for local development)
+# black>=24.0.0
+# isort>=5.13.0
+# pylint>=3.0.0
+# mypy>=1.8.0

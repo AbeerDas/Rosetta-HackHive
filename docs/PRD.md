@@ -165,7 +165,7 @@ flowchart TB
     subgraph input [Audio Input]
         MIC[Microphone/Audio Stream]
     end
-
+    
     subgraph parallel [Parallel Processing]
         direction LR
         subgraph stt [Speech-to-Text Pipeline]
@@ -173,33 +173,33 @@ flowchart TB
             TRANSCRIPT[Real-time Transcript]
             GWSAPI --> TRANSCRIPT
         end
-
+        
         subgraph translation [Translation Pipeline]
             ELEVEN[OpenRouter + ElevenLabs TTS]
             AUDIO_OUT[Translated Audio Output]
             ELEVEN --> AUDIO_OUT
         end
     end
-
+    
     subgraph rag [RAG Pipeline]
         WINDOW[Sliding Window 2-3 sentences]
         EMBED[Lightweight Embedding]
         SEARCH[Vector DB Search]
         RERANK[Re-ranker 5 to 3]
         CITATIONS[Top 3 Citations with Page Refs]
-
+        
         WINDOW --> EMBED
         EMBED --> SEARCH
         SEARCH --> RERANK
         RERANK --> CITATIONS
     end
-
+    
     subgraph output [User Interface]
         TRANSCRIPTION[Live Transcription with In-Text Citations]
         SPEAKER[Audio Speaker]
         SIDEBAR[Citation Details Panel]
     end
-
+    
     MIC --> GWSAPI
     MIC --> ELEVEN
     TRANSCRIPT --> TRANSCRIPTION
@@ -343,7 +343,7 @@ flowchart LR
         TRANSCRIPT --> DETECT
         DETECT --> WINDOW
     end
-
+    
     subgraph enrich [Query Enrichment]
         KEYWORDS[Keyword Extraction]
         CONCEPTS[Concept Expansion]
@@ -352,7 +352,7 @@ flowchart LR
         KEYWORDS --> CONCEPTS
         CONCEPTS --> QUERY
     end
-
+    
     subgraph retrieve [Retrieval]
         EMBED[Embed Query]
         SEARCH[Vector Search Top 5]
@@ -363,7 +363,7 @@ flowchart LR
         SEARCH --> RERANK
         RERANK --> TOP3
     end
-
+    
     subgraph display [Display]
         CITATIONS[Citation Cards]
         TOP3 --> CITATIONS
@@ -703,38 +703,38 @@ flowchart TB
         DISPLAY[Display Components]
         EDITOR[Note Text Editor]
     end
-
+    
     subgraph backend [Backend]
         subgraph controllers [Controller Layer]
             API[API Endpoints]
         end
-
+        
         subgraph services [Service Layer]
             TRANS[Translation Service]
             RAG[RAG Service]
             NOTES[Note Generation Service]
             STORAGE[Storage Service]
         end
-
+        
         subgraph repositories [Repository Layer]
             VECTOR[Vector DB Repository]
             DOC[Document Repository]
             FOLDER[Folder Repository]
         end
     end
-
+    
     subgraph external [External Services]
         ELEVEN[ElevenLabs API]
         WEBSPEECH[Web Speech API]
         OPENROUTER[OpenRouter API]
     end
-
+    
     subgraph storage [Data Storage]
         VECTORDB[(Vector Database)]
         RELDB[(Relational Database)]
         FILESTORE[(File Storage)]
     end
-
+    
     UI --> API
     API --> TRANS
     API --> RAG

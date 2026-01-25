@@ -1,13 +1,5 @@
 import { useRef, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Box, 
-  Typography, 
-  alpha, 
-  Fab,
-  Alert,
-  CircularProgress,
-  Tooltip,
-} from '@mui/material';
+import { Box, Typography, alpha, Fab, Alert, CircularProgress, Tooltip } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import { useQuery } from '@tanstack/react-query';
 import { useTranscriptionStore, useLanguageStore } from '../../stores';
@@ -18,8 +10,10 @@ import { getCitationKey, buildCitationNumberMap } from './CitationPanel';
 
 // Check if browser supports Web Speech API
 const isSpeechRecognitionSupported = () => {
-  return !!((window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition || 
-            (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition);
+  return !!(
+    (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition ||
+    (window as unknown as { webkitSpeechRecognition?: unknown }).webkitSpeechRecognition
+  );
 };
 
 interface TranscriptionPanelProps {
@@ -31,7 +25,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
   const scrollRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
   const { t } = useLanguageStore();
-  
+
   const {
     segments: liveSegments,
     currentSegment,
@@ -50,9 +44,9 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
     enabled: !isActive,
   });
 
-  const segments: TranscriptSegment[] = isActive 
-    ? liveSegments 
-    : (savedTranscript?.segments ?? []) as TranscriptSegment[];
+  const segments: TranscriptSegment[] = isActive
+    ? liveSegments
+    : ((savedTranscript?.segments ?? []) as TranscriptSegment[]);
 
   // Build global citation number map (memoized)
   const citationNumberMap = useMemo(() => buildCitationNumberMap(segments), [segments]);
@@ -61,10 +55,10 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
 
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return;
-    
+
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-    
+
     if (!isUserScrollingRef.current) {
       setAutoScroll(isAtBottom);
     }
@@ -97,7 +91,9 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}>
+    <Box
+      sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}
+    >
       {/* Browser Compatibility Warning */}
       {!browserSupported && (
         <Alert severity="warning" sx={{ m: 2 }}>
@@ -132,9 +128,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
             }}
           >
             <CircularProgress size={32} sx={{ mb: 2 }} />
-            <Typography variant="body1">
-              {t.loadingTranscript}
-            </Typography>
+            <Typography variant="body1">{t.loadingTranscript}</Typography>
           </Box>
         ) : segments.length === 0 && !currentSegment ? (
           <Box
@@ -148,9 +142,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
             }}
           >
             <Typography variant="body1">
-              {isActive 
-                ? t.transcriptionWillAppear
-                : t.noTranscriptAvailable}
+              {isActive ? t.transcriptionWillAppear : t.noTranscriptAvailable}
             </Typography>
             {isActive && (
               <Typography variant="caption" sx={{ mt: 1 }}>
@@ -161,7 +153,10 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
         ) : (
           <Box sx={{ fontSize, maxWidth: 800, mx: 'auto' }}>
             {segments.map((segment, index) => (
-              <Box key={`${sessionId}-seg-${index}-${segment.start_time}-${segment.id || index}`} sx={{ mb: 3 }}>
+              <Box
+                key={`${sessionId}-seg-${index}-${segment.start_time}-${segment.id || index}`}
+                sx={{ mb: 3 }}
+              >
                 {/* Timestamp marker */}
                 {(index === 0 || segment.start_time - segments[index - 1].end_time > 10) && (
                   <Typography
@@ -176,7 +171,6 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                     [{formatTime(segment.start_time)}]
                   </Typography>
                 )}
-
                 {/* Segment text with citations - prefer translated_text if available */}
                 <Typography
                   component="span"
@@ -188,13 +182,12 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                 >
                   {segment.translated_text || segment.text}
                   {segment.citations.length > 0 && (
-                    <CitationMarkers 
-                      citations={segment.citations} 
+                    <CitationMarkers
+                      citations={segment.citations}
                       citationNumberMap={citationNumberMap}
                     />
                   )}
-                </Typography>
-                {' '}
+                </Typography>{' '}
               </Box>
             ))}
 
@@ -231,7 +224,11 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
                     }}
                   />
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mt: 1, display: 'block' }}
+                >
                   {t.transcribing}...
                 </Typography>
               </Box>
@@ -270,31 +267,31 @@ interface Citation {
   snippet: string;
 }
 
-function CitationMarkers({ 
-  citations, 
-  citationNumberMap 
-}: { 
-  citations: Citation[]; 
+function CitationMarkers({
+  citations,
+  citationNumberMap,
+}: {
+  citations: Citation[];
   citationNumberMap: Map<string, number>;
 }) {
   const highlightCitation = useTranscriptionStore((s) => s.highlightCitation);
-  
+
   // Sort by global number for consistent display
-  const citationsWithNumbers = citations.map(citation => ({
+  const citationsWithNumbers = citations.map((citation) => ({
     ...citation,
-    globalNumber: citationNumberMap.get(getCitationKey(citation)) ?? 0
+    globalNumber: citationNumberMap.get(getCitationKey(citation)) ?? 0,
   }));
-  
+
   // Deduplicate citations within this segment (same doc+page should only show once)
   const seenNumbers = new Set<number>();
-  const uniqueCitations = citationsWithNumbers.filter(citation => {
+  const uniqueCitations = citationsWithNumbers.filter((citation) => {
     if (seenNumbers.has(citation.globalNumber)) {
       return false;
     }
     seenNumbers.add(citation.globalNumber);
     return true;
   });
-  
+
   // Sort by global number
   uniqueCitations.sort((a, b) => a.globalNumber - b.globalNumber);
 
@@ -306,7 +303,7 @@ function CitationMarkers({
   return (
     <Box component="span" sx={{ ml: 0.5 }}>
       {uniqueCitations.map((citation) => (
-        <Tooltip 
+        <Tooltip
           key={citation.globalNumber}
           title={`${citation.document_name}, page ${citation.page_number}`}
           arrow

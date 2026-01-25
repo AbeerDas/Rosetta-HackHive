@@ -9,7 +9,7 @@ interface CitationPanelProps {
 }
 
 // Generate a unique key for a citation (for deduplication)
-export const getCitationKey = (citation: { document_name: string; page_number: number }) => 
+export const getCitationKey = (citation: { document_name: string; page_number: number }) =>
   `${citation.document_name}-p${citation.page_number}`;
 
 /**
@@ -20,7 +20,7 @@ export const getCitationKey = (citation: { document_name: string; page_number: n
 export function buildCitationNumberMap(segments: TranscriptSegment[]): Map<string, number> {
   const numberMap = new Map<string, number>();
   let nextNumber = 1;
-  
+
   for (const segment of segments) {
     for (const citation of segment.citations) {
       const key = getCitationKey(citation);
@@ -30,7 +30,7 @@ export function buildCitationNumberMap(segments: TranscriptSegment[]): Map<strin
       }
     }
   }
-  
+
   return numberMap;
 }
 
@@ -72,14 +72,16 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
     seenKeys.add(citation.key);
     return true;
   });
-  
+
   // Sort by global number to maintain consistent ordering
   uniqueCitations.sort((a, b) => a.globalNumber - b.globalNumber);
 
   // Scroll to highlighted citation
   useEffect(() => {
     if (highlightedCitationKey && containerRef.current) {
-      const element = containerRef.current.querySelector(`[data-citation-key="${highlightedCitationKey}"]`);
+      const element = containerRef.current.querySelector(
+        `[data-citation-key="${highlightedCitationKey}"]`
+      );
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
@@ -116,9 +118,9 @@ export function CitationPanel({ sessionId }: CitationPanelProps) {
   return (
     <Box ref={containerRef} sx={{ flex: 1, overflow: 'auto', p: 2 }}>
       {uniqueCitations.map((citation) => (
-        <CitationCard 
-          key={citation.key} 
-          citation={citation} 
+        <CitationCard
+          key={citation.key}
+          citation={citation}
           isHighlighted={highlightedCitationKey === citation.key}
         />
       ))}
@@ -187,20 +189,12 @@ function CitationCard({ citation, isHighlighted }: CitationCardProps) {
               color: 'white',
             }}
           />
-          <Typography
-            variant="subtitle2"
-            sx={{ fontWeight: 600, flex: 1 }}
-            noWrap
-          >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1 }} noWrap>
             {citation.document_name}
           </Typography>
         </Box>
 
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: 'block', mb: 1 }}
-        >
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
           Page {citation.page_number}
         </Typography>
 

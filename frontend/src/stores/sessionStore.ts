@@ -3,11 +3,11 @@ import { create } from 'zustand';
 interface SessionState {
   // Current active session
   activeSessionId: string | null;
-  
+
   // Recording state
   isRecording: boolean;
   recordingStartTime: number | null;
-  
+
   // Actions
   setActiveSessionId: (id: string | null) => void;
   startRecording: () => void;

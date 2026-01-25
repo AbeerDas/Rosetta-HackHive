@@ -39,8 +39,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const { history, addTranslation, clearHistory, error, setError } =
-    useQuestionStore();
+  const { history, addTranslation, clearHistory, error, setError } = useQuestionStore();
 
   // Translation mutation
   const translateMutation = useMutation({
@@ -162,7 +161,7 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
             variant="contained"
             onClick={handleTranslate}
             disabled={!inputText.trim() || inputText.length > 1000 || translateMutation.isPending}
-            sx={{ 
+            sx={{
               mt: 2,
               bgcolor: customColors.brandGreen,
               '&:hover': {
@@ -259,8 +258,8 @@ export function QuestionTranslator({ open, onClose }: QuestionTranslatorProps) {
               {t.history}
             </Typography>
             {history.length > 0 && (
-              <Button 
-                size="small" 
+              <Button
+                size="small"
                 onClick={clearHistory}
                 sx={{ color: customColors.endSession.background }}
               >

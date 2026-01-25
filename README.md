@@ -401,6 +401,43 @@ When the backend is running:
 - Async processing for all external API calls
 - Consistent error responses with appropriate HTTP status codes
 
+**Linting and Formatting:**
+
+The project uses modern linting and formatting tools to maintain code quality and consistency.
+
+**Frontend:**
+- **ESLint** with TypeScript support for code linting
+- **Prettier** for code formatting
+- **TypeScript** compiler for type checking
+
+Available commands:
+```bash
+npm run lint          # Check for linting issues
+npm run lint:fix      # Automatically fix linting issues
+npm run format        # Format all source files with Prettier
+npm run format:check  # Check if files are formatted correctly
+npm run typecheck     # Run TypeScript type checking
+```
+
+**Backend:**
+- **Black** for Python code formatting (line length: 100)
+- **isort** for import sorting
+- **Pylint** for linting
+- **mypy** for static type checking
+
+Configuration available in `backend/pyproject.toml`. Install development tools:
+```bash
+pip install black isort pylint mypy
+```
+
+Run formatting:
+```bash
+black backend/app         # Format Python code
+isort backend/app         # Sort imports
+pylint backend/app        # Run linter
+mypy backend/app          # Type check
+```
+
 **Scalability Considerations:**
 
 - Stateless services enabling horizontal scaling
