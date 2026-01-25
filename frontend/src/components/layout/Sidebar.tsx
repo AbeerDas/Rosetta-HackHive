@@ -183,7 +183,15 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
             component="img"
             src="/icons/logo/Logo.svg"
             alt="Rosetta"
-            sx={{ width: 24, height: 24 }}
+            onClick={() => navigate('/')}
+            sx={{ 
+              width: 24, 
+              height: 24,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
           />
           <IconButton
             onClick={onToggle}

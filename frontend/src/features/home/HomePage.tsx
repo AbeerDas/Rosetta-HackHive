@@ -46,6 +46,119 @@ const folderIcons = [
   '/icons/folders/PurpleFolder.png',
 ];
 
+// Greetings in various languages
+const greetings = [
+  'Hello',
+  'नमस्ते',
+  'ওহে',
+  '你好',
+  'Hola',
+  'Bonjour',
+  '안녕하세요',
+  'Γεια σας',
+  'שלום',
+  'שָׁלוֹם',
+  'مرحبا',
+  'გამარჯობა',
+  'Привет',
+  'Прывітанне',
+  'Здраво',
+  'Сәлем',
+  'Сайн байна уу',
+  'Здравей',
+  'こんにちは',
+  'ਪੰਜਾਬੀ',
+  'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ',
+  'ಹಲೋ',
+  'ഹലോ',
+  'வணக்கம்',
+];
+
+// Scrolling Greetings Component - Horizontal Carousel
+function ScrollingGreetings() {
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        mt: 0.5,
+        mb: 2,
+        py: 1,
+        '&::before, &::after': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          width: 100,
+          height: '100%',
+          zIndex: 1,
+          pointerEvents: 'none',
+        },
+        '&::before': {
+          left: 0,
+          background: 'linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0))',
+        },
+        '&::after': {
+          right: 0,
+          background: 'linear-gradient(to left, rgba(255,255,255,1), rgba(255,255,255,0))',
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: 'inline-flex',
+          animation: 'scroll 40s linear infinite',
+          '@keyframes scroll': {
+            '0%': {
+              transform: 'translateX(0)',
+            },
+            '100%': {
+              transform: 'translateX(-50%)',
+            },
+          },
+        }}
+      >
+        {/* First set of greetings */}
+        {greetings.map((greeting, index) => (
+          <Typography
+            key={`first-${index}`}
+            component="span"
+            sx={{
+              fontFamily: '"ABeeZee", sans-serif',
+              color: '#D9D9D9',
+              fontWeight: 300,
+              fontSize: '1.25rem',
+              whiteSpace: 'nowrap',
+              px: 0.5,
+              flexShrink: 0,
+            }}
+          >
+            {greeting}
+          </Typography>
+        ))}
+        {/* Duplicate set for seamless loop */}
+        {greetings.map((greeting, index) => (
+          <Typography
+            key={`second-${index}`}
+            component="span"
+            sx={{
+              fontFamily: '"ABeeZee", sans-serif',
+              color: '#D9D9D9',
+              fontWeight: 300,
+              fontSize: '1.25rem',
+              whiteSpace: 'nowrap',
+              px: 0.5,
+              flexShrink: 0,
+            }}
+          >
+            {greeting}
+          </Typography>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -183,6 +296,7 @@ export function HomePage() {
           >
             {t.welcomeBack}, {name}
           </Typography>
+          <ScrollingGreetings />
         </Box>
 
         {/* Breadcrumb Header Row */}
@@ -458,9 +572,10 @@ export function HomePage() {
         >
           {t.welcomeBack}, {name}
         </Typography>
+        <ScrollingGreetings />
       </Box>
 
-      {/* Subjects Header Row */}
+      {/* Notebooks Header Row */}
       <Box
         sx={{
           display: 'flex',

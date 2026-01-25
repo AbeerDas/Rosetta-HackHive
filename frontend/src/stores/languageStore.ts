@@ -132,7 +132,7 @@ const en: Translations = {
   close: 'Close',
   
   welcomeBack: 'Welcome Back',
-  subjects: 'Subjects',
+  subjects: 'Notebooks',
   yourBaseLanguage: 'Your Base Language:',
   yourBaseLanguageIs: 'Your Base Language is:',
   addFolder: 'Add Folder',
@@ -239,7 +239,7 @@ const zh: Translations = {
   close: '关闭',
   
   welcomeBack: '欢迎回来',
-  subjects: '科目',
+  subjects: '笔记本',
   yourBaseLanguage: '您的基础语言：',
   yourBaseLanguageIs: '您的基础语言是：',
   addFolder: '添加文件夹',
@@ -346,7 +346,7 @@ const hi: Translations = {
   close: 'बंद करें',
   
   welcomeBack: 'वापसी पर स्वागत है',
-  subjects: 'विषय',
+  subjects: 'नोटबुक',
   yourBaseLanguage: 'आपकी आधार भाषा:',
   yourBaseLanguageIs: 'आपकी आधार भाषा है:',
   addFolder: 'फ़ोल्डर जोड़ें',
@@ -453,7 +453,7 @@ const es: Translations = {
   close: 'Cerrar',
   
   welcomeBack: 'Bienvenido de nuevo',
-  subjects: 'Materias',
+  subjects: 'Cuadernos',
   yourBaseLanguage: 'Tu idioma base:',
   yourBaseLanguageIs: 'Tu idioma base es:',
   addFolder: 'Agregar carpeta',
@@ -560,7 +560,7 @@ const fr: Translations = {
   close: 'Fermer',
   
   welcomeBack: 'Bon retour',
-  subjects: 'Matières',
+  subjects: 'Cahiers',
   yourBaseLanguage: 'Votre langue de base :',
   yourBaseLanguageIs: 'Votre langue de base est :',
   addFolder: 'Ajouter un dossier',

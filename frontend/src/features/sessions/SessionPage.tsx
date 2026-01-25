@@ -149,7 +149,7 @@ export function SessionPage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Typography variant="h4" sx={{ fontWeight: 500 }}>
+          <Typography variant="h2" sx={{ fontWeight: 500 }}>
             {session.name}
           </Typography>
           
@@ -260,68 +260,68 @@ export function SessionPage() {
       {/* Main Content - Three Column Layout */}
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* Left Panel - Documents */}
-        {documentsOpen && !showNotesPanel && (
-          <>
-            <Box
-              sx={{
-                width: 280,
-                flexShrink: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                borderRight: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Box sx={{ 
-                p: 1.5, 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                  {t.documents}
-                </Typography>
+        {!showNotesPanel && (
+          <Box
+            sx={{
+              width: documentsOpen ? 280 : 48,
+              flexShrink: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              borderRight: '1px solid',
+              borderColor: 'divider',
+              transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1)',
+              position: 'relative',
+            }}
+          >
+            {documentsOpen ? (
+              <>
+                <Box sx={{ 
+                  p: 1.5, 
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+                    {t.documents}
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    onClick={() => setDocumentsOpen(false)}
+                  >
+                    <Box
+                      component="img"
+                      src="/icons/material-symbols_left-panel-close.svg"
+                      alt="Close"
+                      sx={{ width: 20, height: 20 }}
+                    />
+                  </IconButton>
+                </Box>
+                <DocumentPanel sessionId={sessionId!} />
+              </>
+            ) : (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  pt: 2,
+                  px: 1,
+                  width: '100%',
+                }}
+              >
                 <IconButton 
                   size="small" 
-                  onClick={() => setDocumentsOpen(false)}
+                  onClick={() => setDocumentsOpen(true)}
                 >
                   <Box
                     component="img"
-                    src="/icons/material-symbols_left-panel-close.svg"
-                    alt="Close"
+                    src="/icons/material-symbols_left-panel-open.svg"
+                    alt="Open"
                     sx={{ width: 20, height: 20 }}
                   />
                 </IconButton>
               </Box>
-              <DocumentPanel sessionId={sessionId!} />
-            </Box>
-          </>
-        )}
-
-        {/* Toggle button when documents panel is closed */}
-        {!documentsOpen && !showNotesPanel && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              pt: 2,
-              px: 2,
-              borderRight: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <IconButton 
-              size="small" 
-              onClick={() => setDocumentsOpen(true)}
-            >
-              <Box
-                component="img"
-                src="/icons/material-symbols_left-panel-open.svg"
-                alt="Open"
-                sx={{ width: 20, height: 20 }}
-              />
-            </IconButton>
+            )}
           </Box>
         )}
 
@@ -412,69 +412,70 @@ export function SessionPage() {
           )}
         </Box>
 
-        {/* Toggle button when citations panel is closed */}
-        {!citationsOpen && (
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              pt: 2,
-              px: 2,
-              borderLeft: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <IconButton 
-              size="small" 
-              onClick={() => setCitationsOpen(true)}
-            >
-              <Box
-                component="img"
-                src="/icons/material-symbols_right-panel-open.svg"
-                alt="Open"
-                sx={{ width: 20, height: 20 }}
-              />
-            </IconButton>
-          </Box>
-        )}
-
         {/* Right Panel - Citations */}
-        {citationsOpen && (
-          <Box
-            sx={{
-              width: 300,
-              flexShrink: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              borderLeft: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box sx={{ 
-              p: 1.5, 
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
-                {t.citations}
-              </Typography>
+        <Box
+          sx={{
+            width: citationsOpen ? 300 : 48,
+            flexShrink: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            borderLeft: '1px solid',
+            borderColor: 'divider',
+            transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1)',
+            position: 'relative',
+          }}
+        >
+          {citationsOpen ? (
+            <>
+              <Box sx={{ 
+                p: 1.5, 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+                  {t.citations}
+                </Typography>
+                <IconButton 
+                  size="small" 
+                  onClick={() => setCitationsOpen(false)}
+                >
+                  <Box
+                    component="img"
+                    src="/icons/material-symbols_right-panel-close.svg"
+                    alt="Close"
+                    sx={{ width: 20, height: 20 }}
+                  />
+                </IconButton>
+              </Box>
+              <CitationPanel sessionId={sessionId!} />
+            </>
+          ) : (
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                pt: 2,
+                px: 1,
+                width: '100%',
+                justifyContent: 'flex-end',
+              }}
+            >
               <IconButton 
                 size="small" 
-                onClick={() => setCitationsOpen(false)}
+                onClick={() => setCitationsOpen(true)}
               >
                 <Box
                   component="img"
-                  src="/icons/material-symbols_right-panel-close.svg"
-                  alt="Close"
+                  src="/icons/material-symbols_right-panel-open.svg"
+                  alt="Open"
                   sx={{ width: 20, height: 20 }}
                 />
               </IconButton>
             </Box>
-            <CitationPanel sessionId={sessionId!} />
-          </Box>
-        )}
+          )}
+        </Box>
       </Box>
 
       {/* Bottom Audio Controls */}

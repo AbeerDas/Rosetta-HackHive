@@ -222,17 +222,22 @@ export function MainLayout() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>{t.settings}</DialogTitle>
+        <DialogTitle>
+          <Typography variant="h4" sx={{ fontWeight: 600, color: 'text.primary' }}>
+            {t.settings}
+          </Typography>
+        </DialogTitle>
         <DialogContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
-            <Typography variant="body1">
+          {/* Base Language Section */}
+          <Box sx={{ mt: 1 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
               {t.yourBaseLanguageIs}
             </Typography>
             <Select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value as LanguageCode)}
-              size="small"
-              sx={{ minWidth: 150 }}
+              fullWidth
+              sx={{ mb: 3 }}
             >
               {availableLanguages.map((lang) => (
                 <MenuItem key={lang.code} value={lang.code}>
@@ -242,11 +247,11 @@ export function MainLayout() {
             </Select>
           </Box>
 
-          <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 4 }} />
 
           {/* Voice Selection */}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
+          <Box>
+            <Typography variant="h6" sx={{ mb: 3, fontWeight: 600, color: 'text.primary' }}>
               {t.voiceForDictation || 'Voice for Dictation'}
             </Typography>
             
@@ -258,7 +263,7 @@ export function MainLayout() {
                 </Typography>
               </Box>
             ) : (
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth>
                 <InputLabel id="voice-select-label">{t.selectVoice || 'Select Voice'}</InputLabel>
                 <Select
                   labelId="voice-select-label"
@@ -289,7 +294,7 @@ export function MainLayout() {
 
             {/* Voice Preview */}
             {selectedVoiceId && voices.length > 0 && (
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 3 }}>
                 {(() => {
                   const selectedVoice = voices.find(v => v.voice_id === selectedVoiceId);
                   if (!selectedVoice?.preview_url) {
@@ -302,7 +307,7 @@ export function MainLayout() {
                   return (
                     <Button
                       variant="outlined"
-                      size="small"
+                      size="medium"
                       startIcon={previewingVoice === selectedVoiceId ? <StopIcon /> : <PlayArrowIcon />}
                       onClick={() => handlePreviewVoice(selectedVoice.preview_url, selectedVoiceId)}
                       sx={{
@@ -324,13 +329,15 @@ export function MainLayout() {
             )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setSettingsOpen(false)}
             variant="contained"
+            size="large"
             sx={{
               bgcolor: customColors.brandGreen,
               '&:hover': { bgcolor: '#005F54' },
+              minWidth: 120,
             }}
           >
             {t.close || 'Close'}
