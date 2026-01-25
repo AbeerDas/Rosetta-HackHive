@@ -46,7 +46,7 @@ Existing solutions fail to address the complete problem:
 
 ### AI-First Justification
 
-LectureLens requires sophisticated multi-model AI orchestration that goes far beyond basic API calls:
+Rosetta requires sophisticated multi-model AI orchestration that goes far beyond basic API calls:
 
 1. **Parallel Speech Processing**: Simultaneous speech-to-text (for transcription/RAG) and text translation with TTS (for audio output)
 2. **Real-Time Semantic Understanding**: Sliding window processing of transcript for contextual RAG queries
@@ -68,7 +68,7 @@ This multi-stage pipeline creates genuine AI-first value that cannot be replicat
 
 ## Product Description
 
-LectureLens is a web application that transforms the lecture experience for students facing language barriers. The system operates in real-time during live lectures, providing three parallel outputs:
+Rosetta is a web application that transforms the lecture experience for students facing language barriers. The system operates in real-time during live lectures, providing three parallel outputs:
 
 1. **Translated Audio**: Natural-sounding speech in the student's preferred language, delivered through their device speakers or headphones
 2. **Live Transcription Display**: Real-time voice-to-text transcription appearing dynamically as the professor speaks, displayed in a visual panel
@@ -185,7 +185,7 @@ flowchart TB
         WINDOW[Sliding Window 2-3 sentences]
         EMBED[Lightweight Embedding]
         SEARCH[Vector DB Search]
-        RERANK[Re-ranker 10 to 3]
+        RERANK[Re-ranker 5 to 3]
         CITATIONS[Top 3 Citations with Page Refs]
 
         WINDOW --> EMBED
@@ -355,7 +355,7 @@ flowchart LR
 
     subgraph retrieve [Retrieval]
         EMBED[Embed Query]
-        SEARCH[Vector Search Top 10]
+        SEARCH[Vector Search Top 5]
         RERANK[Cross-Encoder Re-rank]
         TOP3[Top 3 Results]
         QUERY --> EMBED
@@ -568,6 +568,130 @@ flowchart LR
 ---
 
 ## Technical Architecture
+
+### Full-Stack System Design
+
+```mermaid
+flowchart TB
+    subgraph client [Client Layer - Browser]
+        direction TB
+        REACT[React 18 + TypeScript]
+        MUI[Material UI Components]
+        ZUSTAND[Zustand State]
+        TANSTACK[TanStack Query]
+        TIPTAP[TipTap Editor]
+        WEBSPEECH[Web Speech API]
+        WEBAUDIO[Web Audio API]
+    end
+
+    subgraph server [Server Layer - FastAPI]
+        direction TB
+        subgraph api [API Layer]
+            REST[REST Endpoints]
+            WS[WebSocket Handlers]
+        end
+        subgraph services [Service Layer]
+            TRANS_SVC[Translation Service]
+            RAG_SVC[RAG Service]
+            NOTES_SVC[Note Generation Service]
+            DOC_SVC[Document Service]
+            TTS_SVC[TTS Service]
+        end
+        subgraph repos [Repository Layer]
+            FOLDER_REPO[Folder Repository]
+            SESSION_REPO[Session Repository]
+            DOC_REPO[Document Repository]
+            CITATION_REPO[Citation Repository]
+        end
+    end
+
+    subgraph ml [Local ML Models]
+        direction TB
+        BGE[BAAI/bge-base-en-v1.5<br/>768-dim Embeddings]
+        KEYBERT[KeyBERT<br/>all-MiniLM-L6-v2]
+        TINYBERT[TinyBERT Cross-Encoder<br/>ms-marco-TinyBERT-L-2-v2]
+    end
+
+    subgraph external [External APIs]
+        direction TB
+        ELEVEN[ElevenLabs<br/>eleven_turbo_v2_5]
+        OPENROUTER[OpenRouter<br/>Claude 3 Haiku]
+    end
+
+    subgraph data [Data Layer]
+        direction TB
+        POSTGRES[(PostgreSQL<br/>Sessions, Folders, Notes)]
+        CHROMA[(ChromaDB<br/>Document Vectors)]
+        FILES[(File Storage<br/>PDF Documents)]
+    end
+
+    %% Client to Server
+    REACT -->|REST + WebSocket| REST
+    REACT -->|WebSocket| WS
+
+    %% API to Services
+    REST --> TRANS_SVC
+    REST --> RAG_SVC
+    REST --> NOTES_SVC
+    REST --> DOC_SVC
+    WS --> TRANS_SVC
+    WS --> RAG_SVC
+
+    %% Services to Local ML
+    RAG_SVC --> BGE
+    RAG_SVC --> KEYBERT
+    RAG_SVC --> TINYBERT
+    DOC_SVC --> BGE
+
+    %% Services to External
+    TRANS_SVC --> ELEVEN
+    TRANS_SVC --> OPENROUTER
+    NOTES_SVC --> OPENROUTER
+    TTS_SVC --> ELEVEN
+
+    %% Services to Repositories
+    DOC_SVC --> DOC_REPO
+    RAG_SVC --> CITATION_REPO
+
+    %% Repositories to Data
+    FOLDER_REPO --> POSTGRES
+    SESSION_REPO --> POSTGRES
+    DOC_REPO --> POSTGRES
+    DOC_REPO --> FILES
+    CITATION_REPO --> POSTGRES
+    RAG_SVC --> CHROMA
+    DOC_SVC --> CHROMA
+```
+
+### Layer Responsibilities
+
+**Client Layer:**
+- React handles UI rendering and user interactions
+- Material UI provides accessible, styled components
+- Zustand manages ephemeral client state (audio controls, UI preferences)
+- TanStack Query manages server state with caching and optimistic updates
+- Web Speech API captures and transcribes audio
+- TipTap provides rich text editing for notes
+
+**Server Layer:**
+- REST endpoints handle CRUD operations for folders, sessions, documents, notes
+- WebSocket handlers manage real-time transcription and translation streams
+- Services contain business logic and orchestrate external API calls
+- Repositories abstract database operations
+
+**Local ML Models:**
+- BGE embeddings run locally for document indexing and query embedding
+- KeyBERT extracts keywords for query enrichment
+- TinyBERT re-ranks citation candidates
+
+**External APIs:**
+- ElevenLabs provides natural-sounding TTS for translation and question speaking
+- OpenRouter provides LLM access for translation and note generation
+
+**Data Layer:**
+- PostgreSQL stores structured data (folders, sessions, transcripts, citations, notes)
+- ChromaDB stores vector embeddings for semantic search
+- File storage holds uploaded PDF documents
 
 ### System Architecture Overview
 
@@ -861,9 +985,9 @@ The note editing interface provides a full-featured text editing workspace. A to
 
 ### Best Accessibility Hack
 
-LectureLens directly addresses accessibility by removing language barriers that prevent millions of students from fully participating in education.
+Rosetta directly addresses accessibility by removing language barriers that prevent millions of students from fully participating in education.
 
-| Criterion              | How LectureLens Addresses It                                                |
+| Criterion              | How Rosetta Addresses It                                                    |
 | ---------------------- | --------------------------------------------------------------------------- |
 | Real Problem           | 6M+ international students struggle with language barriers in lectures      |
 | Underrepresented Users | ESL students, immigrants, students from non-English speaking countries      |
@@ -882,9 +1006,9 @@ LectureLens directly addresses accessibility by removing language barriers that 
 
 ### Best Use of ElevenLabs
 
-LectureLens showcases ElevenLabs as the core enabler of the translation experience.
+Rosetta showcases ElevenLabs as the core enabler of the translation experience.
 
-| Criterion             | How LectureLens Uses ElevenLabs                                      |
+| Criterion             | How Rosetta Uses ElevenLabs                                          |
 | --------------------- | -------------------------------------------------------------------- |
 | Central to Product    | Text-to-Speech API is the primary voice synthesis engine             |
 | Real-Time Streaming   | Audio output during live lectures                                    |
@@ -995,5 +1119,6 @@ LectureLens showcases ElevenLabs as the core enabler of the translation experien
 
 | Version | Date       | Author           | Changes                                                                                                                                                                                                                                                                                    |
 | ------- | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1.0     | 2026-01-24 | LectureLens Team | Initial PRD for HackHive 2026                                                                                                                                                                                                                                                              |
-| 1.1     | 2026-01-24 | LectureLens Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
+| 1.0     | 2026-01-24 | Rosetta Team | Initial PRD for HackHive 2026                                                                                                                                                                                                                                                              |
+| 1.1     | 2026-01-24 | Rosetta Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
+| 1.2     | 2026-01-25 | Rosetta Team | Renamed product to Rosetta, updated RAG pipeline to use local models (BGE embeddings, KeyBERT, TinyBERT), reduced re-ranking candidates from 10 to 5, added distance-based early exit |
