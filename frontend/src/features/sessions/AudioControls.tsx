@@ -10,7 +10,7 @@ import {
   Tooltip,
   alpha,
 } from '@mui/material';
-import PlayCircleIcon from '@mui/icons-material/PlayCircle';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 import MicIcon from '@mui/icons-material/Mic';
 import MicOffIcon from '@mui/icons-material/MicOff';
@@ -629,7 +629,7 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
                 },
               }}
             >
-              <PlayCircleIcon sx={{ fontSize: 28 }} />
+              <PlayArrowIcon sx={{ fontSize: 28 }} />
             </IconButton>
           </Tooltip>
         ) : (

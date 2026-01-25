@@ -14,7 +14,7 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
-import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { sessionApi } from '../../services/api';
@@ -163,13 +163,10 @@ export function SessionPage() {
             }}
           />
 
-          {/* Language Selector with Chevron */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Typography variant="body2" color="text.secondary">
-              {languageNames[session.source_language]} → {languageNames[session.target_language]}
-            </Typography>
-            <KeyboardArrowDownIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
-          </Box>
+          {/* Language Display */}
+          <Typography variant="body2" color="text.secondary">
+            {languageNames[session.source_language]} → {languageNames[session.target_language]}
+          </Typography>
         </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -205,18 +202,15 @@ export function SessionPage() {
               {t.endSession}
             </Button>
           ) : (
-            <Button
-              variant="outlined"
+            <IconButton
               size="small"
               onClick={() => navigate('/')}
               sx={{
-                borderColor: 'divider',
-                color: 'text.primary',
-                textTransform: 'none',
+                color: 'text.secondary',
               }}
             >
-              Back
-            </Button>
+              <ArrowBackIcon />
+            </IconButton>
           )}
         </Box>
       </Box>
@@ -412,7 +406,6 @@ export function SessionPage() {
               sessionName={session.name}
               autoGenerate={autoGenerateNotes}
               onViewTranscript={() => setShowNotesPanel(false)}
-              onOpenFullPage={() => navigate(`/session/${sessionId}/notes`)}
             />
           ) : (
             <TranscriptionPanel sessionId={sessionId!} isActive={isActive} />

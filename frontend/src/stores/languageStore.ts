@@ -113,6 +113,15 @@ export interface Translations {
   spanish: string;
   french: string;
   bengali: string;
+  
+  // Voice Settings
+  voiceForDictation: string;
+  loadingVoices: string;
+  selectVoice: string;
+  defaultVoice: string;
+  noPreviewAvailable: string;
+  stopPreview: string;
+  previewVoice: string;
 }
 
 // English translations (default)
@@ -212,6 +221,14 @@ const en: Translations = {
   spanish: 'Spanish',
   french: 'French',
   bengali: 'Bengali',
+  
+  voiceForDictation: 'Voice for Dictation',
+  loadingVoices: 'Loading voices...',
+  selectVoice: 'Select Voice',
+  defaultVoice: 'Default Voice',
+  noPreviewAvailable: 'No preview available for this voice',
+  stopPreview: 'Stop Preview',
+  previewVoice: 'Preview Voice',
 };
 
 // Chinese translations
@@ -311,6 +328,14 @@ const zh: Translations = {
   spanish: '西班牙语',
   french: '法语',
   bengali: '孟加拉语',
+  
+  voiceForDictation: '听写语音',
+  loadingVoices: '正在加载语音...',
+  selectVoice: '选择语音',
+  defaultVoice: '默认语音',
+  noPreviewAvailable: '此语音无预览可用',
+  stopPreview: '停止预览',
+  previewVoice: '预览语音',
 };
 
 // Hindi translations
@@ -410,6 +435,14 @@ const hi: Translations = {
   spanish: 'स्पेनिश',
   french: 'फ़्रेंच',
   bengali: 'बंगाली',
+  
+  voiceForDictation: 'डिक्टेशन के लिए आवाज़',
+  loadingVoices: 'आवाज़ें लोड हो रही हैं...',
+  selectVoice: 'आवाज़ चुनें',
+  defaultVoice: 'डिफ़ॉल्ट आवाज़',
+  noPreviewAvailable: 'इस आवाज़ के लिए कोई पूर्वावलोकन उपलब्ध नहीं है',
+  stopPreview: 'पूर्वावलोकन रोकें',
+  previewVoice: 'आवाज़ का पूर्वावलोकन करें',
 };
 
 // Spanish translations
@@ -509,6 +542,14 @@ const es: Translations = {
   spanish: 'Español',
   french: 'Francés',
   bengali: 'Bengalí',
+  
+  voiceForDictation: 'Voz para dictado',
+  loadingVoices: 'Cargando voces...',
+  selectVoice: 'Seleccionar voz',
+  defaultVoice: 'Voz predeterminada',
+  noPreviewAvailable: 'No hay vista previa disponible para esta voz',
+  stopPreview: 'Detener vista previa',
+  previewVoice: 'Vista previa de voz',
 };
 
 // French translations
@@ -608,6 +649,14 @@ const fr: Translations = {
   spanish: 'Espagnol',
   french: 'Français',
   bengali: 'Bengali',
+  
+  voiceForDictation: 'Voix pour la dictée',
+  loadingVoices: 'Chargement des voix...',
+  selectVoice: 'Sélectionner une voix',
+  defaultVoice: 'Voix par défaut',
+  noPreviewAvailable: 'Aucun aperçu disponible pour cette voix',
+  stopPreview: 'Arrêter l\'aperçu',
+  previewVoice: 'Aperçu de la voix',
 };
 
 // All translations

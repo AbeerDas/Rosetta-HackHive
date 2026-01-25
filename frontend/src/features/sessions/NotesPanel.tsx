@@ -20,7 +20,6 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tooltip } from '@mui/material';
 
@@ -431,14 +430,6 @@ export function NotesPanel({ sessionId, sessionName, autoGenerate = false, onVie
             >
               {t.viewTranscript}
             </Button>
-          )}
-          {/* Open in full page button */}
-          {onOpenFullPage && (
-            <Tooltip title="Open in full-page editor">
-              <IconButton size="small" onClick={onOpenFullPage}>
-                <OpenInNewIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
           )}
           <Button
             size="small"

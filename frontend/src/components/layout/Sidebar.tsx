@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -49,12 +49,14 @@ const folderIcons = [
 interface SidebarProps {
   open: boolean;
   width: number;
+  onToggle?: () => void;
 }
 
-export function Sidebar({ open, width }: SidebarProps) {
+export function Sidebar({ open, width, onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { t } = useLanguageStore();
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
   
   const {
     selectedFolderId,
@@ -69,6 +71,11 @@ export function Sidebar({ open, width }: SidebarProps) {
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionLanguage, setNewSessionLanguage] = useState('zh');
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{ el: HTMLElement; folderId: string } | null>(null);
+
+  // Reset hover state when sidebar open/close state changes
+  useEffect(() => {
+    setIsLogoHovered(false);
+  }, [open]);
 
   // Fetch folders
   const { data: folders = [], isLoading } = useQuery({
@@ -145,86 +152,166 @@ export function Sidebar({ open, width }: SidebarProps) {
 
   return (
     <Drawer
-      variant="persistent"
+      variant="permanent"
       anchor="left"
-      open={open}
       sx={{
-        width: width,
+        width: open ? width : 64,
         flexShrink: 0,
+        transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1)',
         '& .MuiDrawer-paper': {
-          width: width,
+          width: open ? width : 64,
           boxSizing: 'border-box',
-          pt: 8,
+          transition: 'width 225ms cubic-bezier(0, 0, 0.2, 1)',
+          overflowX: 'hidden',
         },
       }}
     >
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            {t.subjects}
-          </Typography>
-          <Tooltip title={t.addFolder}>
-            <IconButton size="small" onClick={() => setNewFolderDialogOpen(true)}>
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-
-        {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress size={24} sx={{ color: customColors.brandGreen }} />
-          </Box>
-        ) : folders.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
+      {/* Logo Header - at top of sidebar */}
+      {open ? (
+        // Open state: Logo on left, close button on right
+        <Box
+          sx={{
+            p: 2,
+            pt: 2.5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            minHeight: 64,
+          }}
+        >
+          <Box
+            component="img"
+            src="/icons/logo/Logo.svg"
+            alt="Rosetta"
+            sx={{ width: 24, height: 24 }}
+          />
+          <IconButton
+            onClick={onToggle}
+            size="small"
+            sx={{
+              '&:hover': {
+                bgcolor: 'rgba(0, 126, 112, 0.08)',
+              },
+            }}
+          >
             <Box
               component="img"
-              src="/icons/folders/BlueFolder.png"
-              alt="Folder"
-              sx={{ width: 48, height: 'auto', mb: 1, opacity: 0.5 }}
+              src="/icons/material-symbols_left-panel-close.svg"
+              alt="Close Panel"
+              sx={{ width: 20, height: 20 }}
             />
-            <Typography variant="body2" color="text.secondary">
-              {t.noFoldersYet}
-            </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={() => setNewFolderDialogOpen(true)}
-              sx={{ 
-                mt: 2,
-                borderColor: customColors.brandGreen,
-                color: customColors.brandGreen,
-                '&:hover': {
-                  borderColor: '#005F54',
-                },
-              }}
-            >
-              {t.createFolder}
-            </Button>
-          </Box>
-        ) : (
-          <List dense disablePadding>
-            {folders.map((folder, index) => (
-              <FolderItem
-                key={folder.id}
-                folder={folder}
-                folderIndex={index}
-                isSelected={selectedFolderId === folder.id}
-                isExpanded={expandedFolderIds.has(folder.id)}
-                onClick={() => handleFolderClick(folder)}
-                onSessionClick={(sessionId) => navigate(`/session/${sessionId}`)}
-                onNewSession={() => {
-                  setSelectedFolderId(folder.id);
-                  setNewSessionDialogOpen(true);
-                }}
-                onMenuClick={(el) => setFolderMenuAnchor({ el, folderId: folder.id })}
-                getStatusIcon={getStatusIcon}
-                t={t}
+          </IconButton>
+        </Box>
+      ) : (
+        // Closed state: Just logo with hover to show open icon
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 64,
+          }}
+        >
+          <IconButton
+            onClick={onToggle}
+            onMouseEnter={() => setIsLogoHovered(true)}
+            onMouseLeave={() => setIsLogoHovered(false)}
+            sx={{
+              p: 1.5,
+              '&:hover': {
+                bgcolor: 'rgba(0, 126, 112, 0.08)',
+              },
+            }}
+          >
+            {isLogoHovered ? (
+              <Box
+                component="img"
+                src="/icons/material-symbols_left-panel-open.svg"
+                alt="Open Panel"
+                sx={{ width: 24, height: 24 }}
               />
-            ))}
-          </List>
-        )}
-      </Box>
+            ) : (
+              <Box
+                component="img"
+                src="/icons/logo/Logo.svg"
+                alt="Rosetta"
+                sx={{ width: 24, height: 24 }}
+              />
+            )}
+          </IconButton>
+        </Box>
+      )}
+
+      {/* Sidebar content - only show when open */}
+      {open && (
+        <Box sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+              {t.subjects}
+            </Typography>
+            <Tooltip title={t.addFolder}>
+              <IconButton size="small" onClick={() => setNewFolderDialogOpen(true)}>
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+
+          {isLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={24} sx={{ color: customColors.brandGreen }} />
+            </Box>
+          ) : folders.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Box
+                component="img"
+                src="/icons/folders/BlueFolder.png"
+                alt="Folder"
+                sx={{ width: 48, height: 'auto', mb: 1, opacity: 0.5 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {t.noFoldersYet}
+              </Typography>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => setNewFolderDialogOpen(true)}
+                sx={{ 
+                  mt: 2,
+                  borderColor: customColors.brandGreen,
+                  color: customColors.brandGreen,
+                  '&:hover': {
+                    borderColor: '#005F54',
+                  },
+                }}
+              >
+                {t.createFolder}
+              </Button>
+            </Box>
+          ) : (
+            <List dense disablePadding>
+              {folders.map((folder, index) => (
+                <FolderItem
+                  key={folder.id}
+                  folder={folder}
+                  folderIndex={index}
+                  isSelected={selectedFolderId === folder.id}
+                  isExpanded={expandedFolderIds.has(folder.id)}
+                  onClick={() => handleFolderClick(folder)}
+                  onSessionClick={(sessionId) => navigate(`/session/${sessionId}`)}
+                  onNewSession={() => {
+                    setSelectedFolderId(folder.id);
+                    setNewSessionDialogOpen(true);
+                  }}
+                  onMenuClick={(el) => setFolderMenuAnchor({ el, folderId: folder.id })}
+                  getStatusIcon={getStatusIcon}
+                  t={t}
+                />
+              ))}
+            </List>
+          )}
+        </Box>
+      )}
 
       {/* Folder Menu */}
       <Menu

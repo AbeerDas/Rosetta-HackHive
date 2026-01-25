@@ -161,7 +161,7 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
         ) : (
           <Box sx={{ fontSize, maxWidth: 800, mx: 'auto' }}>
             {segments.map((segment, index) => (
-              <Box key={`${sessionId}-${segment.id}`} sx={{ mb: 3 }}>
+              <Box key={`${sessionId}-seg-${index}-${segment.start_time}-${segment.id || index}`} sx={{ mb: 3 }}>
                 {/* Timestamp marker */}
                 {(index === 0 || segment.start_time - segments[index - 1].end_time > 10) && (
                   <Typography

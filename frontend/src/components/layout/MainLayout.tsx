@@ -20,7 +20,6 @@ import {
   CircularProgress,
   Divider,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
 import EditIcon from '@mui/icons-material/Edit';
 import CheckIcon from '@mui/icons-material/Check';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
@@ -30,8 +29,6 @@ import { Sidebar } from './Sidebar';
 import { useFolderStore, useUserStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
-
-const SIDEBAR_WIDTH = 280;
 
 export function MainLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -45,6 +42,8 @@ export function MainLayout() {
   const { voices, selectedVoiceId, isLoading: voicesLoading, fetchVoices, setSelectedVoiceId } = useVoiceStore();
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(name);
+
+  const actualSidebarWidth = sidebarOpen ? sidebarWidth : 64;
 
   // Fetch voices when settings modal opens
   useEffect(() => {
@@ -102,6 +101,10 @@ export function MainLayout() {
     setLanguage(lang);
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       {/* App Bar */}
@@ -109,8 +112,8 @@ export function MainLayout() {
         position="fixed"
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%',
-          ml: sidebarOpen ? `${sidebarWidth}px` : 0,
+          width: `calc(100% - ${actualSidebarWidth}px)`,
+          ml: `${actualSidebarWidth}px`,
           transition: 'margin 225ms cubic-bezier(0, 0, 0.2, 1), width 225ms cubic-bezier(0, 0, 0.2, 1)',
           bgcolor: 'background.paper',
           borderBottom: '1px solid',
@@ -118,44 +121,24 @@ export function MainLayout() {
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            aria-label="toggle sidebar"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            edge="start"
-            sx={{ mr: 2, color: 'text.primary' }}
-          >
-            <MenuIcon />
-          </IconButton>
-          
-          {/* Logo */}
-          <Box 
-            sx={{ display: 'flex', alignItems: 'center', gap: 1, cursor: 'pointer' }}
+          {/* Just the text "Rosetta" - no logo here, logo is in sidebar */}
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
             onClick={() => navigate('/')}
+            sx={{
+              fontFamily: '"Inter", sans-serif',
+              fontWeight: 600,
+              color: 'text.primary',
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
           >
-            {/* Logo Icon */}
-            <Box
-              component="img"
-              src="/icons/logo/Logo.svg"
-              alt="Rosetta"
-              sx={{ width: 28, height: 28 }}
-            />
-            <Typography
-              variant="h6"
-              noWrap
-              component="div"
-              sx={{
-                fontFamily: '"Inter", sans-serif',
-                fontWeight: 600,
-                color: 'text.primary',
-                '&:hover': {
-                  opacity: 0.8,
-                },
-              }}
-            >
-              {t.rosetta}
-            </Typography>
-          </Box>
+            {t.rosetta}
+          </Typography>
 
           <Box sx={{ flexGrow: 1 }} />
 
@@ -356,7 +339,7 @@ export function MainLayout() {
       </Dialog>
 
       {/* Sidebar */}
-      <Sidebar open={sidebarOpen} width={sidebarWidth} />
+      <Sidebar open={sidebarOpen} width={sidebarWidth} onToggle={toggleSidebar} />
 
       {/* Main Content */}
       <Box
@@ -365,8 +348,8 @@ export function MainLayout() {
           flexGrow: 1,
           p: 3,
           pt: 10,
-          ml: sidebarOpen ? 0 : `-${sidebarWidth}px`,
-          width: sidebarOpen ? `calc(100% - ${sidebarWidth}px)` : '100%',
+          ml: 0,
+          width: `calc(100% - ${actualSidebarWidth}px)`,
           transition: 'margin 225ms cubic-bezier(0, 0, 0.2, 1), width 225ms cubic-bezier(0, 0, 0.2, 1)',
           minHeight: '100vh',
           bgcolor: 'background.default',
