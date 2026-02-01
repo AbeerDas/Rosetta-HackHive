@@ -41,7 +41,7 @@ const pulseAnimation = keyframes`
   100% { box-shadow: 0 0 0 0 rgba(0, 126, 112, 0); }
 `;
 
-export function CitationPanel({ sessionId }: CitationPanelProps) {
+export function CitationPanel(_props: CitationPanelProps) {
   const { t } = useLanguageStore();
   const segments = useTranscriptionStore((s) => s.segments);
   const highlightedCitationKey = useTranscriptionStore((s) => s.highlightedCitationKey);

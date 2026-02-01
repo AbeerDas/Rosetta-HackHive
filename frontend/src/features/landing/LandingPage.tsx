@@ -20,7 +20,6 @@ import {
   QuestionAnswer as QuestionIcon,
   Public as PublicIcon,
   School as SchoolIcon,
-  People as PeopleIcon,
 } from '@mui/icons-material';
 import { AuthModal } from '../auth/AuthModal';
 
@@ -30,6 +29,89 @@ const greetings = [
   'שלום', 'مرحبا', 'გამარჯობა', 'Привет', 'Прывітанне', 'Здраво', 'Сәлем',
   'Сайн байна уу', 'Здравей', 'こんにちは', 'ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ', 'ಹಲೋ', 'ഹലോ', 'வணக்கம்',
 ];
+
+// Animated Counter Component
+function AnimatedCounter({ end, duration = 2000, suffix = '', isPercentage = false }: { 
+  end: number; 
+  duration?: number; 
+  suffix?: string; 
+  isPercentage?: boolean;
+}) {
+  const [count, setCount] = useState(0);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const countRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const currentRef = countRef.current;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isInView && !hasAnimated) {
+      setHasAnimated(true);
+      let startTime: number;
+      const animate = (currentTime: number) => {
+        if (!startTime) startTime = currentTime;
+        const progress = Math.min((currentTime - startTime) / duration, 1);
+        
+        // Suspenseful easing function - slow start, fast middle, very slow end (plateauing)
+        // Uses a custom easing curve that creates dramatic buildup
+        const suspensefulEase = (t: number) => {
+          if (t < 0.5) {
+            // First half: slow acceleration (ease-in-quad)
+            return 2 * t * t;
+          } else {
+            // Second half: dramatic deceleration (ease-out-quart)
+            const shifted = t - 1;
+            return 1 - Math.pow(shifted, 4);
+          }
+        };
+        
+        const easedProgress = suspensefulEase(progress);
+        const current = Math.floor(easedProgress * end);
+        
+        setCount(current);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setCount(end);
+        }
+      };
+      
+      requestAnimationFrame(animate);
+    }
+  }, [isInView, end, duration, hasAnimated]);
+
+  const formatNumber = (num: number) => {
+    if (isPercentage) return `${num}%`;
+    return num.toLocaleString();
+  };
+
+  return (
+    <span ref={countRef}>
+      {formatNumber(count)}{suffix}
+    </span>
+  );
+}
 
 // Scrolling Greetings Component
 function ScrollingGreetingsLanding() {
@@ -649,14 +731,13 @@ export function LandingPage() {
               Empowering learning across languages, cultures, and classrooms worldwide.
             </Typography>
 
-            {/* Stats Grid - Creative 3D Cards */}
+            {/* Stats Grid - Creative 3D Cards with Animated Counters */}
             <Grid container spacing={4} sx={{ mb: 10 }}>
               {[
-                { icon: <PublicIcon sx={{ fontSize: 48 }} />, stat: '6M+', label: 'International students studying abroad annually', color: theme.palette.primary.main, gradient: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` },
-                { icon: <SchoolIcon sx={{ fontSize: 48 }} />, stat: '70%', label: 'Report difficulty understanding lectures in a second language', color: theme.palette.primary.main, gradient: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.9)} 0%, ${theme.palette.primary.main} 100%)` },
-                { icon: <PeopleIcon sx={{ fontSize: 48 }} />, stat: '2 sec', label: "Average translation latency with Rosetta's AI pipeline", color: theme.palette.primary.main, gradient: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, ${theme.palette.primary.main} 100%)` },
+                { icon: <PublicIcon sx={{ fontSize: 48 }} />, statValue: 6000000, suffix: '+', label: 'International students studying abroad annually', color: theme.palette.primary.main, gradient: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark} 100%)` },
+                { icon: <SchoolIcon sx={{ fontSize: 48 }} />, statValue: 70, isPercentage: true, label: 'Report difficulty understanding lectures in a second language', color: theme.palette.primary.main, gradient: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.9)} 0%, ${theme.palette.primary.main} 100%)` },
               ].map((item, index) => (
-                <Grid item xs={12} md={4} key={index}>
+                <Grid item xs={12} md={6} key={index}>
                   <Card
                     elevation={0}
                     sx={{
@@ -727,7 +808,12 @@ export function LandingPage() {
                         letterSpacing: '-0.02em',
                       }}
                     >
-                      {item.stat}
+                      <AnimatedCounter 
+                        end={item.statValue} 
+                        suffix={item.suffix || ''} 
+                        isPercentage={item.isPercentage || false}
+                        duration={2500}
+                      />
                     </Typography>
                     <Typography
                       variant="body1"

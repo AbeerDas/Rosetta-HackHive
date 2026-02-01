@@ -187,7 +187,6 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
       addSegment,
       updateSegmentText,
       attachCitations,
-      clearSegments,
     } = useTranscriptionStore();
 
     const [selectedLanguage, setSelectedLanguage] = useState(targetLanguage);
@@ -280,10 +279,9 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
           }
 
           if (backendId) {
-            // We already have the backend ID, save immediately
-            transcriptApi
-              .updateTranslatedText(backendId, msg.translated_text)
-              .catch((err) => console.error('Failed to save translated text:', err));
+            // Transcript is already saved in Convex via WebSocket
+            // No need to update via REST API
+            console.log('[AudioControls] Translation received for transcript:', backendId);
           } else {
             // Store for later when we get the backend ID
             pendingTranslationsRef.current.set(msg.segment_id, msg.translated_text);
@@ -327,10 +325,8 @@ export const AudioControls = forwardRef<AudioControlsHandle, AudioControlsProps>
             // Check if we have a pending translation for this frontend ID
             const pendingTranslation = pendingTranslationsRef.current.get(msg.frontend_id);
             if (pendingTranslation) {
-              // Save to database using the backend ID
-              transcriptApi
-                .updateTranslatedText(msg.segment_id, pendingTranslation)
-                .catch((err) => console.error('Failed to save translated text:', err));
+              // Translation will be saved to Convex via WebSocket message
+              console.log('[AudioControls] Pending translation for segment:', msg.segment_id);
               pendingTranslationsRef.current.delete(msg.frontend_id);
             }
           }

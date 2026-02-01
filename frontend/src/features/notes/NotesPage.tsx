@@ -190,42 +190,31 @@ export function NotesPage() {
   const generateMutation = useMutation({
     mutationFn: (forceRegenerate: boolean = false) =>
       notesApi.generate(sessionId!, {
-        force_regenerate: forceRegenerate,
-        output_language: language,
+        forceRegenerate: forceRegenerate,
+        outputLanguage: language,
       }),
     onMutate: () => {
       setIsGenerating(true);
       setGenerationProgress(0);
     },
-    onSuccess: (generatedNote) => {
+    onSuccess: (generatedNote: { content_markdown: string; generated_at: string }) => {
       setContent(generatedNote.content_markdown);
       setHasChanges(false);
       setIsGenerating(false);
       setGenerationProgress(100);
       queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       setIsGenerating(false);
       console.error('Note generation failed:', error);
       alert(`Note generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },
   });
 
-  // Save note mutation
-  const saveMutation = useMutation({
-    mutationFn: (contentMarkdown: string) =>
-      notesApi.update(sessionId!, { content_markdown: contentMarkdown }),
-    onSuccess: () => {
-      setHasChanges(false);
-      setLastSavedAt(new Date());
-      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
-    },
-  });
-
   // Export PDF mutation
   const exportMutation = useMutation({
     mutationFn: () => notesApi.exportPdf(sessionId!),
-    onSuccess: (blob) => {
+    onSuccess: (blob: Blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -235,7 +224,7 @@ export function NotesPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('PDF export failed:', error);
       // Offer Markdown export as fallback
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -260,7 +249,7 @@ export function NotesPage() {
   // Export Markdown mutation (fallback)
   const exportMarkdownMutation = useMutation({
     mutationFn: () => notesApi.exportMarkdown(sessionId!),
-    onSuccess: (blob) => {
+    onSuccess: (blob: Blob) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -270,7 +259,7 @@ export function NotesPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error('Markdown export failed:', error);
       alert(`Export failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     },

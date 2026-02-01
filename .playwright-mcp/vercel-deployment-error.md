@@ -1,0 +1,332 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content":
+    - /url: "#geist-skip-nav"
+  - generic [ref=e813]:
+    - banner [ref=e814]:
+      - link "Vercel logo" [ref=e815] [cursor=pointer]:
+        - /url: /abeers-projects-f09fd044
+        - button "Vercel Logo" [ref=e816]:
+          - img "Vercel Logo" [ref=e817]
+      - navigation [ref=e819]:
+        - generic [ref=e820]:
+          - list [ref=e821]:
+            - button "Find… F" [ref=e822]:
+              - generic [ref=e824]:
+                - img [ref=e826]
+                - generic [ref=e828]: Find…
+                - generic [ref=e830]: F
+            - button "Feedback" [ref=e832] [cursor=pointer]:
+              - generic [ref=e833]: Feedback
+          - generic [ref=e834]:
+            - button "122 unseen notifications" [ref=e1465] [cursor=pointer]:
+              - generic [ref=e837]:
+                - generic [ref=e838]:
+                  - img
+                - img [ref=e839]
+            - button "Open links menu" [ref=e841] [cursor=pointer]:
+              - img [ref=e843]
+            - button "Menu" [ref=e846] [cursor=pointer]:
+              - img "abeerdas" [ref=e848]:
+                - img "abeerdas" [ref=e849]
+    - main [ref=e850]:
+      - generic [ref=e1104]:
+        - generic [ref=e1106]:
+          - heading "New Project" [level=3] [ref=e1108]
+          - generic [ref=e1109]:
+            - listitem [ref=e1110]:
+              - generic [ref=e1114]:
+                - paragraph [ref=e1115]: importing from GitHub
+                - generic [ref=e1116]:
+                  - link "github AbeerDas/Rosetta-HackHive" [ref=e1117] [cursor=pointer]:
+                    - /url: https://github.com/AbeerDas/Rosetta-HackHive
+                    - img "github" [ref=e1118]
+                    - generic "AbeerDas/Rosetta-HackHive" [ref=e1120]
+                  - link "main" [ref=e1121] [cursor=pointer]:
+                    - /url: https://github.com/AbeerDas/Rosetta-HackHive
+                    - img [ref=e1122]
+                    - generic "main" [ref=e1124]
+                  - link "frontend" [ref=e1394] [cursor=pointer]:
+                    - /url: https://github.com/AbeerDas/Rosetta-HackHive
+                    - img [ref=e1395]
+                    - generic "frontend" [ref=e1397]
+            - paragraph [ref=e1125]: Choose where you want to create the project and give it a name.
+            - generic [ref=e1129]:
+              - generic [ref=e1130]:
+                - generic [ref=e1131]:
+                  - generic [ref=e1132]: Vercel Team
+                  - combobox [ref=e1134]:
+                    - generic [ref=e1135]:
+                      - generic:
+                        - img
+                      - searchbox "Select a Vercel Team" [ref=e1136]: Abeer's projects
+                      - generic [ref=e1140]: Hobby
+                      - button "Open menu" [ref=e1141] [cursor=pointer]:
+                        - img [ref=e1142]
+                - img "Slash Divider" [ref=e1145]
+                - generic [ref=e1146]:
+                  - generic [ref=e1147]: Project Name
+                  - textbox "New Project Name" [disabled] [ref=e1150]:
+                    - /placeholder: my-project
+                    - text: rosetta-hack-hive
+              - separator [ref=e1151]
+              - generic [ref=e1152]:
+                - generic [ref=e1153]:
+                  - generic [ref=e1154]: Application Preset
+                  - combobox [ref=e1156]:
+                    - generic [ref=e1157]:
+                      - generic:
+                        - img
+                      - searchbox "Application Preset" [ref=e1158]: Vite
+                      - button "Open menu" [ref=e1159] [cursor=pointer]:
+                        - img [ref=e1160]
+                - generic [ref=e1162]:
+                  - generic [ref=e1163]: Root Directory
+                  - generic [ref=e1164]:
+                    - textbox "Root Directory" [disabled] [ref=e1167]: frontend
+                    - button "Edit" [ref=e1170] [cursor=pointer]:
+                      - generic [ref=e1171]: Edit
+                - generic [ref=e1172]:
+                  - group [ref=e1176]:
+                    - generic "Build and Output Settings" [ref=e1177] [cursor=pointer]:
+                      - img [ref=e1178]
+                      - text: Build and Output Settings
+                  - group [ref=e1183]:
+                    - generic "Environment Variables" [ref=e1184] [cursor=pointer]:
+                      - img [ref=e1185]
+                      - text: Environment Variables
+                    - generic [ref=e1398]:
+                      - generic [ref=e1401]:
+                        - generic [ref=e1403]:
+                          - generic [ref=e1404]: Key
+                          - textbox "Key" [ref=e1406]:
+                            - /placeholder: EXAMPLE_NAME
+                            - text: VITE_CONVEX_URL
+                        - generic [ref=e1408]:
+                          - generic [ref=e1410]:
+                            - text: Value
+                            - img [ref=e1412]
+                          - textbox "Value" [ref=e1416]:
+                            - /placeholder: I9JU23NF394R6HH
+                            - text: https://perceptive-tortoise-109.convex.cloud
+                        - button "Remove" [ref=e1417] [cursor=pointer]:
+                          - img [ref=e1419]
+                      - generic [ref=e1439]:
+                        - textbox "Key" [ref=e1442]:
+                          - /placeholder: EXAMPLE_NAME
+                          - text: VITE_FASTAPI_URL
+                        - textbox "Value" [ref=e1446]:
+                          - /placeholder: I9JU23NF394R6HH
+                          - text: https://rosetta-hackhive.onrender.com
+                        - button "Remove" [ref=e1447] [cursor=pointer]:
+                          - img [ref=e1449]
+                      - button "Add More" [ref=e1421] [cursor=pointer]:
+                        - img [ref=e1423]
+                        - generic [ref=e1425]: Add More
+                      - generic [ref=e1426]:
+                        - button "Import .env" [ref=e1428] [cursor=pointer]:
+                          - img [ref=e1430]
+                          - generic [ref=e1432]: Import .env
+                        - paragraph [ref=e1433]:
+                          - text: or paste the .env contents above.
+                          - link "Learn more" [ref=e1434] [cursor=pointer]:
+                            - /url: /docs/environment-variables
+                            - text: Learn more
+                            - img [ref=e1435]
+            - button "Deploy" [ref=e1466] [cursor=pointer]:
+              - generic [ref=e1192]: Deploy
+        - generic [ref=e1468]:
+          - heading "Deployment" [level=3] [ref=e1470]
+          - generic [ref=e1471]: Deployment failed with error.
+          - generic [ref=e1472]:
+            - generic [ref=e1473]:
+              - heading "Build Logs 28s" [level=2] [ref=e1474]:
+                - generic [ref=e1475] [cursor=pointer]:
+                  - img [ref=e1476]
+                  - generic [ref=e1480]: Build Logs
+                  - generic [ref=e1481]: 28s
+                  - img [ref=e1483]
+              - region "Build Logs 28s" [ref=e1485]:
+                - generic [ref=e1487]:
+                  - generic [ref=e1488]:
+                    - button "all lines" [ref=e1489] [cursor=pointer]:
+                      - generic [ref=e1491]:
+                        - img [ref=e1493]
+                        - img [ref=e1496]
+                    - generic [ref=e1498]: 29 lines
+                    - 'button "warning count: 1" [ref=e1501] [cursor=pointer]':
+                      - generic [ref=e1502]:
+                        - img [ref=e1503]
+                        - generic [ref=e1506]: "1"
+                    - generic [ref=e1507]:
+                      - searchbox "Search" [ref=e1508]
+                      - img [ref=e1510]
+                      - generic [ref=e1513]:
+                        - generic [ref=e1514]: ⌘
+                        - text: F
+                  - generic [ref=e1518]:
+                    - generic [ref=e1519]:
+                      - generic [ref=e1521]: 14:05:47.597
+                      - generic [ref=e1523]: Installing dependencies...
+                    - generic [ref=e1524]:
+                      - generic [ref=e1526]: 14:05:50.355
+                      - generic [ref=e1528]: "npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported"
+                    - generic [ref=e1529]:
+                      - generic [ref=e1531]: 14:05:50.703
+                      - generic [ref=e1533]: "npm warn deprecated npmlog@5.0.1: This package is no longer supported."
+                    - generic [ref=e1534]:
+                      - generic [ref=e1536]: 14:05:51.121
+                      - generic [ref=e1538]: "npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful."
+                    - generic [ref=e1539]:
+                      - generic [ref=e1541]: 14:05:51.196
+                      - generic [ref=e1543]: "npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported"
+                    - generic [ref=e1544]:
+                      - generic [ref=e1546]: 14:05:51.347
+                      - generic [ref=e1548]: "npm warn deprecated gauge@3.0.2: This package is no longer supported."
+                    - generic [ref=e1549]:
+                      - generic [ref=e1551]: 14:05:51.620
+                      - generic [ref=e1553]: "npm warn deprecated are-we-there-yet@2.0.0: This package is no longer supported."
+                    - generic [ref=e1554]:
+                      - generic [ref=e1556]: 14:05:52.062
+                      - generic [ref=e1558]: "npm warn deprecated lucia@3.2.2: This package has been deprecated. Please see https://lucia-auth.com/lucia-v3/migrate."
+                    - generic [ref=e1559]:
+                      - generic [ref=e1561]: 14:05:52.086
+                      - generic [ref=e1563]: "npm warn deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead"
+                    - generic [ref=e1564]:
+                      - generic [ref=e1566]: 14:05:52.113
+                      - generic [ref=e1568]: "npm warn deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead"
+                    - generic [ref=e1569]:
+                      - generic [ref=e1571]: 14:05:52.444
+                      - generic [ref=e1573]: "npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exhorbitant rates) by contacting i@izs.me"
+                    - generic [ref=e1574]:
+                      - generic [ref=e1576]: 14:05:55.318
+                      - generic [ref=e1578]: "npm warn deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options."
+                    - generic [ref=e1581]: 14:06:04.100
+                    - generic [ref=e1583]:
+                      - generic [ref=e1585]: 14:06:04.100
+                      - generic [ref=e1587]: added 473 packages in 16s
+                    - generic [ref=e1590]: 14:06:04.101
+                    - generic [ref=e1592]:
+                      - generic [ref=e1594]: 14:06:04.101
+                      - generic [ref=e1596]: 137 packages are looking for funding
+                    - generic [ref=e1597]:
+                      - generic [ref=e1599]: 14:06:04.101
+                      - generic [ref=e1601]: "run `npm fund` for details"
+                    - generic [ref=e1602]:
+                      - generic [ref=e1604]: 14:06:04.202
+                      - generic [ref=e1606]: Running "npm run build"
+                    - generic [ref=e1609]: 14:06:04.300
+                    - generic [ref=e1611]:
+                      - generic [ref=e1613]: 14:06:04.301
+                      - generic [ref=e1615]: "> lecturelens-frontend@1.0.0 build"
+                    - generic [ref=e1616]:
+                      - generic [ref=e1618]: 14:06:04.301
+                      - generic [ref=e1620]: "> tsc && vite build"
+                    - generic [ref=e1623]: 14:06:04.301
+            - heading "Deployment Summary" [level=2] [ref=e1627]:
+              - generic:
+                - img
+                - generic: Deployment Summary
+                - generic:
+                  - img
+            - heading "Assigning Custom Domains" [level=2] [ref=e1629]:
+              - generic:
+                - img
+                - generic: Assigning Custom Domains
+                - generic:
+                  - img
+          - generic [ref=e1631]:
+            - generic [ref=e1632]:
+              - link [ref=e1633] [cursor=pointer]:
+                - /url: https://github.com/AbeerDas/Rosetta-HackHive/commit/6478da3aac963280d11b09b5357ec31874439389
+                - img [ref=e1634]
+              - generic "made everything cloud based (postgres to convex, chromadb to pinecone, backend to render)" [ref=e1636]: made everything cloud based (postgres to convex, chromadb to pinecone, backend to render) - 6478da
+            - generic [ref=e1637]:
+              - link "Go to Project" [ref=e1638] [cursor=pointer]:
+                - /url: /abeers-projects-f09fd044/rosetta-hack-hive
+                - generic [ref=e1639]: Go to Project
+              - link "Inspect Deployment" [ref=e1640] [cursor=pointer]:
+                - /url: /abeers-projects-f09fd044/rosetta-hack-hive/44d3mR3boX74C5jLUCbRYQBqENKf
+                - generic [ref=e1641]: Inspect Deployment
+        - generic [ref=e1199]:
+          - link "Import a different Git Repository →" [ref=e1200] [cursor=pointer]:
+            - /url: /new
+          - link "Browse Templates →" [ref=e1201] [cursor=pointer]:
+            - /url: /new/templates
+    - contentinfo [ref=e1047]:
+      - navigation "Vercel Directory" [ref=e1048]:
+        - generic [ref=e1049]:
+          - link "Vercel logo" [ref=e1050] [cursor=pointer]:
+            - /url: /home
+            - img "Vercel logo" [ref=e1051]
+          - list [ref=e1053]:
+            - listitem [ref=e1054]:
+              - link "Home" [ref=e1055] [cursor=pointer]:
+                - /url: /home
+            - listitem [ref=e1056]:
+              - link "Docs" [ref=e1057] [cursor=pointer]:
+                - /url: /docs
+            - listitem [ref=e1058]:
+              - link "Knowledge Base" [ref=e1059] [cursor=pointer]:
+                - /url: /kb
+            - listitem [ref=e1060]:
+              - link "Academy" [ref=e1061] [cursor=pointer]:
+                - /url: /academy
+            - listitem [ref=e1062]:
+              - button "SDKs" [ref=e1063] [cursor=pointer]:
+                - generic [ref=e1065]:
+                  - text: SDKs
+                  - img [ref=e1066]
+            - listitem [ref=e1068]:
+              - link "Help" [ref=e1069] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=e1070]:
+              - link "Contact" [ref=e1071] [cursor=pointer]:
+                - /url: /contact
+            - listitem [ref=e1072]:
+              - button "Legal" [ref=e1073] [cursor=pointer]:
+                - generic [ref=e1075]:
+                  - text: Legal
+                  - img [ref=e1076]
+        - generic [ref=e1078]:
+          - link "All systems normal." [ref=e1079] [cursor=pointer]:
+            - /url: https://vercel-status.com
+            - paragraph [ref=e1082]: All systems normal.
+          - group "Select a display theme:" [ref=e1083]:
+            - generic [ref=e1084]: "Select a display theme:"
+            - generic [ref=e1085]:
+              - radio "system" [checked]
+              - generic [ref=e1086] [cursor=pointer]:
+                - generic [ref=e1087]: system
+                - img [ref=e1088]
+            - generic [ref=e1090]:
+              - radio "light"
+              - generic [ref=e1091] [cursor=pointer]:
+                - generic [ref=e1092]: light
+                - img [ref=e1093]
+            - generic [ref=e1095]:
+              - radio "dark"
+              - generic [ref=e1096] [cursor=pointer]:
+                - generic [ref=e1097]: dark
+                - img [ref=e1098]
+  - alert [ref=e770]: New Project – Vercel
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - img
+  - status [ref=e771]:
+    - generic [ref=e775]:
+      - generic [ref=e776]:
+        - img "New dashboard illustration"
+      - generic [ref=e777]:
+        - generic [ref=e778]:
+          - paragraph [ref=e779]: Try the new side of Vercel
+          - paragraph [ref=e780]:
+            - text: Switch to the new dashboard with improved navigation.
+            - link "Learn more" [ref=e781] [cursor=pointer]:
+              - /url: https://vercel.com/try/new-dashboard
+        - generic [ref=e782]:
+          - button "Dismiss" [ref=e783] [cursor=pointer]:
+            - generic [ref=e784]: Dismiss
+          - button "Try it out" [ref=e785] [cursor=pointer]:
+            - generic [ref=e786]: Try it out

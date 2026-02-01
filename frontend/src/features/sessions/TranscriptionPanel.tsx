@@ -29,7 +29,6 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
   const {
     segments: liveSegments,
     currentSegment,
-    isTranscribing,
     isPaused,
     autoScroll,
     fontSize,
@@ -47,10 +46,12 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
   const segments: TranscriptSegment[] = isActive
     ? liveSegments
     : (savedTranscript || []).map(t => ({
+        id: t._id,
         text: t.originalText,
         translated_text: t.translatedText,
         start_time: t.timestamp / 1000, // Convert ms to seconds
         end_time: t.timestamp / 1000 + 5, // Approximate 5 second segments
+        confidence: 1.0, // Default confidence for saved transcripts
         citations: [], // Citations handled separately
       }));
 

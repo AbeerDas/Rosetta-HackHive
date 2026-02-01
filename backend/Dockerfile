@@ -1,4 +1,5 @@
 # Rosetta Backend Dockerfile
+# Optimized for Render deployment with cold start considerations
 FROM python:3.11-slim-bookworm
 
 # Set working directory
@@ -33,9 +34,15 @@ COPY . .
 # Create uploads directory
 RUN mkdir -p uploads
 
-# Expose port
-EXPOSE 8080
+# Render uses PORT environment variable (default to 10000 for Render)
+ENV PORT=10000
 
-# Run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Expose the port
+EXPOSE $PORT
 
+# Health check for Render
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/api/v1/health || exit 1
+
+# Run the application with shell to expand $PORT
+CMD uvicorn app.main:app --host 0.0.0.0 --port $PORT
