@@ -22,6 +22,77 @@ Rosetta is a real-time lecture translation and learning assistant that breaks do
 
 ---
 
+## Authentication and User Management
+
+### Overview
+
+Rosetta requires user authentication to provide personalized experiences, secure data storage, and multi-device access. The authentication system is built on **Convex Auth**, providing a seamless, serverless authentication experience.
+
+### Authentication Methods
+
+| Method | Description | Implementation |
+|--------|-------------|----------------|
+| **OAuth - GitHub** | Sign in with GitHub account | Convex Auth + Auth.js GitHub provider |
+| **OAuth - Google** | Sign in with Google account | Convex Auth + Auth.js Google provider |
+| **OAuth - Apple** | Sign in with Apple ID | Convex Auth + Auth.js Apple provider |
+| **Email/Password** | Traditional email and password | Convex Auth Password provider |
+| **Email Verification** | OTP code sent to email | Resend API for email delivery |
+| **Password Reset** | Reset password via email OTP | Resend API for email delivery |
+
+### User Flows
+
+**Sign Up Flow:**
+1. User visits landing page
+2. User clicks "Get Started" or "Sign Up"
+3. User chooses authentication method:
+   - **OAuth**: Redirected to provider, returns authenticated
+   - **Email/Password**: Enters email and password, receives verification OTP
+4. User completes email verification (for email/password)
+5. User redirected to main application
+
+**Sign In Flow:**
+1. User visits landing page or is redirected from protected route
+2. User clicks "Sign In"
+3. User chooses authentication method:
+   - **OAuth**: Redirected to provider, returns authenticated
+   - **Email/Password**: Enters credentials
+4. User redirected to main application
+
+**Password Reset Flow:**
+1. User clicks "Forgot your password?"
+2. User enters email address
+3. System sends OTP to email
+4. User enters OTP and new password
+5. Password updated, user signed in
+
+### User Data Model
+
+```
+Users Table:
+- id: Unique identifier (Convex document ID)
+- name: Display name (from OAuth or sign-up)
+- email: Email address (unique)
+- image: Profile picture URL (from OAuth)
+- emailVerificationTime: Timestamp when email was verified
+- createdAt: Account creation timestamp
+```
+
+### Authorization Rules
+
+- All data (folders, sessions, documents, notes) is scoped to the authenticated user
+- Users can only access their own data via Convex queries/mutations
+- Unauthenticated users see only the landing page
+- Protected routes redirect to sign-in
+
+### Session Management
+
+- Sessions managed by Convex Auth
+- JWT tokens for secure authentication
+- Automatic token refresh
+- Sign out available from user menu
+
+---
+
 ## Problem Statement
 
 ### The Problem

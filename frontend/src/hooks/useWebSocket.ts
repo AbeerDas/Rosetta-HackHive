@@ -288,7 +288,7 @@ export function useTranslationSocket(
   onAudio: (audioData: ArrayBuffer) => void,
   onStatusMessage?: (msg: TranslationMessage) => void
 ) {
-  const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+  const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001';
   let url = `${baseUrl}/api/v1/translate/stream?session_id=${sessionId}&target_language=${targetLanguage}`;
   if (voiceId) {
     url += `&voice_id=${encodeURIComponent(voiceId)}`;
@@ -340,7 +340,7 @@ export function useTranscriptionSocket(
   sessionId: string,
   onMessage: (msg: TranscriptionMessage) => void
 ) {
-  const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+  const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8001';
   const url = `${baseUrl}/api/v1/transcribe/stream?session_id=${sessionId}`;
 
   // Use ref to store onMessage callback to prevent reconnections when callback changes

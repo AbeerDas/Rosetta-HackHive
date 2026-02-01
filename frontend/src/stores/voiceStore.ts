@@ -21,7 +21,7 @@ interface VoiceState {
   fetchVoices: () => Promise<void>;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 // Safe localStorage wrapper that handles SecurityError
 const safeStorage: StateStorage = {

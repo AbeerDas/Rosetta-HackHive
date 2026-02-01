@@ -89,12 +89,12 @@ You'll need **two terminal windows**:
 ```bash
 cd backend
 source venv/bin/activate
-uvicorn app.main:app --reload --port 8080
+uvicorn app.main:app --reload --port 8001
 ```
 
-Backend will be available at: http://localhost:8080
+Backend will be available at: http://localhost:8001
 
-API Documentation: http://localhost:8080/docs
+API Documentation: http://localhost:8001/docs
 
 ### Terminal 2: Frontend
 
@@ -148,11 +148,11 @@ npm install
 
 ### Port already in use
 
-If ports 5173, 8080, 5432, or 8000 are in use:
+If ports 5173, 8001, 5432, or 8000 are in use:
 
 ```bash
 # Find and kill the process using a port (Linux/Mac)
-lsof -ti:8080 | xargs kill -9
+lsof -ti:8001 | xargs kill -9
 
 # On Windows PowerShell
 netstat -ano | Select-String ":8080"
@@ -225,7 +225,7 @@ cd backend
 source venv/bin/activate
 
 # Run with auto-reload
-uvicorn app.main:app --reload --port 8080
+uvicorn app.main:app --reload --port 8001
 
 # Run tests
 pytest
@@ -298,7 +298,7 @@ HackHive2026/
 - `WS /api/transcribe/stream` - Live transcription
 - `POST /api/notes/generate` - Generate notes
 
-Full API documentation: http://localhost:8080/docs
+Full API documentation: http://localhost:8001/docs
 
 ## Need Help?
 
