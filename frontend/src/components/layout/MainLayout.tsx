@@ -5,10 +5,7 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  IconButton,
   Button,
-  TextField,
-  InputAdornment,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -19,14 +16,12 @@ import {
   InputLabel,
   CircularProgress,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/Edit';
-import CheckIcon from '@mui/icons-material/Check';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 
 import { Sidebar } from './Sidebar';
 import { UserMenu } from '../../features/auth/UserMenu';
-import { useFolderStore, useUserStore, useLanguageStore, useVoiceStore } from '../../stores';
+import { useFolderStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
 
@@ -37,7 +32,6 @@ export function MainLayout() {
   const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null);
   const sidebarWidth = useFolderStore((state) => state.sidebarWidth);
   const navigate = useNavigate();
-  const { name, setName } = useUserStore();
   const { language, setLanguage, t } = useLanguageStore();
   const {
     voices,
@@ -46,8 +40,6 @@ export function MainLayout() {
     fetchVoices,
     setSelectedVoiceId,
   } = useVoiceStore();
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editedName, setEditedName] = useState(name);
 
   const actualSidebarWidth = sidebarOpen ? sidebarWidth : 64;
 
@@ -89,18 +81,6 @@ export function MainLayout() {
     audio.play();
     setPreviewAudio(audio);
     setPreviewingVoice(voiceId);
-  };
-
-  const handleSaveName = () => {
-    if (editedName.trim()) {
-      setName(editedName.trim());
-    }
-    setIsEditingName(false);
-  };
-
-  const handleStartEdit = () => {
-    setEditedName(name);
-    setIsEditingName(true);
   };
 
   const handleLanguageChange = (lang: LanguageCode) => {

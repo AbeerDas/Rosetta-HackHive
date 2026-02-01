@@ -44,7 +44,7 @@ export function SignInForm({
       const result = await signIn("password", formData);
       
       // If signIn returns false, user needs email verification
-      if (result === false && onVerificationNeeded) {
+      if (typeof result === 'object' && result.signingIn === false && onVerificationNeeded) {
         onVerificationNeeded(email);
       }
     } catch (err) {

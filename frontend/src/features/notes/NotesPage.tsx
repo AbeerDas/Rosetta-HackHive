@@ -24,7 +24,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DescriptionIcon from '@mui/icons-material/Description';
-import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
+import { useQuery as useConvexQuery } from 'convex/react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { api } from '../../../convex/_generated/api';
 import { notesApi } from '../../services/api';
@@ -82,18 +83,11 @@ export function NotesPage() {
   const session = useConvexQuery(api.sessions.get, sessionId ? { id: sessionId as any } : 'skip');
   const sessionLoading = session === undefined;
 
-  // Fetch existing note
-  const {
-    data: note,
-    isLoading: noteLoading,
-    isError: noteError,
-  } = useQuery({
-    queryKey: ['note', sessionId],
-    queryFn: () => notesApi.get(sessionId!),
-    enabled: !!sessionId,
-    retry: false,
-    staleTime: 0, // Always refetch when sessionId changes
-  });
+  // Fetch existing note - Notes are now managed by Convex in NotesPanel
+  // This page is kept for legacy route compatibility but should redirect to NotesPanel
+  const note = useConvexQuery(api.notes.getBySession, sessionId ? { sessionId: sessionId as any } : 'skip');
+  const noteLoading = note === undefined;
+  const noteError = false;
 
   // Poll generation status when generating
   const { data: noteStatus } = useQuery({
@@ -118,14 +112,14 @@ export function NotesPage() {
 
   // Set content when note is loaded, or clear when no note exists
   useEffect(() => {
-    if (note?.content_markdown) {
+    if (note?.contentMarkdown) {
       console.log(
         '[NotesPage] Note loaded for session:',
         sessionId,
         'length:',
-        note.content_markdown.length
+        note.contentMarkdown.length
       );
-      setContent(note.content_markdown);
+      setContent(note.contentMarkdown);
       setHasChanges(false);
     } else if (!noteLoading && (noteError || !note)) {
       // No note exists for this session - clear content
@@ -135,21 +129,14 @@ export function NotesPage() {
     }
   }, [note, noteLoading, noteError, sessionId]);
 
-  // Auto-save functionality
+  // Auto-save functionality - handled by NotesPanel now
+  // This page is deprecated, notes should be edited in NotesPanel
   const saveNotes = useCallback(
-    async (contentToSave: string) => {
-      if (!contentToSave || !note) return;
-
-      try {
-        await notesApi.update(sessionId!, { content_markdown: contentToSave });
-        setHasChanges(false);
-        setLastSavedAt(new Date());
-        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
-      } catch (error) {
-        console.error('Auto-save failed:', error);
-      }
+    async (_contentToSave: string) => {
+      // No-op: auto-save is handled by NotesPanel via Convex
+      console.warn('[NotesPage] Auto-save called but NotesPage is deprecated - use NotesPanel instead');
     },
-    [sessionId, note, queryClient]
+    [sessionId, queryClient]
   );
 
   // Debounced auto-save
@@ -271,7 +258,11 @@ export function NotesPage() {
   };
 
   const handleSave = () => {
-    saveMutation.mutate(content);
+    // Save is handled by NotesPanel via Convex - this is deprecated
+    console.warn('[NotesPage] Save called but NotesPage is deprecated - use NotesPanel instead');
+    saveNotes(content);
+    setHasChanges(false);
+    setLastSavedAt(new Date());
   };
 
   const handleExport = () => {
@@ -280,7 +271,7 @@ export function NotesPage() {
   };
 
   const handleGenerate = () => {
-    if (note?.content_markdown) {
+    if (note?.contentMarkdown) {
       setConfirmRegenerateOpen(true);
       setAnchorEl(null);
     } else {
@@ -390,9 +381,9 @@ export function NotesPage() {
           </Button>
           <Button
             variant="contained"
-            startIcon={saveMutation.isPending ? <CircularProgress size={16} /> : <SaveIcon />}
+            startIcon={<SaveIcon />}
             onClick={handleSave}
-            disabled={!hasChanges || saveMutation.isPending}
+            disabled={!hasChanges}
           >
             Save
           </Button>
@@ -402,7 +393,7 @@ export function NotesPage() {
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
             <MenuItem onClick={handleGenerate} disabled={generateMutation.isPending}>
               <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
-              {note?.content_markdown ? 'Regenerate Notes' : 'Generate from Transcripts'}
+              {note?.contentMarkdown ? 'Regenerate Notes' : 'Generate from Transcripts'}
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleExport} disabled={!content || exportMutation.isPending}>
