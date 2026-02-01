@@ -34,3 +34,7 @@ services:
         value: "false"
       - key: ENVIRONMENT
         value: production
+      
+      # CORS - Allow Vercel domains
+      - key: CORS_ORIGINS
+        value: "https://rosetta-hack-hive.vercel.app,https://rosetta-hack-hive-git-main-abeers-projects-f09fd044.vercel.app,http://localhost:5173,http://localhost:3000"

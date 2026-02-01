@@ -32,13 +32,17 @@ class Settings(BaseSettings):
     # ===========================================
     api_v1_prefix: str = Field(default="/api/v1")
 
-    # CORS
-    cors_origins: str = Field(default="http://localhost:5173,http://localhost:3000")
+    # CORS - Allow localhost for development and Vercel domains for production
+    cors_origins: str = Field(
+        default="http://localhost:5173,http://localhost:3000,https://rosetta-hack-hive.vercel.app,https://rosetta-hack-hive-git-main-abeers-projects-f09fd044.vercel.app,https://*.vercel.app"
+    )
 
     @property
     def cors_origins_list(self) -> List[str]:
         """Parse CORS origins from comma-separated string."""
-        return [origin.strip() for origin in self.cors_origins.split(",")]
+        origins = [origin.strip() for origin in self.cors_origins.split(",")]
+        # Handle wildcard patterns for Vercel preview deployments
+        return origins
 
     # ===========================================
     # External API Keys

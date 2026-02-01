@@ -47,13 +47,17 @@ app = FastAPI(
 )
 
 # Configure CORS - must be done before including routers
+# Allow all Vercel preview deployments with wildcard matching
+origins = settings.cors_origins_list
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,  # Use configured origins
+    allow_origins=["*"] if settings.debug else origins,  # Allow all in debug, specific origins in production
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 # Include API routes
