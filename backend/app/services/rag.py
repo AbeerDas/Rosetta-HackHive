@@ -5,18 +5,18 @@ Optimized pipeline using local models:
 - bge-base-en-v1.5 for embeddings
 - TinyBERT cross-encoder for re-ranking
 - Distance-based early exit for efficiency
+
+This version uses Convex + Pinecone (fully cloud-native).
 """
 
 import logging
 import time
-from typing import List, Optional, Tuple
-from uuid import UUID
+from typing import List, Optional
 
 from app.core.config import settings
-from app.external.chroma import ChromaClient
+from app.external.pinecone import PineconeClient
+from app.external.convex import ConvexClient
 from app.external.embeddings import LocalEmbeddingService
-from app.repositories.citation import CitationRepository
-from app.repositories.document import DocumentChunkRepository
 from app.schemas.rag import (
     CitationResult,
     QueryMetadata,
@@ -223,46 +223,45 @@ class RerankerService:
 class RAGService:
     """Service for RAG-based citation retrieval.
     
-    Optimized pipeline:
+    Optimized pipeline using Convex + Pinecone (fully cloud-native):
     1. KeyBERT keyword extraction (~15ms)
     2. Local embedding with bge-base-en-v1.5 (~10ms)
-    3. Chroma vector search, top 5 (~20-30ms)
+    3. Pinecone vector search, top 5 (~20-30ms)
     4. Distance-based early exit (0ms)
     5. TinyBERT re-ranking (~30-40ms)
+    6. Store citations in Convex via HTTP
     
     Total: ~75-100ms (vs ~500ms with API calls)
     """
 
     def __init__(
         self,
-        chroma_client: ChromaClient,
+        pinecone_client: PineconeClient,
         embedding_service: LocalEmbeddingService,
-        citation_repo: CitationRepository,
-        chunk_repo: DocumentChunkRepository,
+        convex_client: ConvexClient,
         reranker: RerankerService,
         query_enrichment: QueryEnrichmentService,
     ):
-        self.chroma_client = chroma_client
+        self.pinecone_client = pinecone_client
         self.embedding_service = embedding_service
-        self.citation_repo = citation_repo
-        self.chunk_repo = chunk_repo
+        self.convex_client = convex_client
         self.reranker = reranker
         self.query_enrichment = query_enrichment
 
     async def query(
         self,
-        session_id: UUID,
+        session_id: str,  # Convex session ID (string)
         transcript_text: str,
         window_index: int,
-        transcript_id: Optional[UUID] = None,
+        transcript_id: Optional[str] = None,  # Convex transcript ID (string)
     ) -> RAGQueryResponse:
         """Execute RAG query and return citations.
 
         Args:
-            session_id: Session ID for document filtering
+            session_id: Convex session ID for document filtering
             transcript_text: Transcript window text
             window_index: Window index for ordering
-            transcript_id: Optional transcript segment ID
+            transcript_id: Optional Convex transcript ID
 
         Returns:
             RAG query response with citations
@@ -280,17 +279,17 @@ class RAGService:
         query_embedding = self.embedding_service.create_embedding(enriched_query)
         logger.debug(f"[RAG] Generated embedding with {len(query_embedding)} dimensions")
 
-        # Step 3: Search Chroma for top 5 candidates
-        search_results = await self.chroma_client.query(
+        # Step 3: Search Pinecone for top 5 candidates
+        search_results = await self.pinecone_client.query(
             collection_name="documents",
             query_embeddings=[query_embedding],
             n_results=settings.rag_top_k_candidates,
-            where={"session_id": str(session_id)},
+            where={"session_id": session_id},  # Filter by Convex session ID (string)
         )
 
-        # Build candidate list from Chroma results
+        # Build candidate list from Pinecone results
         candidates = self._build_candidates(search_results)
-        logger.info(f"[RAG] Chroma returned {len(candidates)} candidates")
+        logger.info(f"[RAG] Pinecone returned {len(candidates)} candidates")
 
         # Step 4: Distance-based early exit
         if self._should_early_exit(candidates):
@@ -314,13 +313,17 @@ class RAGService:
         )
         logger.info(f"[RAG] Re-ranked to {len(reranked)} citations above threshold")
 
-        # Step 6: Build and store citations
-        citations = await self._build_citations(
-            reranked=reranked,
-            session_id=session_id,
-            transcript_id=transcript_id,
-            window_index=window_index,
-        )
+        # Step 6: Build citations from Pinecone metadata
+        citations = self._build_citations(reranked)
+
+        # Step 7: Store citations in Convex (async, best-effort)
+        if citations:
+            await self._store_citations_in_convex(
+                session_id=session_id,
+                transcript_id=transcript_id,
+                citations=citations,
+                window_index=window_index,
+            )
 
         processing_time = int((time.time() - start_time) * 1000)
         logger.info(f"[RAG] Pipeline completed in {processing_time}ms")
@@ -336,7 +339,7 @@ class RAGService:
         )
 
     def _build_candidates(self, search_results: dict) -> List[dict]:
-        """Build candidate list from Chroma search results."""
+        """Build candidate list from Pinecone search results."""
         candidates = []
         
         result_ids = search_results.get("ids", [[]])[0]
@@ -382,57 +385,78 @@ class RAGService:
         
         return should_exit
 
-    async def _build_citations(
-        self,
-        reranked: List[dict],
-        session_id: UUID,
-        transcript_id: Optional[UUID],
-        window_index: int,
-    ) -> List[CitationResult]:
-        """Build citation results and store in database."""
+    def _build_citations(self, reranked: List[dict]) -> List[CitationResult]:
+        """Build citation results from Pinecone metadata.
+        
+        All document info comes from Pinecone metadata - no database lookup needed.
+        """
         citations = []
 
         for rank, candidate in enumerate(reranked, start=1):
             metadata = candidate.get("metadata", {})
             relevance_score = candidate.get("relevance_score", 0.5)
 
-            # Look up the actual chunk by embedding_id
-            embedding_id = candidate["id"]
-            chunk = await self.chunk_repo.get_by_embedding_id(embedding_id)
-
-            if not chunk:
-                logger.warning(f"[RAG] Could not find chunk for embedding_id: {embedding_id}")
-                continue
-
-            # Create citation record in database
-            try:
-                citation = await self.citation_repo.create(
-                    session_id=session_id,
-                    transcript_id=transcript_id,
-                    document_id=chunk.document_id,
-                    chunk_id=chunk.id,
-                    window_index=window_index,
-                    rank=rank,
-                    page_number=chunk.page_number,
-                    section_heading=chunk.section_heading,
-                    snippet=candidate.get("text", "")[:200],
-                    relevance_score=relevance_score,
-                )
-                logger.debug(f"[RAG] Created citation {citation.id} for chunk {chunk.id}")
-            except Exception as e:
-                logger.error(f"[RAG] Failed to create citation: {e}")
+            # Get document info from Pinecone metadata
+            document_id = metadata.get("document_id")
+            document_name = metadata.get("document_name", "Unknown")
+            page_number = metadata.get("page_number", 0)
+            section_heading = metadata.get("section_heading")
+            
+            if not document_id:
+                logger.warning(f"[RAG] No document_id in metadata for candidate: {candidate['id']}")
                 continue
 
             citations.append(
                 CitationResult(
                     rank=rank,
-                    document_id=chunk.document_id,
-                    document_name=metadata.get("document_name", "Unknown"),
-                    page_number=chunk.page_number,
-                    section_heading=chunk.section_heading,
+                    document_id=document_id,  # Convex document ID (string)
+                    document_name=document_name,
+                    page_number=page_number,
+                    section_heading=section_heading,
                     snippet=candidate.get("text", "")[:200],
                     relevance_score=relevance_score,
                 )
             )
+            
+            logger.debug(
+                f"[RAG] Citation {rank}: {document_name} p.{page_number} "
+                f"(score: {relevance_score:.3f})"
+            )
 
         return citations
+
+    async def _store_citations_in_convex(
+        self,
+        session_id: str,
+        transcript_id: Optional[str],
+        citations: List[CitationResult],
+        window_index: int,
+    ) -> None:
+        """Store citations in Convex via HTTP.
+        
+        Best-effort storage - failures are logged but don't fail the RAG query.
+        """
+        try:
+            citations_data = [
+                {
+                    "documentId": c.document_id,
+                    "pageNumber": c.page_number,
+                    "chunkText": c.snippet,
+                    "relevanceScore": c.relevance_score,
+                    "rank": c.rank,
+                    "windowIndex": window_index,
+                    "transcriptId": transcript_id,
+                    "sectionHeading": c.section_heading,
+                }
+                for c in citations
+            ]
+            
+            await self.convex_client.add_citations(
+                session_id=session_id,
+                citations=citations_data,
+            )
+            logger.debug(f"[RAG] Stored {len(citations)} citations in Convex")
+            
+        except Exception as e:
+            # Don't fail the RAG query if Convex storage fails
+            logger.error(f"[RAG] Failed to store citations in Convex: {e}")

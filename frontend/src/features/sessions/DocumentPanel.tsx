@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Box,
   Typography,
@@ -11,19 +11,22 @@ import {
   Tooltip,
   CircularProgress,
   alpha,
+  Alert,
 } from '@mui/material';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
-import RefreshIcon from '@mui/icons-material/Refresh';
+import CloudIcon from '@mui/icons-material/Cloud';
 import { useDropzone } from 'react-dropzone';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 
-import { documentApi } from '../../services/api';
 import { useLanguageStore } from '../../stores';
 import { customColors } from '../../theme';
-import type { Document } from '../../types';
+import { documentProcessingApi, isColdStartError } from '../../services/api';
+import { useBackendStatus } from '../../contexts/BackendStatusContext';
 
 interface DocumentPanelProps {
   sessionId: string;
@@ -31,59 +34,173 @@ interface DocumentPanelProps {
 
 export function DocumentPanel({ sessionId }: DocumentPanelProps) {
   const { t } = useLanguageStore();
-  const queryClient = useQueryClient();
+  const [isUploading, setIsUploading] = useState(false);
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
+  const [warmupError, setWarmupError] = useState<string | null>(null);
+  const { warmup, status: backendStatus } = useBackendStatus();
 
-  // Fetch documents directly in this component
-  const { data: documents = [] } = useQuery({
-    queryKey: ['documents', sessionId],
-    queryFn: () => documentApi.list(sessionId),
-    refetchInterval: (query) => {
-      const docs = query.state.data || [];
-      return docs.some((d) => d.status === 'pending' || d.status === 'processing') ? 2000 : false;
-    },
-  });
+  // Convex queries and mutations
+  const documents = useQuery(
+    api.documents.listBySession,
+    { sessionId: sessionId as Id<'sessions'> }
+  ) ?? [];
 
-  // Upload mutation
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => documentApi.upload(sessionId, file),
-    onSuccess: async (newDocument) => {
-      // Cancel any in-flight queries to prevent them from overwriting our update
-      await queryClient.cancelQueries({ queryKey: ['documents', sessionId] });
+  const generateUploadUrl = useMutation(api.documents.generateUploadUrl);
+  const saveDocument = useMutation(api.documents.saveDocument);
+  const removeDocument = useMutation(api.documents.remove);
 
-      queryClient.setQueryData<Document[]>(['documents', sessionId], (oldDocuments) => {
-        if (!oldDocuments) return [newDocument];
-        const exists = oldDocuments.some((doc) => doc.id === newDocument.id);
-        if (exists) return oldDocuments;
-        return [newDocument, ...oldDocuments];
+  // Mutations
+  const getStorageUrl = useMutation(api.documents.getStorageUrl);
+  const updateStatus = useMutation(api.documents.updateStatus);
+
+  const uploadFile = async (file: File) => {
+    setIsUploading(true);
+    let documentId: Id<'documents'> | null = null;
+    
+    try {
+      // Step 1: Get upload URL from Convex
+      const uploadUrl = await generateUploadUrl();
+
+      // Step 2: Upload file directly to Convex Storage
+      const result = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': file.type },
+        body: file,
       });
-    },
-  });
+      
+      if (!result.ok) {
+        throw new Error('Failed to upload file');
+      }
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (documentId: string) => documentApi.delete(documentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents', sessionId] });
-    },
-  });
+      const { storageId } = await result.json();
 
-  // Retry mutation
-  const retryMutation = useMutation({
-    mutationFn: (documentId: string) => documentApi.retry(documentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents', sessionId] });
-    },
-  });
+      // Step 3: Save document metadata to Convex
+      documentId = await saveDocument({
+        sessionId: sessionId as Id<'sessions'>,
+        storageId,
+        name: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+      });
+
+      // Step 4: Get the storage URL directly
+      const fileUrl = await getStorageUrl({ storageId });
+
+      // Step 5: Tell FastAPI backend to process the document for RAG/citations
+      if (fileUrl) {
+        console.log('[DocumentPanel] Sending document for processing:', {
+          document_id: documentId,
+          session_id: sessionId,
+          file_url: fileUrl,
+          file_name: file.name,
+        });
+
+        // Update status to processing
+        await updateStatus({
+          id: documentId,
+          status: 'processing',
+          processingProgress: 10,
+        });
+
+        // Check if backend needs warming up
+        if (backendStatus !== 'ready') {
+          setIsWarmingUp(true);
+          setWarmupError(null);
+          try {
+            await warmup();
+          } catch (e) {
+            console.warn('[DocumentPanel] Warmup failed, continuing anyway:', e);
+          }
+          setIsWarmingUp(false);
+        }
+
+        try {
+          const processResult = await documentProcessingApi.process(
+            documentId,
+            fileUrl,
+            file.name,
+            sessionId
+          );
+          
+          console.log('[DocumentPanel] Document processing complete:', processResult);
+          
+          // Update Convex with results
+          const updates: {
+            id: Id<'documents'>;
+            status: 'ready' | 'error' | 'processing' | 'pending';
+            pageCount?: number;
+            chunkCount?: number;
+            processingProgress?: number;
+            errorMessage?: string;
+          } = {
+            id: documentId,
+            status: processResult.status === 'ready' ? 'ready' : 'error',
+            processingProgress: 100,
+          };
+          
+          if (processResult.page_count !== undefined) {
+            updates.pageCount = processResult.page_count;
+          }
+          if (processResult.chunk_count !== undefined) {
+            updates.chunkCount = processResult.chunk_count;
+          }
+          if (processResult.error) {
+            updates.errorMessage = processResult.error;
+          }
+          
+          await updateStatus(updates);
+        } catch (processError) {
+          console.error('[DocumentPanel] Failed to process document:', processError);
+          
+          // Check if it's a cold start error and provide helpful message
+          const errorMessage = isColdStartError(processError)
+            ? 'Server is waking up. Please try uploading again in a moment.'
+            : processError instanceof Error ? processError.message : 'Failed to process document';
+          
+          await updateStatus({
+            id: documentId,
+            status: 'error',
+            errorMessage,
+          });
+          
+          if (isColdStartError(processError)) {
+            setWarmupError('Server is waking up. Your document was saved but processing failed. Please try again.');
+          }
+        }
+      } else {
+        console.warn('[DocumentPanel] Could not get file URL for processing');
+        if (documentId) {
+          await updateStatus({
+            id: documentId,
+            status: 'error',
+            errorMessage: 'Could not get file URL',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Upload failed:', error);
+      if (documentId) {
+        await updateStatus({
+          id: documentId,
+          status: 'error',
+          errorMessage: error instanceof Error ? error.message : 'Upload failed',
+        });
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       acceptedFiles.forEach((file) => {
         if (file.type === 'application/pdf') {
-          uploadMutation.mutate(file);
+          uploadFile(file);
         }
       });
     },
-    [uploadMutation]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sessionId, generateUploadUrl, saveDocument, getStorageUrl, updateStatus]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -93,6 +210,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
     },
     maxSize: 50 * 1024 * 1024, // 50MB
   });
+
+  const handleDelete = async (documentId: Id<'documents'>) => {
+    await removeDocument({ id: documentId });
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -115,6 +236,52 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
 
   return (
     <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Cold Start Warning/Progress */}
+      {isWarmingUp && (
+        <Box
+          sx={{
+            m: 2,
+            p: 2,
+            borderRadius: 2,
+            bgcolor: alpha(customColors.brandGreen, 0.1),
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+          }}
+        >
+          <CloudIcon
+            sx={{
+              color: customColors.brandGreen,
+              animation: 'pulse 2s infinite',
+              '@keyframes pulse': {
+                '0%, 100%': { opacity: 1 },
+                '50%': { opacity: 0.5 },
+              },
+            }}
+          />
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="body2" fontWeight={500}>
+              Server is waking up...
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              This may take 20-30 seconds on first use
+            </Typography>
+          </Box>
+          <CircularProgress size={20} sx={{ color: customColors.brandGreen }} />
+        </Box>
+      )}
+
+      {/* Warmup Error Alert */}
+      {warmupError && (
+        <Alert 
+          severity="warning" 
+          onClose={() => setWarmupError(null)}
+          sx={{ m: 2, mb: 0 }}
+        >
+          {warmupError}
+        </Alert>
+      )}
+
       {/* Upload Area - Light Blue Dashed Border */}
       <Box
         {...getRootProps()}
@@ -168,7 +335,7 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
           <List dense sx={{ px: 1 }}>
             {documents.map((doc) => (
               <ListItem
-                key={doc.id}
+                key={doc._id}
                 sx={{
                   borderRadius: 1,
                   mb: 0.5,
@@ -178,24 +345,11 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                 }}
                 secondaryAction={
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    {doc.status === 'error' && (
-                      <Tooltip title="Retry processing">
-                        <IconButton
-                          edge="end"
-                          size="small"
-                          onClick={() => retryMutation.mutate(doc.id)}
-                          disabled={retryMutation.isPending}
-                        >
-                          <RefreshIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
                     <Tooltip title="Delete">
                       <IconButton
                         edge="end"
                         size="small"
-                        onClick={() => deleteMutation.mutate(doc.id)}
-                        disabled={deleteMutation.isPending}
+                        onClick={() => handleDelete(doc._id)}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -210,10 +364,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                     <Box component="span">
                       {doc.status === 'processing' ? (
                         <>
-                          {t.processing} {doc.processing_progress}%
+                          {t.processing} {doc.processingProgress}%
                           <LinearProgress
                             variant="determinate"
-                            value={doc.processing_progress}
+                            value={doc.processingProgress}
                             sx={{
                               mt: 0.5,
                               height: 2,
@@ -227,10 +381,10 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
                         </>
                       ) : doc.status === 'error' ? (
                         <Typography variant="caption" color="error">
-                          {doc.error_message || 'Processing failed'}
+                          {doc.errorMessage || 'Processing failed'}
                         </Typography>
                       ) : (
-                        `${doc.page_count} pages · ${formatFileSize(doc.file_size)}`
+                        `${doc.pageCount ?? 0} pages · ${formatFileSize(doc.fileSize)}`
                       )}
                     </Box>
                   }
@@ -248,7 +402,7 @@ export function DocumentPanel({ sessionId }: DocumentPanelProps) {
       </Box>
 
       {/* Upload Progress */}
-      {uploadMutation.isPending && (
+      {isUploading && (
         <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider' }}>
           <Typography variant="caption" color="text.secondary">
             Uploading...

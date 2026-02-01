@@ -18,7 +18,6 @@ import {
   DialogContent,
   DialogActions,
   Tooltip,
-  Chip,
   CircularProgress,
   Menu,
   MenuItem,
@@ -31,12 +30,11 @@ import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-
-import { folderApi, sessionApi } from '../../services/api';
+import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { Doc } from '../../../convex/_generated/dataModel';
 import { useFolderStore, useLanguageStore, type Translations } from '../../stores';
 import { customColors } from '../../theme';
-import type { Folder, SessionSummary } from '../../types';
 
 // Folder icon paths
 const folderIcons = [
@@ -54,7 +52,6 @@ interface SidebarProps {
 
 export function Sidebar({ open, width, onToggle }: SidebarProps) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { t } = useLanguageStore();
   const [isLogoHovered, setIsLogoHovered] = useState(false);
 
@@ -77,36 +74,36 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
   }, [open]);
 
   // Fetch folders
-  const { data: folders = [], isLoading } = useQuery({
-    queryKey: ['folders'],
-    queryFn: folderApi.list,
-  });
+  const folders = useConvexQuery(api.folders.list) ?? [];
+  const isLoading = folders === undefined;
 
   // Create folder mutation
-  const createFolderMutation = useMutation({
-    mutationFn: (name: string) => folderApi.create({ name }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
+  const createFolder = useConvexMutation(api.folders.create);
+  const createFolderMutation = {
+    mutate: async (name: string) => {
+      await createFolder({ name });
       setNewFolderDialogOpen(false);
       setNewFolderName('');
     },
-  });
+    isPending: false,
+  };
 
   // Delete folder mutation
-  const deleteFolderMutation = useMutation({
-    mutationFn: (folderId: string) => folderApi.delete(folderId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
+  const deleteFolder = useConvexMutation(api.folders.remove);
+  const deleteFolderMutation = {
+    mutate: async (folderId: string) => {
+      await deleteFolder({ id: folderId as any }); // Changed from folderId to id
       setFolderMenuAnchor(null);
       if (selectedFolderId === folderMenuAnchor?.folderId) {
         setSelectedFolderId(null);
       }
     },
-  });
+  };
 
   // Create session mutation
-  const createSessionMutation = useMutation({
-    mutationFn: ({
+  const createSession = useConvexMutation(api.sessions.create);
+  const createSessionMutation = {
+    mutate: async ({
       folderId,
       name,
       targetLanguage,
@@ -114,19 +111,23 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
       folderId: string;
       name: string;
       targetLanguage: string;
-    }) => sessionApi.create(folderId, { name, target_language: targetLanguage }),
-    onSuccess: (session) => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      queryClient.invalidateQueries({ queryKey: ['folder', selectedFolderId] });
-      navigate(`/session/${session.id}`);
+    }) => {
+      const sessionId = await createSession({ 
+        folderId: folderId as any, 
+        name, 
+        sourceLanguage: 'en', // Default source language
+        targetLanguage 
+      });
+      navigate(`/session/${sessionId}`);
       setNewSessionDialogOpen(false);
       setNewSessionName('');
     },
-  });
+    isPending: false,
+  };
 
-  const handleFolderClick = (folder: Folder) => {
-    setSelectedFolderId(folder.id);
-    toggleFolderExpanded(folder.id);
+  const handleFolderClick = (folder: Doc<"folders">) => {
+    setSelectedFolderId(folder._id);
+    toggleFolderExpanded(folder._id);
   };
 
   const handleCreateFolder = () => {
@@ -312,18 +313,18 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
             <List dense disablePadding>
               {folders.map((folder, index) => (
                 <FolderItem
-                  key={folder.id}
+                  key={folder._id}
                   folder={folder}
                   folderIndex={index}
-                  isSelected={selectedFolderId === folder.id}
-                  isExpanded={expandedFolderIds.has(folder.id)}
+                  isSelected={selectedFolderId === folder._id}
+                  isExpanded={expandedFolderIds.has(folder._id)}
                   onClick={() => handleFolderClick(folder)}
                   onSessionClick={(sessionId) => navigate(`/session/${sessionId}`)}
                   onNewSession={() => {
-                    setSelectedFolderId(folder.id);
+                    setSelectedFolderId(folder._id);
                     setNewSessionDialogOpen(true);
                   }}
-                  onMenuClick={(el) => setFolderMenuAnchor({ el, folderId: folder.id })}
+                  onMenuClick={(el) => setFolderMenuAnchor({ el, folderId: folder._id })}
                   getStatusIcon={getStatusIcon}
                   t={t}
                 />
@@ -436,7 +437,7 @@ export function Sidebar({ open, width, onToggle }: SidebarProps) {
 
 // Folder Item Component
 interface FolderItemProps {
-  folder: Folder;
+  folder: Doc<"folders">;
   folderIndex: number;
   isSelected: boolean;
   isExpanded: boolean;
@@ -460,14 +461,11 @@ function FolderItem({
   getStatusIcon,
   t,
 }: FolderItemProps) {
-  // Fetch folder details when expanded
-  const { data: folderDetail } = useQuery({
-    queryKey: ['folder', folder.id],
-    queryFn: () => folderApi.get(folder.id),
-    enabled: isExpanded,
-  });
-
-  const sessions = folderDetail?.sessions || [];
+  // Fetch folder sessions when expanded
+  const sessions = useConvexQuery(
+    api.sessions.listByFolder,
+    isExpanded ? { folderId: folder._id } : 'skip'
+  ) ?? [];
 
   return (
     <>
@@ -518,7 +516,6 @@ function FolderItem({
           </ListItemIcon>
           <ListItemText
             primary={folder.name}
-            secondary={`${folder.session_count} ${t.sessions}`}
             primaryTypographyProps={{ noWrap: true, fontWeight: isSelected ? 600 : 400 }}
             secondaryTypographyProps={{ variant: 'caption' }}
           />
@@ -535,29 +532,17 @@ function FolderItem({
               />
             </ListItem>
           ) : (
-            sessions.map((session: SessionSummary) => (
+            sessions.map((session) => (
               <ListItemButton
-                key={session.id}
+                key={session._id}
                 sx={{ py: 0.5, borderRadius: 1 }}
-                onClick={() => onSessionClick(session.id)}
+                onClick={() => onSessionClick(session._id)}
               >
                 <ListItemIcon sx={{ minWidth: 28 }}>{getStatusIcon(session.status)}</ListItemIcon>
                 <ListItemText
                   primary={session.name}
                   primaryTypographyProps={{ variant: 'body2', noWrap: true }}
                 />
-                {session.has_notes && (
-                  <Chip
-                    label="Notes"
-                    size="small"
-                    sx={{
-                      height: 20,
-                      fontSize: '0.65rem',
-                      bgcolor: customColors.activePill.background,
-                      color: customColors.activePill.text,
-                    }}
-                  />
-                )}
               </ListItemButton>
             ))
           )}

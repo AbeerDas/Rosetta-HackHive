@@ -25,6 +25,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
 
 import { Sidebar } from './Sidebar';
+import { UserMenu } from '../../features/auth/UserMenu';
 import { useFolderStore, useUserStore, useLanguageStore, useVoiceStore } from '../../stores';
 import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
@@ -178,46 +179,8 @@ export function MainLayout() {
             {t.settings}
           </Button>
 
-          {/* User Name Section */}
-          <Box sx={{ display: 'flex', alignItems: 'center', ml: 2 }}>
-            {isEditingName ? (
-              <TextField
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                size="small"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveName();
-                  if (e.key === 'Escape') setIsEditingName(false);
-                }}
-                sx={{ width: 120 }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={handleSaveName}>
-                        <CheckIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: 'text.primary',
-                    fontWeight: 500,
-                  }}
-                >
-                  {name}
-                </Typography>
-                <IconButton size="small" onClick={handleStartEdit}>
-                  <EditIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                </IconButton>
-              </Box>
-            )}
-          </Box>
+          {/* User Menu */}
+          <UserMenu />
         </Toolbar>
       </AppBar>
 

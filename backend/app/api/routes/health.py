@@ -1,16 +1,30 @@
 """Health check endpoints."""
 
+import logging
+import time
+from typing import Optional
+
 import httpx
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import text
+from pydantic import BaseModel
 
-from app.api.deps import AsyncSessionDep, ChromaClientDep
+from app.api.deps import PineconeClientDep
 from app.core.config import settings
 from app.schemas.health import (
     HealthCheckResponse,
     HealthStatus,
     ServiceHealth,
 )
+
+logger = logging.getLogger(__name__)
+
+
+class WarmupResponse(BaseModel):
+    """Response for warmup endpoint."""
+    status: str
+    message: str
+    warmup_time_ms: int
+    models_loaded: list[str]
 
 router = APIRouter()
 
@@ -25,45 +39,27 @@ async def health_check() -> HealthCheckResponse:
     )
 
 
-@router.get("/health/db", response_model=ServiceHealth)
-async def health_check_database(db: AsyncSessionDep) -> ServiceHealth:
-    """Check database connectivity."""
+@router.get("/health/pinecone", response_model=ServiceHealth)
+async def health_check_pinecone(pinecone: PineconeClientDep) -> ServiceHealth:
+    """Check Pinecone vector database connectivity."""
     try:
-        await db.execute(text("SELECT 1"))
-        return ServiceHealth(
-            service="PostgreSQL",
-            status=HealthStatus.HEALTHY,
-            message="Database connection successful",
-        )
-    except Exception as e:
-        return ServiceHealth(
-            service="PostgreSQL",
-            status=HealthStatus.UNHEALTHY,
-            message=f"Database connection failed: {str(e)}",
-        )
-
-
-@router.get("/health/chroma", response_model=ServiceHealth)
-async def health_check_chroma(chroma: ChromaClientDep) -> ServiceHealth:
-    """Check Chroma vector database connectivity."""
-    try:
-        heartbeat = await chroma.heartbeat()
-        if heartbeat:
+        healthy = await pinecone.health_check()
+        if healthy:
             return ServiceHealth(
-                service="Chroma",
+                service="Pinecone",
                 status=HealthStatus.HEALTHY,
-                message="Chroma connection successful",
+                message="Pinecone connection successful",
             )
         return ServiceHealth(
-            service="Chroma",
+            service="Pinecone",
             status=HealthStatus.UNHEALTHY,
-            message="Chroma heartbeat failed",
+            message="Pinecone health check failed",
         )
     except Exception as e:
         return ServiceHealth(
-            service="Chroma",
+            service="Pinecone",
             status=HealthStatus.UNHEALTHY,
-            message=f"Chroma connection failed: {str(e)}",
+            message=f"Pinecone connection failed: {str(e)}",
         )
 
 
@@ -136,4 +132,70 @@ async def health_check_openrouter() -> ServiceHealth:
             service="OpenRouter",
             status=HealthStatus.UNHEALTHY,
             message=f"OpenRouter API check failed: {str(e)}",
+        )
+
+
+@router.get("/health/warmup", response_model=WarmupResponse)
+async def warmup_backend() -> WarmupResponse:
+    """
+    Warmup endpoint to pre-load ML models after cold start.
+    
+    This endpoint is called by the frontend when it detects a cold start
+    to pre-load models before the user needs them. This improves UX by
+    loading models in the background while showing a "warming up" indicator.
+    
+    Models loaded:
+    - bge-base-en-v1.5 (embeddings)
+    - TinyBERT (reranking)
+    - KeyBERT backbone (keyword extraction)
+    """
+    start_time = time.time()
+    models_loaded = []
+    
+    try:
+        # Pre-load embedding model
+        logger.info("[Warmup] Loading embedding model...")
+        from app.external.embeddings import get_local_embedding_service
+        embedding_service = get_local_embedding_service()
+        # Trigger model load by accessing the model property
+        _ = embedding_service.model
+        models_loaded.append("bge-base-en-v1.5 (embeddings)")
+        logger.info("[Warmup] Embedding model loaded")
+        
+        # Pre-load reranker model
+        logger.info("[Warmup] Loading reranker model...")
+        from app.services.rag import RerankerService
+        reranker = RerankerService()
+        # Trigger model load
+        _ = reranker.model
+        models_loaded.append("TinyBERT (reranking)")
+        logger.info("[Warmup] Reranker model loaded")
+        
+        # Pre-load KeyBERT model
+        logger.info("[Warmup] Loading KeyBERT model...")
+        from app.services.rag import KeywordExtractor
+        keyword_extractor = KeywordExtractor()
+        # Trigger model load
+        _ = keyword_extractor.model
+        models_loaded.append("all-MiniLM-L6-v2 (keywords)")
+        logger.info("[Warmup] KeyBERT model loaded")
+        
+        warmup_time = int((time.time() - start_time) * 1000)
+        logger.info(f"[Warmup] All models loaded in {warmup_time}ms")
+        
+        return WarmupResponse(
+            status="ready",
+            message="Backend is warm and ready",
+            warmup_time_ms=warmup_time,
+            models_loaded=models_loaded,
+        )
+        
+    except Exception as e:
+        warmup_time = int((time.time() - start_time) * 1000)
+        logger.error(f"[Warmup] Error during warmup: {e}")
+        return WarmupResponse(
+            status="partial",
+            message=f"Warmup completed with errors: {str(e)}",
+            warmup_time_ms=warmup_time,
+            models_loaded=models_loaded,
         )

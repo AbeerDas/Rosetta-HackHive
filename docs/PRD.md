@@ -16,6 +16,7 @@ Rosetta is a real-time lecture translation and learning assistant that breaks do
 - Folder-based organization for sessions and notes
 - Post-lecture structured note generation with embedded citations
 - Question translation for classroom participation
+- **User authentication** with OAuth (GitHub, Google, Apple) and email/password
 
 **Supported Languages:** English, Hindi, Chinese, French, Spanish, Bengali
 
@@ -569,6 +570,15 @@ flowchart LR
 
 ## Technical Architecture
 
+### Hybrid Architecture Overview
+
+Rosetta uses a **hybrid architecture** combining Convex (serverless backend) for data operations with FastAPI for ML/AI services:
+
+- **Convex**: Authentication, database (CRUD), real-time subscriptions, file storage
+- **FastAPI**: ML models, RAG pipeline, translation streaming, TTS integration
+
+This separation allows us to leverage Convex's real-time capabilities and seamless React integration while maintaining FastAPI's strength in ML model hosting and streaming audio.
+
 ### Full-Stack System Design
 
 ```mermaid
@@ -577,31 +587,33 @@ flowchart TB
         direction TB
         REACT[React 18 + TypeScript]
         MUI[Material UI Components]
-        ZUSTAND[Zustand State]
-        TANSTACK[TanStack Query]
+        CONVEX_CLIENT[Convex React Client]
         TIPTAP[TipTap Editor]
         WEBSPEECH[Web Speech API]
         WEBAUDIO[Web Audio API]
     end
 
-    subgraph server [Server Layer - FastAPI]
+    subgraph convex [Convex Backend - Serverless]
+        direction TB
+        AUTH[Convex Auth]
+        QUERIES[Queries - Read Operations]
+        MUTATIONS[Mutations - Write Operations]
+        ACTIONS[HTTP Actions]
+        CONVEX_DB[(Convex Database)]
+        CONVEX_FILES[(Convex File Storage)]
+    end
+
+    subgraph fastapi [FastAPI Backend - ML Services]
         direction TB
         subgraph api [API Layer]
-            REST[REST Endpoints]
             WS[WebSocket Handlers]
+            ML_REST[ML REST Endpoints]
         end
         subgraph services [Service Layer]
             TRANS_SVC[Translation Service]
             RAG_SVC[RAG Service]
             NOTES_SVC[Note Generation Service]
-            DOC_SVC[Document Service]
             TTS_SVC[TTS Service]
-        end
-        subgraph repos [Repository Layer]
-            FOLDER_REPO[Folder Repository]
-            SESSION_REPO[Session Repository]
-            DOC_REPO[Document Repository]
-            CITATION_REPO[Citation Repository]
         end
     end
 
@@ -616,32 +628,45 @@ flowchart TB
         direction TB
         ELEVEN[ElevenLabs<br/>eleven_turbo_v2_5]
         OPENROUTER[OpenRouter<br/>Claude 3 Haiku]
+        OAUTH[OAuth Providers<br/>GitHub, Google, Apple]
+        RESEND[Resend<br/>Email Delivery]
     end
 
-    subgraph data [Data Layer]
+    subgraph vectordb [Vector Storage]
         direction TB
-        POSTGRES[(PostgreSQL<br/>Sessions, Folders, Notes)]
         CHROMA[(ChromaDB<br/>Document Vectors)]
-        FILES[(File Storage<br/>PDF Documents)]
     end
 
-    %% Client to Server
-    REACT -->|REST + WebSocket| REST
+    %% Client to Convex
+    REACT --> CONVEX_CLIENT
+    CONVEX_CLIENT --> AUTH
+    CONVEX_CLIENT --> QUERIES
+    CONVEX_CLIENT --> MUTATIONS
+    
+    %% Client to FastAPI (ML only)
     REACT -->|WebSocket| WS
+    REACT -->|REST| ML_REST
 
-    %% API to Services
-    REST --> TRANS_SVC
-    REST --> RAG_SVC
-    REST --> NOTES_SVC
-    REST --> DOC_SVC
+    %% Convex Auth
+    AUTH --> OAUTH
+    AUTH --> RESEND
+
+    %% Convex Data
+    QUERIES --> CONVEX_DB
+    MUTATIONS --> CONVEX_DB
+    MUTATIONS --> CONVEX_FILES
+    ACTIONS --> fastapi
+
+    %% FastAPI Services
     WS --> TRANS_SVC
     WS --> RAG_SVC
+    ML_REST --> NOTES_SVC
+    ML_REST --> RAG_SVC
 
     %% Services to Local ML
     RAG_SVC --> BGE
     RAG_SVC --> KEYBERT
     RAG_SVC --> TINYBERT
-    DOC_SVC --> BGE
 
     %% Services to External
     TRANS_SVC --> ELEVEN
@@ -649,18 +674,8 @@ flowchart TB
     NOTES_SVC --> OPENROUTER
     TTS_SVC --> ELEVEN
 
-    %% Services to Repositories
-    DOC_SVC --> DOC_REPO
-    RAG_SVC --> CITATION_REPO
-
-    %% Repositories to Data
-    FOLDER_REPO --> POSTGRES
-    SESSION_REPO --> POSTGRES
-    DOC_REPO --> POSTGRES
-    DOC_REPO --> FILES
-    CITATION_REPO --> POSTGRES
+    %% RAG to Vector DB
     RAG_SVC --> CHROMA
-    DOC_SVC --> CHROMA
 ```
 
 ### Layer Responsibilities
@@ -668,16 +683,22 @@ flowchart TB
 **Client Layer:**
 - React handles UI rendering and user interactions
 - Material UI provides accessible, styled components
-- Zustand manages ephemeral client state (audio controls, UI preferences)
-- TanStack Query manages server state with caching and optimistic updates
+- Convex React Client provides real-time subscriptions and optimistic updates
 - Web Speech API captures and transcribes audio
 - TipTap provides rich text editing for notes
 
-**Server Layer:**
-- REST endpoints handle CRUD operations for folders, sessions, documents, notes
-- WebSocket handlers manage real-time transcription and translation streams
-- Services contain business logic and orchestrate external API calls
-- Repositories abstract database operations
+**Convex Backend (Serverless):**
+- **Authentication**: OAuth (GitHub, Google, Apple) and email/password via Convex Auth
+- **Database**: Stores folders, sessions, documents metadata, transcripts, citations, notes
+- **Real-time**: Automatic subscriptions for live data updates across clients
+- **File Storage**: PDF document storage with secure URLs
+- **HTTP Actions**: Bridge to FastAPI for ML processing
+
+**FastAPI Backend (ML Services):**
+- WebSocket handlers for real-time transcription and translation streams
+- RAG pipeline with local ML models for semantic search
+- Note generation via LLM
+- TTS integration with ElevenLabs
 
 **Local ML Models:**
 - BGE embeddings run locally for document indexing and query embedding
@@ -687,11 +708,13 @@ flowchart TB
 **External APIs:**
 - ElevenLabs provides natural-sounding TTS for translation and question speaking
 - OpenRouter provides LLM access for translation and note generation
+- OAuth providers (GitHub, Google, Apple) for authentication
+- Resend for email delivery (verification OTPs, password reset)
 
 **Data Layer:**
-- PostgreSQL stores structured data (folders, sessions, transcripts, citations, notes)
-- ChromaDB stores vector embeddings for semantic search
-- File storage holds uploaded PDF documents
+- **Convex Database**: Stores all structured data (folders, sessions, transcripts, citations, notes)
+- **Convex File Storage**: Stores uploaded PDF documents with secure access
+- **ChromaDB**: Stores vector embeddings for semantic search (managed by FastAPI)
 
 ### System Architecture Overview
 
@@ -757,19 +780,22 @@ flowchart TB
 | ----------------------- | ---------------------- | ---------------------------------------- |
 | Frontend                | React + TypeScript     | User interface, real-time display        |
 | UI Framework            | Material UI (MUI)      | Modern component library                 |
-| Backend                 | FastAPI + Python       | API endpoints, business logic            |
+| **Serverless Backend**  | **Convex**             | **Database, auth, file storage, real-time** |
+| **Authentication**      | **Convex Auth**        | **OAuth + email/password authentication** |
+| ML Backend              | FastAPI + Python       | ML services, RAG pipeline, streaming     |
 | Validation              | Pydantic               | Request/response schema validation       |
 | Vector Database         | ChromaDB               | Document embedding storage               |
-| Relational Database     | PostgreSQL             | Sessions, folders, notes, metadata       |
-| File Storage            | Local filesystem       | PDF document storage                     |
+| **Database**            | **Convex Database**    | **Sessions, folders, notes, metadata**   |
+| **File Storage**        | **Convex File Storage**| **PDF document storage**                 |
 | Text-to-Speech          | ElevenLabs API         | eleven_turbo_v2_5 model                  |
 | Speech-to-Text          | Web Speech API         | Browser-native transcription             |
 | Embeddings              | Local BGE model        | BAAI/bge-base-en-v1.5 (768 dim)          |
 | LLM                     | OpenRouter API         | Translation, notes, question translation |
 | Re-ranking              | TinyBERT Cross-Encoder | ms-marco-TinyBERT-L-2-v2                 |
 | Keywords                | KeyBERT                | Query enrichment                         |
-| Real-time Communication | WebSocket              | Transcription and translation            |
+| Real-time Communication | WebSocket + Convex     | ML streaming + data subscriptions        |
 | Text Editor             | TipTap                 | Rich text editing for notes              |
+| **Email Delivery**      | **Resend**             | **OTP emails for verification/reset**    |
 
 ### Backend Architecture Pattern
 
@@ -785,48 +811,72 @@ The backend follows the Controller-Service-Repository pattern with dependency in
 
 ### API Endpoints Overview
 
+**Convex Functions (Real-time Database Operations):**
+
+| Function                        | Type     | Purpose                         |
+| ------------------------------- | -------- | ------------------------------- |
+| **Folder Management**           |          |                                 |
+| `folders.list`                  | Query    | List user's folders             |
+| `folders.create`                | Mutation | Create new folder               |
+| `folders.update`                | Mutation | Update folder                   |
+| `folders.remove`                | Mutation | Delete folder                   |
+| **Session Management**          |          |                                 |
+| `sessions.listByFolder`         | Query    | List sessions in folder         |
+| `sessions.get`                  | Query    | Get session details             |
+| `sessions.create`               | Mutation | Start new session               |
+| `sessions.update`               | Mutation | Update session                  |
+| `sessions.end`                  | Mutation | End session                     |
+| **Document Management**         |          |                                 |
+| `documents.listBySession`       | Query    | List documents in session       |
+| `documents.generateUploadUrl`   | Mutation | Get signed upload URL           |
+| `documents.saveDocument`        | Mutation | Save document metadata          |
+| `documents.remove`              | Mutation | Delete document                 |
+| **Notes**                       |          |                                 |
+| `notes.getBySession`            | Query    | Get session notes               |
+| `notes.update`                  | Mutation | Update session notes            |
+
+**FastAPI Endpoints (ML Services):**
+
 | Endpoint                        | Method    | Purpose                         |
 | ------------------------------- | --------- | ------------------------------- |
-| **Session Management**          |           |                                 |
-| `/folders`                      | GET       | List all folders                |
-| `/folders`                      | POST      | Create new folder               |
-| `/folders/{id}`                 | PUT       | Update folder                   |
-| `/folders/{id}`                 | DELETE    | Delete folder                   |
-| `/folders/{id}/sessions`        | GET       | List sessions in folder         |
-| `/sessions`                     | POST      | Start new session               |
-| `/sessions/{id}`                | PUT       | Update session                  |
-| `/sessions/{id}/end`            | POST      | End session                     |
 | **Translation & Transcription** |           |                                 |
-| `/translate/stream`             | WebSocket | Stream audio for translation    |
-| `/transcribe/stream`            | WebSocket | Stream audio for speech-to-text |
-| `/translate/question`           | POST      | Translate question text         |
-| **Document Management**         |           |                                 |
-| `/documents`                    | GET       | List all documents              |
-| `/documents`                    | POST      | Upload new document             |
-| `/documents/{id}`               | GET       | Get document details            |
-| `/documents/{id}`               | DELETE    | Delete document                 |
-| `/documents/{id}/status`        | GET       | Check indexing progress         |
+| `/api/v1/translate/stream`      | WebSocket | Stream audio for translation    |
+| `/api/v1/transcribe/stream`     | WebSocket | Stream audio for speech-to-text |
+| `/api/v1/translate/question`    | POST      | Translate question text         |
+| `/api/v1/translate/tts/speak`   | POST      | Text-to-speech synthesis        |
 | **RAG & Citations**             |           |                                 |
-| `/rag/query`                    | POST      | Query for citations             |
+| `/api/v1/rag/query`             | POST      | Query for citations             |
+| `/api/v1/documents/process`     | POST      | Process document for embeddings |
 | **Notes**                       |           |                                 |
-| `/sessions/{id}/notes`          | GET       | Get session notes               |
-| `/sessions/{id}/notes`          | PUT       | Update session notes            |
-| `/sessions/{id}/notes/generate` | POST      | Generate structured notes       |
-| `/sessions/{id}/notes/export`   | GET       | Export notes as PDF             |
+| `/api/v1/sessions/{id}/notes/generate` | POST | Generate structured notes  |
+| `/api/v1/sessions/{id}/notes/export`   | GET  | Export notes as PDF        |
 
-### Data Model Overview
+### Data Model Overview (Convex Schema)
 
-**Folders:** Stores course/subject organization with name, user ownership, and timestamps.
+All data is stored in Convex with user-scoped access control:
 
-**Sessions:** Stores lecture session information including folder reference, source and target languages, timestamps, and status.
+**users:** User accounts with OAuth/email auth (managed by Convex Auth)
+- `_id`, `name`, `email`, `image`, `emailVerificationTime`
 
-**Documents:** Tracks uploaded course materials with filename, processing status, page count, chunk count, and session associations.
+**folders:** Course/subject organization
+- `userId` (reference to users), `name`, `archivedAt`, `_creationTime`
 
-**Transcripts:** Stores original and translated text segments with timestamps for each session.
+**sessions:** Lecture session information
+- `folderId` (reference to folders), `userId`, `name`, `status` (active/completed/archived)
+- `sourceLanguage`, `targetLanguage`, `startedAt`, `endedAt`
 
-**Citations:** Records retrieved citations with document reference, page number, relevance score, and triggering transcript.
+**documents:** Uploaded course materials
+- `sessionId` (reference to sessions), `userId`, `name`, `storageId` (Convex file reference)
+- `fileSize`, `pageCount`, `chunkCount`, `status` (pending/processing/ready/error), `processingProgress`
 
-**Notes:** Stores generated lecture notes in Markdown format with generation timestamp and edit history.
+**transcripts:** Original and translated text segments
+- `sessionId`, `originalText`, `translatedText`, `timestamp`, `windowIndex`
+
+**citations:** Retrieved citations from RAG
+- `sessionId`, `transcriptId`, `documentId`, `pageNumber`, `relevanceScore`, `chunkText`
+
+**notes:** Generated lecture notes
+- `sessionId`, `contentMarkdown`, `generatedAt`, `lastEditedAt`, `version`
 
 ---
 
@@ -1090,12 +1140,17 @@ Rosetta showcases ElevenLabs as the core enabler of the translation experience.
 - ElevenLabs Text-to-Speech API
 - Web Speech API (browser-native)
 - OpenRouter API (for LLM access)
+- **Convex** (serverless backend platform)
+- **Resend** (email delivery for OTPs)
+- **OAuth Providers** (GitHub, Google, Apple)
 
 **Key Libraries:**
 
+- **Convex** (real-time database, auth, file storage)
+- **@convex-dev/auth** (authentication library)
 - Chroma (vector database)
 - Sentence Transformers (re-ranking)
-- FastAPI (backend framework)
+- FastAPI (ML backend framework)
 - Pydantic (validation)
 - React (frontend framework)
 - Material UI / MUI (component library)
@@ -1122,3 +1177,4 @@ Rosetta showcases ElevenLabs as the core enabler of the translation experience.
 | 1.0     | 2026-01-24 | Rosetta Team | Initial PRD for HackHive 2026                                                                                                                                                                                                                                                              |
 | 1.1     | 2026-01-24 | Rosetta Team | Major updates: Replaced subtitles with live transcription display, added folder/session-based note storage, added question translation feature, switched to OpenRouter for LLM access, added CRUD operations for documents, updated to Material UI, PDF-only export, text editor for notes |
 | 1.2     | 2026-01-25 | Rosetta Team | Renamed product to Rosetta, updated RAG pipeline to use local models (BGE embeddings, KeyBERT, TinyBERT), reduced re-ranking candidates from 10 to 5, added distance-based early exit |
+| 2.0     | 2026-01-31 | Rosetta Team | **Major architecture update**: Migrated to hybrid Convex + FastAPI architecture. Added user authentication (OAuth: GitHub, Google, Apple + email/password with verification). Replaced PostgreSQL with Convex Database, local file storage with Convex File Storage. Added landing page for unauthenticated users. |

@@ -14,19 +14,25 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import DownloadIcon from '@mui/icons-material/Download';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import TranslateIcon from '@mui/icons-material/Translate';
+import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Tooltip } from '@mui/material';
 
-import { notesApi } from '../../services/api';
+import { api } from '../../../convex/_generated/api';
+import { notesApi, isColdStartError } from '../../services/api';
 import { useLanguageStore } from '../../stores';
 import { customColors } from '../../theme';
 import { TipTapEditor } from '../notes/TipTapEditor';
+import { useBackendStatus } from '../../contexts/BackendStatusContext';
 
 interface NotesPanelProps {
   readonly sessionId: string;
@@ -44,10 +50,10 @@ export function NotesPanel({
   sessionName,
   autoGenerate = false,
   onViewTranscript,
-  onOpenFullPage,
+  onOpenFullPage: _onOpenFullPage,
 }: NotesPanelProps) {
-  const queryClient = useQueryClient();
-  const { t, language } = useLanguageStore();
+  const { t } = useLanguageStore();
+  const { warmup, status: backendStatus } = useBackendStatus();
 
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [content, setContent] = useState('');
@@ -57,6 +63,8 @@ export function NotesPanel({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
   const [confirmRegenerateOpen, setConfirmRegenerateOpen] = useState(false);
+  const [viewLanguage, setViewLanguage] = useState<'en' | 'target'>('en');
+  const [isWarmingUp, setIsWarmingUp] = useState(false);
 
   // Ref for auto-save timer
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -93,20 +101,37 @@ export function NotesPanel({
     }
   }, [sessionId]);
 
-  // Fetch existing note
-  const {
-    data: note,
-    isLoading: noteLoading,
-    isError: noteError,
-  } = useQuery({
-    queryKey: ['note', sessionId],
-    queryFn: () => notesApi.get(sessionId),
-    enabled: !!sessionId,
-    retry: false, // Don't retry if note doesn't exist
-    staleTime: 0, // Always refetch when sessionId changes
-  });
+  // Fetch existing note from Convex
+  const note = useConvexQuery(
+    api.notes.getBySession,
+    sessionId ? { sessionId: sessionId as any } : 'skip'
+  );
+  const noteLoading = note === undefined;
+  const noteError = note === null;
 
-  // Poll generation status when generating
+  // Fetch session to get target language
+  const session = useConvexQuery(
+    api.sessions.get,
+    sessionId ? { id: sessionId as any } : 'skip'
+  );
+  const targetLanguage = session?.targetLanguage || 'en';
+  
+  // Debug: Log session and target language
+  useEffect(() => {
+    if (session) {
+      console.log('[NotesPanel] Session loaded:', {
+        sessionId,
+        targetLanguage: session.targetLanguage,
+        sourceLanguage: session.sourceLanguage,
+        computed: targetLanguage
+      });
+    }
+  }, [session, sessionId, targetLanguage]);
+
+  // Convex mutation for upserting notes
+  const upsertNote = useConvexMutation(api.notes.upsert);
+
+  // Poll generation status when generating (FastAPI)
   const { data: noteStatus } = useQuery({
     queryKey: ['noteStatus', sessionId],
     queryFn: () => notesApi.getStatus(sessionId),
@@ -120,24 +145,31 @@ export function NotesPanel({
       setGenerationProgress(noteStatus.progress);
       if (noteStatus.status === 'ready') {
         setIsGenerating(false);
-        // Refetch the note
-        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
+        // Convex will automatically update via real-time subscriptions
       } else if (noteStatus.status === 'error') {
         setIsGenerating(false);
       }
     }
-  }, [noteStatus, sessionId, queryClient]);
+  }, [noteStatus, sessionId]);
 
   // Set content when note is loaded, or clear when no note exists
   useEffect(() => {
-    if (note?.content_markdown) {
+    if (note?.contentMarkdown) {
       console.log(
         '[NotesPanel] Note loaded for session:',
         sessionId,
         'length:',
-        note.content_markdown.length
+        note.contentMarkdown.length,
+        'has translated?:',
+        !!note.contentMarkdownTranslated,
+        'targetLanguage:',
+        note.targetLanguage
       );
-      setContent(note.content_markdown);
+      // Show the appropriate language version
+      const displayContent = viewLanguage === 'en' 
+        ? note.contentMarkdown 
+        : note.contentMarkdownTranslated || note.contentMarkdown;
+      setContent(displayContent);
       setHasChanges(false);
     } else if (!noteLoading && (noteError || !note)) {
       // No note exists for this session - clear content
@@ -145,23 +177,45 @@ export function NotesPanel({
       setContent('');
       setHasChanges(false);
     }
-  }, [note, noteLoading, noteError, sessionId]);
+  }, [note, noteLoading, noteError, sessionId, viewLanguage]);
 
-  // Auto-save functionality
+  // Auto-save functionality using Convex
   const saveNotes = useCallback(
     async (contentToSave: string) => {
-      if (!contentToSave || !note) return;
+      if (!contentToSave || !sessionId) return;
 
       try {
-        await notesApi.update(sessionId, { content_markdown: contentToSave });
+        // Preserve both language versions when saving
+        const saveData: any = {
+          sessionId: sessionId as any,
+        };
+
+        if (viewLanguage === 'en') {
+          // Saving English - preserve Hindi version
+          saveData.contentMarkdown = contentToSave;
+          if (note?.contentMarkdownTranslated) {
+            saveData.contentMarkdownTranslated = note.contentMarkdownTranslated;
+          }
+          if (note?.targetLanguage) {
+            saveData.targetLanguage = note.targetLanguage;
+          }
+        } else {
+          // Saving target language - preserve English version
+          saveData.contentMarkdown = note?.contentMarkdown || contentToSave;
+          saveData.contentMarkdownTranslated = contentToSave;
+          if (targetLanguage && targetLanguage !== 'en') {
+            saveData.targetLanguage = targetLanguage;
+          }
+        }
+
+        await upsertNote(saveData);
         setHasChanges(false);
         setLastSavedAt(new Date());
-        queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
       } catch (error) {
         console.error('Auto-save failed:', error);
       }
     },
-    [sessionId, note, queryClient]
+    [sessionId, upsertNote, viewLanguage, note, targetLanguage]
   );
 
   // Debounced auto-save
@@ -201,20 +255,33 @@ export function NotesPanel({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasChanges, content, note, sessionId]);
 
-  // Generate note mutation
+  // Generate note mutation with cold start handling
   const generateMutation = useMutation({
-    mutationFn: (forceRegenerate: boolean = false) => {
+    mutationFn: async (forceRegenerate: boolean = false) => {
       console.log(
         '[NotesPanel] Starting note generation for session:',
         sessionId,
         'forceRegenerate:',
         forceRegenerate,
-        'language:',
-        language
+        'targetLanguage:',
+        targetLanguage
       );
+      
+      // Check if backend needs warming up before generation
+      if (backendStatus !== 'ready') {
+        console.log('[NotesPanel] Backend not ready, warming up first...');
+        setIsWarmingUp(true);
+        try {
+          await warmup();
+        } catch (e) {
+          console.warn('[NotesPanel] Warmup had issues, continuing anyway:', e);
+        }
+        setIsWarmingUp(false);
+      }
+      
       return notesApi.generate(sessionId, {
-        force_regenerate: forceRegenerate,
-        output_language: language,
+        forceRegenerate,
+        outputLanguage: targetLanguage,
       });
     },
     onMutate: () => {
@@ -222,20 +289,29 @@ export function NotesPanel({
       setIsGenerating(true);
       setGenerationProgress(0);
     },
-    onSuccess: (generatedNote) => {
+    onSuccess: async (generatedNote) => {
       console.log('[NotesPanel] Generation successful for session:', sessionId);
+      // Don't save to Convex here - the backend already saved both versions!
+      // Just update the local content to show the English version
       setContent(generatedNote.content_markdown);
       setHasChanges(false);
       setIsGenerating(false);
+      setIsWarmingUp(false);
       setGenerationProgress(100);
-      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
-      queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
+      // Convex will automatically update via real-time subscriptions with both versions
     },
     onError: (error) => {
       setIsGenerating(false);
+      setIsWarmingUp(false);
       console.error('[NotesPanel] Note generation failed for session:', sessionId, error);
+      
+      // Check if it's a cold start error and provide helpful message
+      const errorMessage = isColdStartError(error)
+        ? 'The server is waking up. Please try again in a moment.'
+        : error instanceof Error ? error.message : 'Unknown error';
+      
       // Show error to user
-      alert(`Note generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Note generation failed: ${errorMessage}`);
     },
   });
 
@@ -246,7 +322,7 @@ export function NotesPanel({
     // 2. We haven't already triggered for THIS session
     // 3. Note loading is complete
     // 4. No existing note content
-    if (autoGenerate && !hasTriggeredGenerate && !noteLoading && !note?.content_markdown) {
+    if (autoGenerate && !hasTriggeredGenerate && !noteLoading && !note?.contentMarkdown) {
       console.log('[NotesPanel] Auto-generating notes for session:', sessionId);
       setHasTriggeredGenerate(true);
       generateMutation.mutate(false);
@@ -254,13 +330,42 @@ export function NotesPanel({
   }, [autoGenerate, hasTriggeredGenerate, noteLoading, note, sessionId]);
 
   // Save note mutation (for manual save)
+  // Manual save mutation (uses Convex)
   const saveMutation = useMutation({
-    mutationFn: (contentMarkdown: string) =>
-      notesApi.update(sessionId, { content_markdown: contentMarkdown }),
+    mutationFn: ({ contentToSave, currentNote, currentViewLanguage, currentTargetLanguage }: {
+      contentToSave: string;
+      currentNote: typeof note;
+      currentViewLanguage: 'en' | 'target';
+      currentTargetLanguage: string;
+    }) => {
+      // Preserve both language versions when saving
+      const saveData: any = {
+        sessionId: sessionId as any,
+      };
+
+      if (currentViewLanguage === 'en') {
+        // Saving English - preserve Hindi version
+        saveData.contentMarkdown = contentToSave;
+        if (currentNote?.contentMarkdownTranslated) {
+          saveData.contentMarkdownTranslated = currentNote.contentMarkdownTranslated;
+        }
+        if (currentNote?.targetLanguage) {
+          saveData.targetLanguage = currentNote.targetLanguage;
+        }
+      } else {
+        // Saving target language - preserve English version
+        saveData.contentMarkdown = currentNote?.contentMarkdown || contentToSave;
+        saveData.contentMarkdownTranslated = contentToSave;
+        if (currentTargetLanguage && currentTargetLanguage !== 'en') {
+          saveData.targetLanguage = currentTargetLanguage;
+        }
+      }
+
+      return upsertNote(saveData);
+    },
     onSuccess: () => {
       setHasChanges(false);
       setLastSavedAt(new Date());
-      queryClient.invalidateQueries({ queryKey: ['note', sessionId] });
     },
   });
 
@@ -324,7 +429,12 @@ export function NotesPanel({
   };
 
   const handleSave = () => {
-    saveMutation.mutate(content);
+    saveMutation.mutate({
+      contentToSave: content,
+      currentNote: note,
+      currentViewLanguage: viewLanguage,
+      currentTargetLanguage: targetLanguage,
+    });
   };
 
   const handleExport = () => {
@@ -334,7 +444,7 @@ export function NotesPanel({
 
   const handleGenerate = () => {
     // If note already exists, show confirmation
-    if (note?.content_markdown) {
+    if (note?.contentMarkdown) {
       setConfirmRegenerateOpen(true);
       setAnchorEl(null);
     } else {
@@ -358,8 +468,8 @@ export function NotesPanel({
     return `${minutes}m ago`;
   };
 
-  // Show loading state while generating
-  if (isGenerating || generateMutation.isPending) {
+  // Show loading state while generating (with cold start handling)
+  if (isGenerating || generateMutation.isPending || isWarmingUp) {
     return (
       <Box
         sx={{
@@ -373,43 +483,62 @@ export function NotesPanel({
       >
         <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
           <CircularProgress
-            variant="determinate"
+            variant={isWarmingUp ? 'indeterminate' : 'determinate'}
             value={generationProgress}
             size={80}
             thickness={4}
-          />
-          <Box
             sx={{
-              top: 0,
-              left: 0,
-              bottom: 0,
-              right: 0,
-              position: 'absolute',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              color: isWarmingUp ? customColors.brandGreen : undefined,
             }}
-          >
-            <Typography variant="h6" component="div" color="text.secondary">
-              {`${Math.round(generationProgress)}%`}
-            </Typography>
-          </Box>
+          />
+          {!isWarmingUp && (
+            <Box
+              sx={{
+                top: 0,
+                left: 0,
+                bottom: 0,
+                right: 0,
+                position: 'absolute',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Typography variant="h6" component="div" color="text.secondary">
+                {`${Math.round(generationProgress)}%`}
+              </Typography>
+            </Box>
+          )}
         </Box>
         <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-          {t.generatingNotes}
+          {isWarmingUp ? 'Waking up server...' : t.generatingNotes}
         </Typography>
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{ textAlign: 'center', maxWidth: 400 }}
         >
-          {generationProgress < 30 && t.collectingTranscript}
-          {generationProgress >= 30 && generationProgress < 50 && t.gatheringCitations}
-          {generationProgress >= 50 && generationProgress < 90 && t.analyzingNotes}
-          {generationProgress >= 90 && t.finalizingNotes}
+          {isWarmingUp ? (
+            'Our server runs on a free tier that sleeps when inactive. This takes about 20-30 seconds.'
+          ) : (
+            <>
+              {generationProgress < 30 && t.collectingTranscript}
+              {generationProgress >= 30 && generationProgress < 50 && t.gatheringCitations}
+              {generationProgress >= 50 && generationProgress < 90 && t.analyzingNotes}
+              {generationProgress >= 90 && t.finalizingNotes}
+            </>
+          )}
         </Typography>
         <Box sx={{ width: '100%', maxWidth: 300, mt: 3 }}>
-          <LinearProgress variant="determinate" value={generationProgress} />
+          <LinearProgress 
+            variant={isWarmingUp ? 'indeterminate' : 'determinate'} 
+            value={generationProgress}
+            sx={{
+              '& .MuiLinearProgress-bar': {
+                bgcolor: customColors.brandGreen,
+              },
+            }}
+          />
         </Box>
       </Box>
     );
@@ -458,6 +587,32 @@ export function NotesPanel({
 
         {/* Right side - actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* Language toggle - always show if target language exists */}
+          {targetLanguage && targetLanguage !== 'en' && (
+            <ToggleButtonGroup
+              value={viewLanguage}
+              exclusive
+              onChange={(_, newLang) => newLang && setViewLanguage(newLang)}
+              size="small"
+              sx={{ mr: 1 }}
+            >
+              <ToggleButton value="en" sx={{ px: 1.5, textTransform: 'none' }}>
+                <Tooltip title="View English notes">
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    EN
+                  </Box>
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="target" sx={{ px: 1.5, textTransform: 'none' }}>
+                <Tooltip title={`View notes in ${targetLanguage.toUpperCase()}`}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                    <TranslateIcon sx={{ fontSize: 16 }} />
+                    {targetLanguage.toUpperCase()}
+                  </Box>
+                </Tooltip>
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
           {/* View Transcript button */}
           {onViewTranscript && (
             <Button
@@ -492,7 +647,7 @@ export function NotesPanel({
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
             <MenuItem onClick={handleGenerate} disabled={generateMutation.isPending}>
               <AutoAwesomeIcon sx={{ mr: 1, fontSize: 20 }} />
-              {note?.content_markdown ? 'Regenerate Notes' : 'Generate Notes'}
+              {note?.contentMarkdown ? 'Regenerate Notes' : 'Generate Notes'}
             </MenuItem>
             <Divider />
             <MenuItem onClick={handleExport} disabled={!content || exportMutation.isPending}>

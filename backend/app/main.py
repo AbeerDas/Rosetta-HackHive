@@ -1,4 +1,7 @@
-"""FastAPI application entry point."""
+"""FastAPI application entry point.
+
+Uses Convex + Pinecone for all data storage (fully cloud-native).
+"""
 
 import logging
 from contextlib import asynccontextmanager
@@ -8,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import api_router
 from app.core.config import settings
-from app.core.database import close_db, init_db
+from app.external.convex import close_convex_client
 
 # Configure logging
 logging.basicConfig(
@@ -24,21 +27,13 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Rosetta API...")
     logger.info(f"Debug mode: {settings.debug}")
-
-    # Initialize database (create tables if needed)
-    # Note: In production, use Alembic migrations instead
-    if settings.debug:
-        try:
-            await init_db()
-            logger.info("Database initialized")
-        except Exception as e:
-            logger.warning(f"Database initialization skipped: {e}")
+    logger.info("Using Convex + Pinecone for all data storage (fully cloud-native)")
 
     yield
 
     # Shutdown
     logger.info("Shutting down Rosetta API...")
-    await close_db()
+    await close_convex_client()
 
 
 # Create FastAPI application
@@ -54,9 +49,9 @@ app = FastAPI(
 # Configure CORS - must be done before including routers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=settings.cors_origins_list,  # Use configured origins
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
@@ -81,6 +76,6 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8080,
+        port=8001,
         reload=settings.debug,
     )

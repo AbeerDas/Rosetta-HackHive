@@ -15,7 +15,9 @@ import {
   DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
+import { useMutation } from '@tanstack/react-query';
+import { api } from '../../../convex/_generated/api';
 
 import { sessionApi } from '../../services/api';
 import { useTranscriptionStore, useLanguageStore } from '../../stores';
@@ -30,7 +32,6 @@ import { customColors } from '../../theme';
 export function SessionPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { t } = useLanguageStore();
 
   const [questionPanelOpen, setQuestionPanelOpen] = useState(false);
@@ -65,31 +66,35 @@ export function SessionPage() {
     currentSessionIdRef.current = sessionId;
   }, [sessionId, clearSegments]);
 
-  // End session mutation
+  // Convex mutation to end session (update status)
+  const endSessionConvex = useConvexMutation(api.sessions.end);
+
+  // End session mutation (FastAPI - triggers ML note generation)
   const endSessionMutation = useMutation({
-    mutationFn: (generateNotes: boolean) =>
-      sessionApi.end(sessionId!, { generate_notes: generateNotes }),
+    mutationFn: async (generateNotes: boolean) => {
+      // First, end the session in Convex
+      await endSessionConvex({ id: sessionId as any });
+      
+      // Then trigger note generation in FastAPI if requested
+      if (generateNotes) {
+        return await sessionApi.end(sessionId!, { generate_notes: true });
+      }
+      return null;
+    },
     onSuccess: async (_, generateNotes) => {
       setTranscribing(false);
       setEndSessionDialogOpen(false);
 
-      await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
-      await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      queryClient.invalidateQueries({ queryKey: ['transcript', sessionId] });
-
+      // Convex will automatically update via subscriptions
+      
       if (generateNotes) {
         setAutoGenerateNotes(true);
         setShowNotesPanel(true);
       }
     },
     onError: async () => {
-      // If end fails (e.g., session already ended), refetch session to get current state
-      // This ensures the UI reflects the actual session status and shows "View Notes" button
+      // If end fails, close dialog
       setEndSessionDialogOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ['session', sessionId] });
-      await queryClient.refetchQueries({ queryKey: ['session', sessionId] });
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
     },
   });
 
@@ -101,12 +106,9 @@ export function SessionPage() {
     endSessionMutation.mutate(generateNotes);
   };
 
-  // Fetch session details
-  const { data: session, isLoading } = useQuery({
-    queryKey: ['session', sessionId],
-    queryFn: () => sessionApi.get(sessionId!),
-    enabled: !!sessionId,
-  });
+  // Fetch session details from Convex
+  const session = useConvexQuery(api.sessions.get, sessionId ? { id: sessionId as any } : 'skip');
+  const isLoading = session === undefined;
 
   if (isLoading) {
     return (
@@ -165,7 +167,7 @@ export function SessionPage() {
 
           {/* Language Display */}
           <Typography variant="body2" color="text.secondary">
-            {languageNames[session.source_language]} → {languageNames[session.target_language]}
+            {languageNames[session.sourceLanguage]} → {languageNames[session.targetLanguage]}
           </Typography>
         </Box>
 
@@ -469,8 +471,8 @@ export function SessionPage() {
       <AudioControls
         ref={audioControlsRef}
         sessionId={sessionId!}
-        sourceLanguage={session.source_language}
-        targetLanguage={session.target_language}
+        sourceLanguage={session.sourceLanguage}
+        targetLanguage={session.targetLanguage}
         isActive={isActive}
       />
 

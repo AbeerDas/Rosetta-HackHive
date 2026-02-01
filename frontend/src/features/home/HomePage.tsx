@@ -30,13 +30,13 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PlayCircleIcon from '@mui/icons-material/PlayCircle';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../../convex/_generated/api';
+import { Id } from '../../../convex/_generated/dataModel';
 
-import { folderApi, sessionApi } from '../../services/api';
-import { useUserStore, useLanguageStore, useFolderStore } from '../../stores';
+import { useLanguageStore, useFolderStore } from '../../stores';
 import { availableLanguages, LanguageCode } from '../../stores/languageStore';
 import { customColors } from '../../theme';
-import type { Folder, SessionSummary } from '../../types';
 
 // Folder icon paths
 const folderIcons = [
@@ -57,7 +57,7 @@ const greetings = [
   '안녕하세요',
   'Γεια σας',
   'שלום',
-  'שָׁלוֹם',
+  'شָׁלוֹם',
   'مرحبا',
   'გამარჯობა',
   'Привет',
@@ -161,103 +161,95 @@ function ScrollingGreetings() {
 
 export function HomePage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { name } = useUserStore();
   const { language, setLanguage, t } = useLanguageStore();
   const { selectedFolderId, setSelectedFolderId } = useFolderStore();
+  
+  // Get current user
+  const currentUser = useQuery(api.users.currentUser);
+  const userName = currentUser?.name || 'User';
 
   const [newFolderDialogOpen, setNewFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [folderMenuAnchor, setFolderMenuAnchor] = useState<{
     el: HTMLElement;
-    folderId: string;
+    folderId: Id<'folders'>;
   } | null>(null);
   const [sessionMenuAnchor, setSessionMenuAnchor] = useState<{
     el: HTMLElement;
-    sessionId: string;
+    sessionId: Id<'sessions'>;
   } | null>(null);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [newSessionLanguage, setNewSessionLanguage] = useState('zh');
+  const [isCreatingFolder, setIsCreatingFolder] = useState(false);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
 
-  // Fetch folders
-  const { data: folders = [], isLoading } = useQuery({
-    queryKey: ['folders'],
-    queryFn: folderApi.list,
-  });
+  // Convex queries
+  const folders = useQuery(api.folders.list) ?? [];
+  const selectedFolder = useQuery(
+    api.folders.get,
+    selectedFolderId ? { id: selectedFolderId as Id<'folders'> } : 'skip'
+  );
+  const sessions = useQuery(
+    api.sessions.listByFolder,
+    selectedFolderId ? { folderId: selectedFolderId as Id<'folders'> } : 'skip'
+  ) ?? [];
+  const notes = useQuery(api.notes.listAll) ?? [];
 
-  // Fetch selected folder details
-  const { data: selectedFolder } = useQuery({
-    queryKey: ['folder', selectedFolderId],
-    queryFn: () => folderApi.get(selectedFolderId!),
-    enabled: !!selectedFolderId,
-  });
+  // Convex mutations
+  const createFolder = useMutation(api.folders.create);
+  const removeFolder = useMutation(api.folders.remove);
+  const createSession = useMutation(api.sessions.create);
+  const removeSession = useMutation(api.sessions.remove);
 
-  // Create folder mutation
-  const createFolderMutation = useMutation({
-    mutationFn: (name: string) => folderApi.create({ name }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      setNewFolderDialogOpen(false);
-      setNewFolderName('');
-    },
-  });
+  const isLoading = folders === undefined;
 
-  // Delete folder mutation
-  const deleteFolderMutation = useMutation({
-    mutationFn: (folderId: string) => folderApi.delete(folderId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      setFolderMenuAnchor(null);
-      if (selectedFolderId === folderMenuAnchor?.folderId) {
-        setSelectedFolderId(null);
-      }
-    },
-  });
-
-  // Create session mutation
-  const createSessionMutation = useMutation({
-    mutationFn: ({
-      folderId,
-      name,
-      targetLanguage,
-    }: {
-      folderId: string;
-      name: string;
-      targetLanguage: string;
-    }) => sessionApi.create(folderId, { name, target_language: targetLanguage }),
-    onSuccess: (session) => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      queryClient.invalidateQueries({ queryKey: ['folder', selectedFolderId] });
-      navigate(`/session/${session.id}`);
-      setNewSessionDialogOpen(false);
-      setNewSessionName('');
-    },
-  });
-
-  // Delete session mutation
-  const deleteSessionMutation = useMutation({
-    mutationFn: (sessionId: string) => sessionApi.delete(sessionId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['folders'] });
-      queryClient.invalidateQueries({ queryKey: ['folder', selectedFolderId] });
-      setSessionMenuAnchor(null);
-    },
-  });
-
-  const handleCreateFolder = () => {
+  const handleCreateFolder = async () => {
     if (newFolderName.trim()) {
-      createFolderMutation.mutate(newFolderName.trim());
+      setIsCreatingFolder(true);
+      try {
+        await createFolder({ name: newFolderName.trim() });
+        setNewFolderDialogOpen(false);
+        setNewFolderName('');
+      } finally {
+        setIsCreatingFolder(false);
+      }
     }
   };
 
-  const handleCreateSession = () => {
+  const handleDeleteFolder = async () => {
+    if (folderMenuAnchor) {
+      await removeFolder({ id: folderMenuAnchor.folderId });
+      setFolderMenuAnchor(null);
+      if (selectedFolderId === folderMenuAnchor.folderId) {
+        setSelectedFolderId(null);
+      }
+    }
+  };
+
+  const handleCreateSession = async () => {
     if (newSessionName.trim() && selectedFolderId) {
-      createSessionMutation.mutate({
-        folderId: selectedFolderId,
-        name: newSessionName.trim(),
-        targetLanguage: newSessionLanguage,
-      });
+      setIsCreatingSession(true);
+      try {
+        const sessionId = await createSession({
+          folderId: selectedFolderId as Id<'folders'>,
+          name: newSessionName.trim(),
+          sourceLanguage: 'en',
+          targetLanguage: newSessionLanguage,
+        });
+        navigate(`/session/${sessionId}`);
+        setNewSessionDialogOpen(false);
+        setNewSessionName('');
+      } finally {
+        setIsCreatingSession(false);
+      }
+    }
+  };
+
+  const handleDeleteSession = async () => {
+    if (sessionMenuAnchor) {
+      await removeSession({ id: sessionMenuAnchor.sessionId });
+      setSessionMenuAnchor(null);
     }
   };
 
@@ -265,8 +257,8 @@ export function HomePage() {
     setLanguage(event.target.value as LanguageCode);
   };
 
-  const handleFolderClick = (folder: Folder) => {
-    setSelectedFolderId(folder.id);
+  const handleFolderClick = (folderId: Id<'folders'>) => {
+    setSelectedFolderId(folderId);
   };
 
   const handleBackToFolders = () => {
@@ -284,10 +276,13 @@ export function HomePage() {
     }
   };
 
+  // Check if session has notes
+  const sessionHasNotes = (sessionId: Id<'sessions'>) => {
+    return notes.some((note) => note.sessionId === sessionId);
+  };
+
   // If a folder is selected, show sessions view
   if (selectedFolderId && selectedFolder) {
-    const sessions = selectedFolder.sessions || [];
-
     return (
       <Box sx={{ maxWidth: 1200, mx: 'auto', py: 4 }}>
         {/* Welcome Section */}
@@ -307,7 +302,7 @@ export function HomePage() {
               fontSize: '3rem',
             }}
           >
-            {t.welcomeBack}, {name}
+            {t.welcomeBack}, {userName}
           </Typography>
           <ScrollingGreetings />
         </Box>
@@ -424,9 +419,9 @@ export function HomePage() {
             </Box>
           ) : (
             <List disablePadding>
-              {sessions.map((session: SessionSummary) => (
+              {sessions.map((session) => (
                 <ListItem
-                  key={session.id}
+                  key={session._id}
                   disablePadding
                   sx={{ mb: 1.5 }}
                   secondaryAction={
@@ -434,7 +429,7 @@ export function HomePage() {
                       edge="end"
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSessionMenuAnchor({ el: e.currentTarget, sessionId: session.id });
+                        setSessionMenuAnchor({ el: e.currentTarget, sessionId: session._id });
                       }}
                     >
                       <MoreVertIcon />
@@ -442,7 +437,7 @@ export function HomePage() {
                   }
                 >
                   <ListItemButton
-                    onClick={() => navigate(`/session/${session.id}`)}
+                    onClick={() => navigate(`/session/${session._id}`)}
                     sx={{
                       bgcolor: customColors.cardBackground,
                       borderRadius: 2,
@@ -463,7 +458,7 @@ export function HomePage() {
                           fontSize: '1.1rem',
                         }}
                       />
-                      {session.has_notes && (
+                      {sessionHasNotes(session._id) && (
                         <Chip
                           label={t.lectureNotes}
                           size="small"
@@ -497,14 +492,7 @@ export function HomePage() {
           open={Boolean(sessionMenuAnchor)}
           onClose={() => setSessionMenuAnchor(null)}
         >
-          <MenuItem
-            onClick={() => {
-              if (sessionMenuAnchor) {
-                deleteSessionMutation.mutate(sessionMenuAnchor.sessionId);
-              }
-            }}
-            sx={{ color: 'error.main' }}
-          >
+          <MenuItem onClick={handleDeleteSession} sx={{ color: 'error.main' }}>
             <DeleteIcon sx={{ mr: 1, fontSize: 20 }} />
             {t.deleteSession || 'Delete Session'}
           </MenuItem>
@@ -546,13 +534,13 @@ export function HomePage() {
             <Button
               onClick={handleCreateSession}
               variant="contained"
-              disabled={!newSessionName.trim() || createSessionMutation.isPending}
+              disabled={!newSessionName.trim() || isCreatingSession}
               sx={{
                 bgcolor: customColors.brandGreen,
                 '&:hover': { bgcolor: '#005F54' },
               }}
             >
-              {createSessionMutation.isPending ? 'Starting...' : t.startSession}
+              {isCreatingSession ? 'Starting...' : t.startSession}
             </Button>
           </DialogActions>
         </Dialog>
@@ -580,7 +568,7 @@ export function HomePage() {
             fontSize: '3rem',
           }}
         >
-          {t.welcomeBack}, {name}
+          {t.welcomeBack}, {userName}
         </Typography>
         <ScrollingGreetings />
       </Box>
@@ -695,7 +683,7 @@ export function HomePage() {
         >
           {folders.map((folder, index) => (
             <Card
-              key={folder.id}
+              key={folder._id}
               sx={{
                 bgcolor: customColors.cardBackground,
                 border: '1px solid',
@@ -708,7 +696,7 @@ export function HomePage() {
                 },
               }}
             >
-              <CardActionArea onClick={() => handleFolderClick(folder)}>
+              <CardActionArea onClick={() => handleFolderClick(folder._id)}>
                 <CardContent sx={{ p: 3 }}>
                   <Box
                     sx={{
@@ -725,15 +713,15 @@ export function HomePage() {
                         sx={{ width: 40, height: 'auto' }}
                       />
                     </Box>
-                    <IconButton
-                      size="small"
+                    <Box
                       onClick={(e) => {
                         e.stopPropagation();
-                        setFolderMenuAnchor({ el: e.currentTarget, folderId: folder.id });
+                        setFolderMenuAnchor({ el: e.currentTarget as HTMLElement, folderId: folder._id });
                       }}
+                      sx={{ cursor: 'pointer', p: 0.5 }}
                     >
                       <MoreVertIcon />
-                    </IconButton>
+                    </Box>
                   </Box>
                   <Typography
                     variant="h6"
@@ -760,14 +748,7 @@ export function HomePage() {
         open={Boolean(folderMenuAnchor)}
         onClose={() => setFolderMenuAnchor(null)}
       >
-        <MenuItem
-          onClick={() => {
-            if (folderMenuAnchor) {
-              deleteFolderMutation.mutate(folderMenuAnchor.folderId);
-            }
-          }}
-          sx={{ color: 'error.main' }}
-        >
+        <MenuItem onClick={handleDeleteFolder} sx={{ color: 'error.main' }}>
           <DeleteIcon sx={{ mr: 1, fontSize: 20 }} />
           {t.deleteFolder || 'Delete Folder'}
         </MenuItem>
@@ -803,13 +784,13 @@ export function HomePage() {
           <Button
             onClick={handleCreateFolder}
             variant="contained"
-            disabled={!newFolderName.trim() || createFolderMutation.isPending}
+            disabled={!newFolderName.trim() || isCreatingFolder}
             sx={{
               bgcolor: customColors.brandGreen,
               '&:hover': { bgcolor: '#005F54' },
             }}
           >
-            {createFolderMutation.isPending ? 'Creating...' : t.create}
+            {isCreatingFolder ? 'Creating...' : t.create}
           </Button>
         </DialogActions>
       </Dialog>

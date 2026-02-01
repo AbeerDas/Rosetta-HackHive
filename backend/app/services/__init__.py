@@ -1,24 +1,21 @@
-"""Service layer for business logic."""
+"""Service layer for business logic.
 
-from app.services.document import DocumentProcessingService, DocumentService
-from app.services.folder import FolderService
+Uses Convex + Pinecone for all data storage (fully cloud-native).
+"""
+
+from app.services.document import ConvexDocumentProcessingService
 from app.services.note import NoteGenerationService, NoteService
 from app.services.question import QuestionTranslationService
-from app.services.rag import QueryEnrichmentService, RAGService, RerankerService
-from app.services.session import SessionService
-from app.services.transcript import TranscriptService
+from app.services.rag import KeywordExtractor, QueryEnrichmentService, RAGService, RerankerService
 from app.services.translation import TranslationService
 from app.services.tts import TTSService
 
 __all__ = [
-    "FolderService",
-    "SessionService",
-    "DocumentService",
-    "DocumentProcessingService",
-    "TranscriptService",
+    "ConvexDocumentProcessingService",
     "RAGService",
     "QueryEnrichmentService",
     "RerankerService",
+    "KeywordExtractor",
     "TranslationService",
     "QuestionTranslationService",
     "TTSService",

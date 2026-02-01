@@ -1,9 +1,12 @@
-"""Application configuration using Pydantic Settings."""
+"""Application configuration using Pydantic Settings.
+
+Uses Convex + Pinecone for all data storage (fully cloud-native).
+"""
 
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,32 +47,23 @@ class Settings(BaseSettings):
     openrouter_api_key: str = Field(default="")
 
     # ===========================================
-    # Database Configuration
+    # Pinecone Configuration (Vector Database)
     # ===========================================
-    postgres_user: str = Field(default="lecturelens")
-    postgres_password: str = Field(default="lecturelens_dev")
-    postgres_db: str = Field(default="lecturelens")
-    postgres_host: str = Field(default="localhost")
-    postgres_port: int = Field(default=5432)
-    database_url: str = Field(
-        default="postgresql+asyncpg://lecturelens:lecturelens_dev@localhost:5432/lecturelens"
-    )
+    pinecone_api_key: str = Field(default="")
+    pinecone_index_name: str = Field(default="rosetta-documents")
+
+    # ===========================================
+    # Convex Configuration (Primary Database)
+    # ===========================================
+    convex_url: str = Field(default="")  # e.g., "https://your-project.convex.cloud"
 
     @property
-    def sync_database_url(self) -> str:
-        """Return synchronous database URL for Alembic."""
-        return self.database_url.replace("+asyncpg", "")
-
-    # ===========================================
-    # Chroma Configuration
-    # ===========================================
-    chroma_host: str = Field(default="localhost")
-    chroma_port: int = Field(default=8000)
-
-    @property
-    def chroma_url(self) -> str:
-        """Return Chroma server URL."""
-        return f"http://{self.chroma_host}:{self.chroma_port}"
+    def convex_http_url(self) -> str:
+        """Return Convex HTTP endpoint URL."""
+        if self.convex_url:
+            return self.convex_url
+        # Default to local Convex dev server
+        return "http://localhost:3210"
 
     # ===========================================
     # Model Configuration
@@ -89,13 +83,9 @@ class Settings(BaseSettings):
     rag_relevance_threshold: float = Field(default=0.4)  # Minimum re-ranker score
     rag_distance_threshold: float = Field(default=1.5)  # Max L2 distance for early exit
     
-    # LLM models (still used for other features like translation, notes)
+    # LLM models (used for translation, note generation)
     llm_model: str = Field(default="anthropic/claude-3-haiku-20240307")
     llm_model_fallback: str = Field(default="openai/gpt-4o-mini")
-    
-    # Legacy embedding models (kept for reference, no longer used for RAG)
-    embedding_model_realtime: str = Field(default="openai/text-embedding-3-large")
-    embedding_model_indexing: str = Field(default="openai/text-embedding-3-large")
 
     # ===========================================
     # ElevenLabs Configuration
@@ -104,7 +94,7 @@ class Settings(BaseSettings):
     elevenlabs_model_id: str = Field(default="eleven_turbo_v2_5")
 
     # ===========================================
-    # File Storage
+    # File Storage (for temp files during processing)
     # ===========================================
     upload_dir: str = Field(default="./uploads")
     max_upload_size_mb: int = Field(default=50)

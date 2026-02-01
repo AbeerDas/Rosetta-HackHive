@@ -1,20 +1,17 @@
-"""Note generation and management service."""
+"""Note generation and management service.
 
-import io
+Uses Convex + Pinecone for all data storage (fully cloud-native).
+"""
+
 import logging
-import re
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
 
 import markdown
 from fastapi import HTTPException, status
 
+from app.external.convex import ConvexClient
 from app.external.openrouter import OpenRouterClient
-from app.repositories.citation import CitationRepository
-from app.repositories.note import NoteRepository
-from app.repositories.session import SessionRepository
-from app.repositories.transcript import TranscriptRepository
 from app.schemas.note import NoteResponse, NoteStatusResponse
 
 logger = logging.getLogger(__name__)
@@ -71,7 +68,7 @@ class NoteGenerationService:
         transcript: str,
         citations: list[dict],
         session_name: str,
-        date: datetime,
+        date: Optional[datetime],
         duration_minutes: int,
         source_language: str,
         target_language: str,
@@ -103,10 +100,13 @@ class NoteGenerationService:
         system_prompt = SYSTEM_PROMPT_TEMPLATE.format(output_language=output_lang_name)
 
         # Build user prompt
+        # Handle optional date
+        date_str = date.strftime("%B %d, %Y") if date else "N/A"
+        
         prompt = f"""Please create structured lecture notes from the following:
 
 Session: {session_name}
-Date: {date.strftime("%B %d, %Y")}
+Date: {date_str}
 Duration: {duration_minutes} minutes
 Languages: {source_language} → {target_language}
 Output Language: {output_lang_name}
@@ -139,64 +139,61 @@ Generate well-organized notes following the template structure. Write all notes 
 
         lines = []
         for i, citation in enumerate(citations, start=1):
-            doc_name = citation.get("document_name", "Unknown")
-            page = citation.get("page_number", "?")
-            snippet = citation.get("snippet", "")[:100]
+            doc_name = citation.get("documentName", citation.get("document_name", "Unknown"))
+            page = citation.get("pageNumber", citation.get("page_number", "?"))
+            snippet = citation.get("chunkText", citation.get("snippet", ""))[:100]
             lines.append(f"{i}. {doc_name}, Page {page} - \"{snippet}...\"")
 
         return "\n".join(lines)
 
 
 class NoteService:
-    """Service for note management."""
+    """Service for note management.
+    
+    Uses Convex for all data storage (no PostgreSQL).
+    """
 
     # Track generation status in memory (for simplicity)
     _generation_status: dict = {}
 
     def __init__(
         self,
-        note_repo: NoteRepository,
-        transcript_repo: TranscriptRepository,
-        citation_repo: CitationRepository,
-        session_repo: SessionRepository,
+        convex_client: ConvexClient,
         generation_service: NoteGenerationService,
     ):
-        self.note_repo = note_repo
-        self.transcript_repo = transcript_repo
-        self.citation_repo = citation_repo
-        self.session_repo = session_repo
+        self.convex_client = convex_client
         self.generation_service = generation_service
 
-    async def get_notes(self, session_id: UUID) -> Optional[NoteResponse]:
-        """Get notes for a session."""
-        note = await self.note_repo.get_by_session(session_id)
-        if not note:
+    async def get_notes(self, session_id: str) -> Optional[NoteResponse]:
+        """Get notes for a session from Convex."""
+        notes = await self.convex_client.get_notes(session_id)
+        if not notes:
             return None
 
-        # Count citations
-        citations = await self.citation_repo.list_by_session(session_id)
+        # Get citation count
+        citations = await self.convex_client.get_citations(session_id)
 
         return NoteResponse(
-            id=note.id,
-            session_id=note.session_id,
-            content_markdown=note.content_markdown,
-            generated_at=note.generated_at,
-            last_edited_at=note.last_edited_at,
-            version=note.version,
-            word_count=note.word_count,
+            id=notes.get("_id", ""),
+            session_id=session_id,
+            content_markdown=notes.get("contentMarkdown", ""),
+            generated_at=datetime.fromtimestamp(notes.get("generatedAt", 0) / 1000),
+            last_edited_at=datetime.fromtimestamp(notes.get("lastEditedAt", 0) / 1000),
+            version=notes.get("version", 1),
+            word_count=len(notes.get("contentMarkdown", "").split()),
             citation_count=len(citations),
         )
 
     async def generate_notes(
         self,
-        session_id: UUID,
+        session_id: str,
         force_regenerate: bool = False,
         output_language: Optional[str] = None,
     ) -> NoteResponse:
         """Generate notes for a session.
 
         Args:
-            session_id: Session ID
+            session_id: Convex session ID
             force_regenerate: Force regeneration even if notes exist
             output_language: Language code for generated notes (defaults to English)
 
@@ -204,27 +201,18 @@ class NoteService:
             Generated notes
         """
         # Check if notes already exist
-        # Note: We no longer throw an error if notes exist and force_regenerate is false
-        # Instead, we just regenerate them. This simplifies the frontend logic and
-        # handles race conditions better.
-        existing = await self.note_repo.get_by_session(session_id)
+        existing = await self.convex_client.get_notes(session_id)
         if existing and not force_regenerate:
             logger.info(f"Notes already exist for session {session_id}, will update them")
 
-        # Get session details
-        session = await self.session_repo.get_by_id(session_id)
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "SESSION_NOT_FOUND", "message": "Session not found"},
-            )
-
         # Update status
-        self._generation_status[str(session_id)] = {"status": "generating", "progress": 0}
+        self._generation_status[session_id] = {"status": "generating", "progress": 0}
 
         try:
-            # Get transcript
-            transcript_text = await self.transcript_repo.get_full_text(session_id)
+            # Get transcript from Convex
+            transcript_data = await self.convex_client.get_full_transcript(session_id)
+            transcript_text = transcript_data.get("originalText", "")
+            
             if not transcript_text:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -234,64 +222,66 @@ class NoteService:
                     },
                 )
 
-            self._generation_status[str(session_id)]["progress"] = 30
+            self._generation_status[session_id]["progress"] = 20
 
-            # Get citations
-            citations = await self.citation_repo.list_by_session(session_id)
-            citation_dicts = [
-                {
-                    "document_name": c.document.name if c.document else "Unknown",
-                    "page_number": c.page_number,
-                    "snippet": c.snippet,
-                }
-                for c in citations
-            ]
-
-            self._generation_status[str(session_id)]["progress"] = 50
-
-            # Calculate duration
-            duration_minutes = 0
-            if session.ended_at and session.started_at:
-                duration_minutes = int(
-                    (session.ended_at - session.started_at).total_seconds() / 60
-                )
-
-            # Generate notes
-            notes_content = await self.generation_service.generate(
+            # Get citations from Convex
+            citations = await self.convex_client.get_citations(session_id)
+            
+            self._generation_status[session_id]["progress"] = 30
+            
+            # Get target language from output_language or default to English
+            target_language = output_language or "en"
+            
+            # Generate English notes
+            logger.info(f"[NoteGen] Generating English notes for session {session_id}")
+            notes_content_english = await self.generation_service.generate(
                 transcript=transcript_text,
-                citations=citation_dicts,
-                session_name=session.name,
-                date=session.started_at,
-                duration_minutes=duration_minutes,
-                source_language=session.source_language,
-                target_language=session.target_language,
-                output_language=output_language,
+                citations=citations,
+                session_name=f"Session {session_id[:8]}",
+                date=None,
+                duration_minutes=0,
+                source_language="en",
+                target_language="en",
+                output_language="en",
             )
 
-            self._generation_status[str(session_id)]["progress"] = 90
+            self._generation_status[session_id]["progress"] = 60
+            
+            # Generate target language notes if different from English
+            notes_content_translated = None
+            if target_language and target_language != "en":
+                logger.info(f"[NoteGen] Generating {target_language} notes for session {session_id}")
+                notes_content_translated = await self.generation_service.generate(
+                    transcript=transcript_text,
+                    citations=citations,
+                    session_name=f"Session {session_id[:8]}",
+                    date=None,
+                    duration_minutes=0,
+                    source_language="en",
+                    target_language=target_language,
+                    output_language=target_language,
+                )
 
-            # Save notes - use upsert to handle race conditions
-            # where notes might have been created during LLM generation
-            try:
-                note = await self.note_repo.upsert(session_id, notes_content)
-            except Exception as upsert_error:
-                # If upsert fails (e.g., due to race condition), try update as fallback
-                logger.warning(f"Upsert failed, trying update: {upsert_error}")
-                note = await self.note_repo.update_by_session(session_id, notes_content)
-                if not note:
-                    # Last resort - re-raise original error
-                    raise upsert_error
+            self._generation_status[session_id]["progress"] = 90
 
-            self._generation_status[str(session_id)] = {"status": "ready", "progress": 100}
+            # Save both versions to Convex
+            note_id = await self.convex_client.upsert_notes(
+                session_id=session_id,
+                content_markdown=notes_content_english,
+                content_markdown_translated=notes_content_translated,
+                target_language=target_language if target_language != "en" else None,
+            )
+
+            self._generation_status[session_id] = {"status": "ready", "progress": 100}
 
             return NoteResponse(
-                id=note.id,
-                session_id=note.session_id,
-                content_markdown=note.content_markdown,
-                generated_at=note.generated_at,
-                last_edited_at=note.last_edited_at,
-                version=note.version,
-                word_count=note.word_count,
+                id=note_id,
+                session_id=session_id,
+                content_markdown=notes_content_english,
+                generated_at=datetime.now(),
+                last_edited_at=datetime.now(),
+                version=1,
+                word_count=len(notes_content_english.split()),
                 citation_count=len(citations),
             )
 
@@ -299,7 +289,7 @@ class NoteService:
             raise
         except Exception as e:
             logger.error(f"Note generation failed: {e}")
-            self._generation_status[str(session_id)] = {
+            self._generation_status[session_id] = {
                 "status": "error",
                 "progress": 0,
                 "error_message": str(e),
@@ -309,39 +299,38 @@ class NoteService:
                 detail={"code": "GENERATION_ERROR", "message": f"Note generation failed: {e}"},
             )
 
-    async def update_notes(self, session_id: UUID, content: str) -> NoteResponse:
+    async def update_notes(self, session_id: str, content: str) -> NoteResponse:
         """Update notes content.
 
         Args:
-            session_id: Session ID
+            session_id: Convex session ID
             content: New Markdown content
 
         Returns:
             Updated notes
         """
-        note = await self.note_repo.update_by_session(session_id, content)
-        if not note:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "NOTES_NOT_FOUND", "message": "Notes not found for session"},
-            )
+        # Update notes in Convex
+        note_id = await self.convex_client.upsert_notes(
+            session_id=session_id,
+            content_markdown=content,
+        )
 
-        citations = await self.citation_repo.list_by_session(session_id)
+        citations = await self.convex_client.get_citations(session_id)
 
         return NoteResponse(
-            id=note.id,
-            session_id=note.session_id,
-            content_markdown=note.content_markdown,
-            generated_at=note.generated_at,
-            last_edited_at=note.last_edited_at,
-            version=note.version,
-            word_count=note.word_count,
+            id=note_id,
+            session_id=session_id,
+            content_markdown=content,
+            generated_at=datetime.now(),
+            last_edited_at=datetime.now(),
+            version=1,  # Version tracking is handled by Convex
+            word_count=len(content.split()),
             citation_count=len(citations),
         )
 
-    async def get_status(self, session_id: UUID) -> NoteStatusResponse:
+    async def get_status(self, session_id: str) -> NoteStatusResponse:
         """Get note generation status."""
-        status_data = self._generation_status.get(str(session_id))
+        status_data = self._generation_status.get(session_id)
 
         if status_data:
             return NoteStatusResponse(
@@ -350,34 +339,34 @@ class NoteService:
                 error_message=status_data.get("error_message"),
             )
 
-        # Check if notes exist
-        note = await self.note_repo.get_by_session(session_id)
-        if note:
+        # Check if notes exist in Convex
+        notes = await self.convex_client.get_notes(session_id)
+        if notes:
             return NoteStatusResponse(status="ready", progress=100, error_message=None)
 
         return NoteStatusResponse(status="not_generated", progress=0, error_message=None)
 
-    async def export_to_pdf(self, session_id: UUID) -> bytes:
+    async def export_to_pdf(self, session_id: str) -> bytes:
         """Export notes to PDF.
 
         Args:
-            session_id: Session ID
+            session_id: Convex session ID
 
         Returns:
             PDF bytes
         """
-        note = await self.note_repo.get_by_session(session_id)
-        if not note:
+        notes = await self.convex_client.get_notes(session_id)
+        if not notes:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail={"code": "NOTES_NOT_FOUND", "message": "Notes not found for session"},
             )
 
-        session = await self.session_repo.get_by_id(session_id)
+        content_markdown = notes.get("contentMarkdown", "")
 
         # Convert Markdown to HTML
         html_content = markdown.markdown(
-            note.content_markdown,
+            content_markdown,
             extensions=["extra", "codehilite", "toc"],
         )
 
@@ -387,7 +376,7 @@ class NoteService:
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{session.name if session else 'Lecture Notes'}</title>
+    <title>Lecture Notes</title>
     <style>
         body {{
             font-family: 'Georgia', serif;
@@ -461,8 +450,6 @@ class NoteService:
             )
         except OSError as e:
             # WeasyPrint requires system libraries (Cairo, Pango, GDK-PixBuf)
-            # On macOS: brew install cairo pango gdk-pixbuf libffi
-            # On Ubuntu: apt-get install python3-cffi libpango-1.0-0 libpangoft2-1.0-0
             logger.warning(f"WeasyPrint missing system dependencies: {e}")
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

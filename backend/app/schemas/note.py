@@ -2,7 +2,6 @@
 
 from datetime import datetime
 from typing import Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -29,8 +28,8 @@ class NoteUpdateRequest(BaseModel):
 class NoteResponse(BaseModel):
     """Schema for note response."""
 
-    id: UUID
-    session_id: UUID
+    id: str  # Convex ID (string)
+    session_id: str  # Convex session ID (string)
     content_markdown: str
     generated_at: datetime
     last_edited_at: datetime

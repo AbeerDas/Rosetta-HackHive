@@ -1,4 +1,7 @@
-"""API route modules."""
+"""API route modules.
+
+Uses Convex + Pinecone for all data storage (fully cloud-native).
+"""
 
 from fastapi import APIRouter
 

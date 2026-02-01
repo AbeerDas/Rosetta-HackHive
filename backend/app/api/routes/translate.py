@@ -197,7 +197,7 @@ async def text_to_speech(
 @router.websocket("/stream")
 async def translation_websocket(
     websocket: WebSocket,
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     target_language: str,
     voice_id: str = None,
 ):

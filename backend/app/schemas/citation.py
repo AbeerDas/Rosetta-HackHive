@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class CitationCreate(BaseModel):
     """Schema for creating a citation (internal use)."""
 
-    session_id: UUID
+    session_id: str  # Changed from UUID to str for Convex compatibility
     transcript_id: Optional[UUID]
     document_id: UUID
     chunk_id: UUID

@@ -18,7 +18,7 @@ router = APIRouter()
 
 @router.get("/sessions/{session_id}/notes", response_model=NoteResponse)
 async def get_notes(
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     service: NoteServiceDep,
 ) -> NoteResponse:
     """Get notes for a session."""
@@ -34,7 +34,7 @@ async def get_notes(
 
 @router.post("/sessions/{session_id}/notes/generate", response_model=NoteResponse)
 async def generate_notes(
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     data: NoteGenerateRequest,
     service: NoteServiceDep,
 ) -> NoteResponse:
@@ -46,22 +46,9 @@ async def generate_notes(
     )
 
 
-@router.put("/sessions/{session_id}/notes", response_model=NoteResponse)
-async def update_notes(
-    session_id: UUID,
-    data: NoteUpdateRequest,
-    service: NoteServiceDep,
-) -> NoteResponse:
-    """Update notes content."""
-    return await service.update_notes(
-        session_id=session_id,
-        content=data.content_markdown,
-    )
-
-
 @router.get("/sessions/{session_id}/notes/status", response_model=NoteStatusResponse)
 async def get_note_status(
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     service: NoteServiceDep,
 ) -> NoteStatusResponse:
     """Get note generation status."""
@@ -70,7 +57,7 @@ async def get_note_status(
 
 @router.get("/sessions/{session_id}/notes/export")
 async def export_notes_pdf(
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     service: NoteServiceDep,
 ) -> Response:
     """Export notes as PDF."""
@@ -89,7 +76,7 @@ async def export_notes_pdf(
 
 @router.get("/sessions/{session_id}/notes/export-markdown")
 async def export_notes_markdown(
-    session_id: UUID,
+    session_id: str,  # Changed from UUID to str for Convex compatibility
     service: NoteServiceDep,
 ) -> Response:
     """Export notes as Markdown file (fallback when PDF unavailable)."""

@@ -25,7 +25,6 @@ import {
 } from '../../hooks/useWebSocket';
 import { useAudioPlayback } from '../../hooks/useAudioCapture';
 import { customColors } from '../../theme';
-import { transcriptApi } from '../../services/api';
 
 // Type definitions for Web Speech API
 interface SpeechRecognitionEvent extends Event {

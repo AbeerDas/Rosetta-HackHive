@@ -24,9 +24,10 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import DescriptionIcon from '@mui/icons-material/Description';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery as useConvexQuery, useMutation as useConvexMutation } from 'convex/react';
 
-import { notesApi, sessionApi } from '../../services/api';
+import { api } from '../../../convex/_generated/api';
+import { notesApi } from '../../services/api';
 import { useLanguageStore } from '../../stores';
 import { customColors } from '../../theme';
 import { TipTapEditor } from './TipTapEditor';
@@ -77,12 +78,9 @@ export function NotesPage() {
     }
   }, [sessionId]);
 
-  // Fetch session details
-  const { data: session, isLoading: sessionLoading } = useQuery({
-    queryKey: ['session', sessionId],
-    queryFn: () => sessionApi.get(sessionId!),
-    enabled: !!sessionId,
-  });
+  // Fetch session details from Convex
+  const session = useConvexQuery(api.sessions.get, sessionId ? { id: sessionId as any } : 'skip');
+  const sessionLoading = session === undefined;
 
   // Fetch existing note
   const {

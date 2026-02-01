@@ -1,135 +1,128 @@
-"""Document management API routes."""
+"""Document management API routes.
 
-from uuid import UUID
+NOTE: Document metadata is stored in Convex.
+This file handles:
+1. Document processing (PDF → Pinecone embeddings)
+2. Pinecone debug endpoints
+"""
 
-from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, status
+import logging
+
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 from app.api.deps import (
-    ChromaClientDep,
-    DocumentProcessingServiceDep,
-    DocumentServiceDep,
+    PineconeClientDep,
+    ConvexDocumentProcessingServiceDep,
 )
-from app.schemas.document import (
-    DocumentResponse,
-    DocumentsListResponse,
-    DocumentStatusResponse,
-)
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/sessions/{session_id}/documents", response_model=DocumentsListResponse)
-async def list_documents(
-    session_id: UUID,
-    service: DocumentServiceDep,
-) -> DocumentsListResponse:
-    """List all documents for a session."""
-    return await service.list_documents(session_id)
+@router.get("")
+async def documents_info():
+    """Info endpoint - document metadata is stored in Convex."""
+    return {
+        "message": "Document metadata is stored in Convex. Document embeddings are stored in Pinecone.",
+        "endpoints": {
+            "process": "POST /documents/process-convex - Process a document from Convex storage",
+            "debug": "GET /documents/debug/pinecone/{session_id} - Debug Pinecone for a session",
+        },
+    }
 
 
-@router.post(
-    "/sessions/{session_id}/documents",
-    response_model=DocumentResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def upload_document(
-    session_id: UUID,
-    file: UploadFile,
-    background_tasks: BackgroundTasks,
-    service: DocumentServiceDep,
-    processing_service: DocumentProcessingServiceDep,
-) -> DocumentResponse:
-    """Upload a document to a session."""
-    document = await service.upload_document(session_id, file)
+# ============================================================================
+# CONVEX INTEGRATION - Process documents stored in Convex
+# ============================================================================
 
-    # Process document in background
-    background_tasks.add_task(
-        processing_service.process_document,
-        document.id,
-    )
-
-    return document
+class ConvexDocumentProcessRequest(BaseModel):
+    """Request to process a document from Convex."""
+    document_id: str  # Convex document ID (not UUID)
+    session_id: str   # Convex session ID (not UUID)
+    file_url: str     # Convex Storage URL
+    file_name: str    # Original filename
 
 
-@router.get("/{document_id}", response_model=DocumentResponse)
-async def get_document(
-    document_id: UUID,
-    service: DocumentServiceDep,
-) -> DocumentResponse:
-    """Get document details."""
-    return await service.get_document(document_id)
+class ConvexDocumentProcessResponse(BaseModel):
+    """Response from document processing."""
+    document_id: str
+    status: str
+    page_count: int = 0
+    chunk_count: int = 0
+    error: str | None = None
 
 
-@router.get("/{document_id}/status", response_model=DocumentStatusResponse)
-async def get_document_status(
-    document_id: UUID,
-    service: DocumentServiceDep,
-) -> DocumentStatusResponse:
-    """Get document processing status."""
-    return await service.get_status(document_id)
-
-
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_document(
-    document_id: UUID,
-    service: DocumentServiceDep,
-    chroma_client: ChromaClientDep,
-) -> None:
-    """Delete a document."""
-    await service.delete_document(document_id, chroma_client)
-
-
-@router.post("/{document_id}/retry", response_model=DocumentResponse)
-async def retry_document_processing(
-    document_id: UUID,
-    background_tasks: BackgroundTasks,
-    service: DocumentServiceDep,
-    processing_service: DocumentProcessingServiceDep,
-) -> DocumentResponse:
-    """Retry processing a failed document."""
-    document = await service.retry_processing(document_id)
-
-    # Process document in background
-    background_tasks.add_task(
-        processing_service.process_document,
-        document.id,
-    )
-
-    return document
-
-
-@router.get("/sessions/{session_id}/documents/debug/chroma")
-async def debug_chroma_documents(
-    session_id: UUID,
-    chroma_client: ChromaClientDep,
+@router.post("/process-convex", response_model=ConvexDocumentProcessResponse)
+async def process_convex_document(
+    request: ConvexDocumentProcessRequest,
+    processing_service: ConvexDocumentProcessingServiceDep,
 ):
-    """Debug endpoint to check what's indexed in ChromaDB for a session."""
+    """
+    Process a document that's stored in Convex.
+    
+    This endpoint:
+    1. Downloads the PDF from the Convex Storage URL
+    2. Extracts text and chunks it
+    3. Generates embeddings using local bge-base-en-v1.5 model
+    4. Stores embeddings in Pinecone with session_id for filtering
+    
+    Called by the frontend after uploading to Convex.
+    Processing is synchronous so frontend can update Convex status.
+    """
+    logger.info(f"[ConvexDoc] Processing document {request.document_id} from session {request.session_id}")
+    
+    # Process synchronously so we can return results
+    result = await processing_service.process_convex_document(
+        document_id=request.document_id,
+        session_id=request.session_id,
+        file_url=request.file_url,
+        file_name=request.file_name,
+    )
+    
+    return ConvexDocumentProcessResponse(
+        document_id=request.document_id,
+        status=result.get("status", "error"),
+        page_count=result.get("page_count", 0),
+        chunk_count=result.get("chunk_count", 0),
+        error=result.get("error"),
+    )
+
+
+@router.get("/debug/pinecone/{session_id}")
+async def debug_pinecone_by_convex_session(
+    session_id: str,
+    pinecone_client: PineconeClientDep,
+):
+    """Debug endpoint to check Pinecone for a Convex session ID."""
     try:
-        # Query all documents for this session
-        collection = await chroma_client._get_or_create_collection("documents")
+        # Get index stats
+        stats = await pinecone_client.get_stats(namespace="documents")
         
-        # Get count
-        count = await collection.count()
-        
-        # Get all items for this session
-        results = await collection.get(
-            where={"session_id": str(session_id)},
-            include=["documents", "metadatas"]
+        # Query for vectors with this session_id
+        # We need to do a dummy query to get vectors (Pinecone doesn't have a "get by filter" without vector)
+        # Using a zero vector for now
+        results = await pinecone_client.query(
+            collection_name="documents",
+            query_embeddings=[[0.0] * 768],  # Dummy vector
+            n_results=10,
+            where={"session_id": session_id},
         )
         
         return {
-            "total_in_collection": count,
-            "session_documents_count": len(results.get("ids", [])),
-            "session_id": str(session_id),
+            "total_in_namespace": stats.get("total_vectors", 0),
+            "session_documents_count": len(results.get("ids", [[]])[0]),
+            "session_id": session_id,
             "documents": [
                 {
-                    "id": results["ids"][i],
-                    "document_name": results["metadatas"][i].get("document_name") if results.get("metadatas") else None,
-                    "page_number": results["metadatas"][i].get("page_number") if results.get("metadatas") else None,
-                    "text_preview": results["documents"][i][:100] + "..." if results.get("documents") and len(results["documents"][i]) > 100 else results["documents"][i] if results.get("documents") else None,
+                    "id": results["ids"][0][i],
+                    "document_name": results["metadatas"][0][i].get("document_name") if results.get("metadatas") else None,
+                    "page_number": results["metadatas"][0][i].get("page_number") if results.get("metadatas") else None,
+                    "text_preview": (results["documents"][0][i][:100] + "...") if results.get("documents") and results["documents"][0] and len(results["documents"][0][i]) > 100 else (results["documents"][0][i] if results.get("documents") and results["documents"][0] else None),
                 }
-                for i in range(len(results.get("ids", [])))
-            ][:10]  # Limit to first 10 for readability
+                for i in range(len(results.get("ids", [[]])[0]))
+            ][:10]
         }
     except Exception as e:
         return {"error": str(e)}

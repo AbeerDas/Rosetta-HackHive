@@ -1,9 +1,9 @@
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { Box, Typography, alpha, Fab, Alert, CircularProgress, Tooltip } from '@mui/material';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery as useConvexQuery } from 'convex/react';
 import { useTranscriptionStore, useLanguageStore } from '../../stores';
-import { transcriptApi } from '../../services/api';
+import { api } from '../../../convex/_generated/api';
 import type { TranscriptSegment } from '../../types';
 import { customColors } from '../../theme';
 import { getCitationKey, buildCitationNumberMap } from './CitationPanel';
@@ -37,16 +37,22 @@ export function TranscriptionPanel({ sessionId, isActive }: TranscriptionPanelPr
     setAutoScroll,
   } = useTranscriptionStore();
 
-  // For ended sessions: fetch from database
-  const { data: savedTranscript, isLoading: isLoadingTranscript } = useQuery({
-    queryKey: ['transcript', sessionId],
-    queryFn: () => transcriptApi.get(sessionId),
-    enabled: !isActive,
-  });
+  // For ended sessions: fetch from Convex
+  const savedTranscript = useConvexQuery(
+    api.transcripts.listBySession,
+    !isActive && sessionId ? { sessionId: sessionId as any } : 'skip'
+  );
+  const isLoadingTranscript = !isActive && savedTranscript === undefined;
 
   const segments: TranscriptSegment[] = isActive
     ? liveSegments
-    : ((savedTranscript?.segments ?? []) as TranscriptSegment[]);
+    : (savedTranscript || []).map(t => ({
+        text: t.originalText,
+        translated_text: t.translatedText,
+        start_time: t.timestamp / 1000, // Convert ms to seconds
+        end_time: t.timestamp / 1000 + 5, // Approximate 5 second segments
+        citations: [], // Citations handled separately
+      }));
 
   // Build global citation number map (memoized)
   const citationNumberMap = useMemo(() => buildCitationNumberMap(segments), [segments]);

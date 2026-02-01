@@ -1,269 +1,34 @@
-"""Document service for business logic and processing."""
+"""Document processing service for Convex documents.
+
+Handles PDF processing for documents stored in Convex:
+1. Downloads PDF from Convex Storage URL
+2. Extracts text and chunks it
+3. Generates embeddings using local bge-base-en-v1.5 model
+4. Stores embeddings in Pinecone
+
+No local database - all metadata in Convex, vectors in Pinecone.
+"""
 
 import logging
-import os
 import re
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
-from uuid import UUID
 
-import aiofiles
-from fastapi import HTTPException, UploadFile, status
 from PyPDF2 import PdfReader
 
-from app.core.config import settings
-from app.external.chroma import ChromaClient
+from app.external.pinecone import PineconeClient
 from app.external.embeddings import LocalEmbeddingService
-from app.models.document import DocumentStatus
-from app.repositories.document import DocumentChunkRepository, DocumentRepository
-from app.repositories.session import SessionRepository
-from app.schemas.document import (
-    DocumentResponse,
-    DocumentsListResponse,
-    DocumentStatusResponse,
-)
 
 logger = logging.getLogger(__name__)
 
 
-class DocumentService:
-    """Service for document management."""
-
-    def __init__(
-        self,
-        document_repo: DocumentRepository,
-        session_repo: SessionRepository,
-    ):
-        self.document_repo = document_repo
-        self.session_repo = session_repo
-
-    async def list_documents(self, session_id: UUID) -> DocumentsListResponse:
-        """List all documents for a session."""
-        # Validate session exists
-        session = await self.session_repo.get_by_id(session_id)
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "SESSION_NOT_FOUND", "message": "Session not found"},
-            )
-
-        documents = await self.document_repo.list_by_session(session_id)
-        return DocumentsListResponse(
-            documents=[
-                DocumentResponse(
-                    id=doc.id,
-                    name=doc.name,
-                    file_size=doc.file_size,
-                    page_count=doc.page_count,
-                    chunk_count=doc.chunk_count,
-                    status=doc.status.value,
-                    processing_progress=doc.processing_progress,
-                    error_message=doc.error_message,
-                    uploaded_at=doc.uploaded_at,
-                    processed_at=doc.processed_at,
-                )
-                for doc in documents
-            ]
-        )
-
-    async def get_document(self, document_id: UUID) -> DocumentResponse:
-        """Get document details."""
-        document = await self.document_repo.get_by_id(document_id)
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"},
-            )
-
-        return DocumentResponse(
-            id=document.id,
-            name=document.name,
-            file_size=document.file_size,
-            page_count=document.page_count,
-            chunk_count=document.chunk_count,
-            status=document.status.value,
-            processing_progress=document.processing_progress,
-            error_message=document.error_message,
-            uploaded_at=document.uploaded_at,
-            processed_at=document.processed_at,
-        )
-
-    async def get_status(self, document_id: UUID) -> DocumentStatusResponse:
-        """Get document processing status."""
-        document = await self.document_repo.get_by_id(document_id)
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"},
-            )
-
-        return DocumentStatusResponse(
-            status=document.status.value,
-            progress=document.processing_progress,
-            error_message=document.error_message,
-            chunks_processed=document.chunk_count if document.status == DocumentStatus.READY else 0,
-            chunks_total=document.chunk_count,
-        )
-
-    async def upload_document(
-        self,
-        session_id: UUID,
-        file: UploadFile,
-    ) -> DocumentResponse:
-        """Upload a document for a session."""
-        # Validate session exists
-        session = await self.session_repo.get_by_id(session_id)
-        if not session:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "SESSION_NOT_FOUND", "message": "Session not found"},
-            )
-
-        # Validate file type
-        if not file.content_type or "pdf" not in file.content_type.lower():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"code": "INVALID_FILE_TYPE", "message": "Only PDF files are supported"},
-            )
-
-        # Read file content
-        content = await file.read()
-        file_size = len(content)
-
-        # Validate file size
-        if file_size > settings.max_upload_size_bytes:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "code": "FILE_TOO_LARGE",
-                    "message": f"File size exceeds maximum of {settings.max_upload_size_mb}MB",
-                },
-            )
-
-        # Create upload directory
-        upload_dir = Path(settings.upload_dir) / str(session_id)
-        upload_dir.mkdir(parents=True, exist_ok=True)
-
-        # Generate unique filename
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        safe_filename = re.sub(r"[^a-zA-Z0-9._-]", "_", file.filename or "document.pdf")
-        file_path = upload_dir / f"{timestamp}_{safe_filename}"
-
-        # Save file
-        async with aiofiles.open(file_path, "wb") as f:
-            await f.write(content)
-
-        # Create document record
-        document = await self.document_repo.create(
-            session_id=session_id,
-            name=file.filename or "document.pdf",
-            file_path=str(file_path),
-            file_size=file_size,
-        )
-
-        logger.info(f"Uploaded document: {document.id} - {document.name}")
-
-        return DocumentResponse(
-            id=document.id,
-            name=document.name,
-            file_size=document.file_size,
-            page_count=document.page_count,
-            chunk_count=document.chunk_count,
-            status=document.status.value,
-            processing_progress=document.processing_progress,
-            error_message=document.error_message,
-            uploaded_at=document.uploaded_at,
-            processed_at=document.processed_at,
-        )
-
-    async def delete_document(
-        self,
-        document_id: UUID,
-        chroma_client: ChromaClient,
-    ) -> None:
-        """Delete a document and its embeddings.
-        
-        Performs cleanup in order: vector embeddings, file, database record.
-        File and DB cleanup proceed even if vector deletion fails.
-        """
-        document = await self.document_repo.get_by_id(document_id)
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"},
-            )
-
-        # Track cleanup errors to report but continue cleanup
-        cleanup_errors = []
-
-        # Delete embeddings from Chroma (best effort)
-        try:
-            await chroma_client.delete_by_document(
-                collection_name="documents",
-                document_id=str(document_id),
-            )
-        except Exception as e:
-            logger.error(f"Failed to delete embeddings for document {document_id}: {e}")
-            cleanup_errors.append(f"Vector deletion failed: {e}")
-
-        # Delete file (always attempt even if vector deletion failed)
-        try:
-            if os.path.exists(document.file_path):
-                os.remove(document.file_path)
-        except Exception as e:
-            logger.error(f"Failed to delete file for document {document_id}: {e}")
-            cleanup_errors.append(f"File deletion failed: {e}")
-
-        # Delete database record (always attempt)
-        try:
-            await self.document_repo.delete(document_id)
-        except Exception as e:
-            logger.error(f"Failed to delete DB record for document {document_id}: {e}")
-            cleanup_errors.append(f"Database deletion failed: {e}")
-            # Re-raise DB errors as they are critical
-            raise
-
-        if cleanup_errors:
-            logger.warning(f"Document {document_id} deleted with errors: {cleanup_errors}")
-        else:
-            logger.info(f"Deleted document: {document_id}")
-
-    async def retry_processing(self, document_id: UUID) -> DocumentResponse:
-        """Retry processing a failed document."""
-        document = await self.document_repo.get_by_id(document_id)
-        if not document:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail={"code": "DOCUMENT_NOT_FOUND", "message": "Document not found"},
-            )
-
-        # Reset status to pending
-        document = await self.document_repo.update_status(
-            document_id=document_id,
-            status=DocumentStatus.PENDING,
-            progress=0,
-            error_message=None,
-        )
-
-        return DocumentResponse(
-            id=document.id,
-            name=document.name,
-            file_size=document.file_size,
-            page_count=document.page_count,
-            chunk_count=document.chunk_count,
-            status=document.status.value,
-            processing_progress=document.processing_progress,
-            error_message=document.error_message,
-            uploaded_at=document.uploaded_at,
-            processed_at=document.processed_at,
-        )
-
-
-class DocumentProcessingService:
-    """Service for document processing (text extraction, chunking, embedding).
+class ConvexDocumentProcessingService:
+    """Service for processing documents stored in Convex.
     
-    Uses local bge-base-en-v1.5 embeddings for fast, cost-free indexing.
+    This service handles documents uploaded to Convex Storage:
+    1. Downloads PDF from Convex URL
+    2. Extracts text and chunks it
+    3. Generates embeddings with bge-base-en-v1.5
+    4. Stores in Pinecone with Convex IDs
     """
 
     TARGET_CHUNK_SIZE = 500  # tokens
@@ -271,113 +36,110 @@ class DocumentProcessingService:
 
     def __init__(
         self,
-        document_repo: DocumentRepository,
-        chunk_repo: DocumentChunkRepository,
-        chroma_client: ChromaClient,
+        pinecone_client: PineconeClient,
         embedding_service: LocalEmbeddingService,
     ):
-        self.document_repo = document_repo
-        self.chunk_repo = chunk_repo
-        self.chroma_client = chroma_client
+        self.pinecone_client = pinecone_client
         self.embedding_service = embedding_service
 
-    async def process_document(self, document_id: UUID) -> None:
-        """Process a document: extract text, chunk, embed, and store."""
-        document = await self.document_repo.get_by_id(document_id)
-        if not document:
-            logger.error(f"Document not found: {document_id}")
-            return
-
+    async def process_convex_document(
+        self,
+        document_id: str,
+        session_id: str,
+        file_url: str,
+        file_name: str,
+    ) -> dict:
+        """Process a document from Convex Storage.
+        
+        Args:
+            document_id: Convex document ID (string, not UUID)
+            session_id: Convex session ID (string, not UUID)
+            file_url: URL to download the PDF from Convex Storage
+            file_name: Original filename
+            
+        Returns:
+            Dict with page_count, chunk_count, and status
+        """
+        import tempfile
+        import httpx
+        import os
+        
+        logger.info(f"[ConvexDoc] Starting processing: doc={document_id}, session={session_id}")
+        logger.info(f"[ConvexDoc] File URL: {file_url}")
+        
         try:
-            # Update status to processing
-            await self.document_repo.update_status(
-                document_id=document_id,
-                status=DocumentStatus.PROCESSING,
-                progress=10,
-            )
-
-            # Extract text from PDF
-            pages = self._extract_text(document.file_path)
-            if not pages:
-                raise ValueError("No text content found in PDF")
-
-            page_count = len(pages)
-            await self.document_repo.update_status(
-                document_id=document_id,
-                status=DocumentStatus.PROCESSING,
-                progress=30,
-            )
-
-            # Chunk text
-            chunks = self._chunk_text(pages)
-            await self.document_repo.update_status(
-                document_id=document_id,
-                status=DocumentStatus.PROCESSING,
-                progress=50,
-            )
-
-            # Generate embeddings using local model
-            chunk_texts = [c["content"] for c in chunks]
-            embeddings = self._generate_embeddings(chunk_texts)
-            await self.document_repo.update_status(
-                document_id=document_id,
-                status=DocumentStatus.PROCESSING,
-                progress=80,
-            )
-
-            # Store chunks in database
-            chunk_records = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-                embedding_id = f"{document_id}_{i}"
-                chunk_record = await self.chunk_repo.create(
-                    document_id=document_id,
-                    chunk_index=i,
-                    page_number=chunk["page_number"],
-                    section_heading=chunk.get("section_heading"),
-                    content=chunk["content"],
-                    token_count=chunk["token_count"],
-                    embedding_id=embedding_id,
+            # Step 1: Download PDF from Convex Storage URL
+            async with httpx.AsyncClient() as client:
+                response = await client.get(file_url, follow_redirects=True)
+                response.raise_for_status()
+                pdf_content = response.content
+            
+            logger.info(f"[ConvexDoc] Downloaded {len(pdf_content)} bytes")
+            
+            # Step 2: Save to temp file for PyPDF2
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(pdf_content)
+                tmp_path = tmp.name
+            
+            try:
+                # Step 3: Extract text from PDF
+                pages = self._extract_text(tmp_path)
+                if not pages:
+                    logger.warning(f"[ConvexDoc] No text content found in PDF")
+                    return {"status": "error", "error": "No text content found"}
+                
+                page_count = len(pages)
+                logger.info(f"[ConvexDoc] Extracted {page_count} pages")
+                
+                # Step 4: Chunk text
+                chunks = self._chunk_text(pages)
+                logger.info(f"[ConvexDoc] Created {len(chunks)} chunks")
+                
+                # Step 5: Generate embeddings
+                chunk_texts = [c["content"] for c in chunks]
+                embeddings = self._generate_embeddings(chunk_texts)
+                logger.info(f"[ConvexDoc] Generated {len(embeddings)} embeddings")
+                
+                # Step 6: Store in Pinecone with Convex IDs
+                await self.pinecone_client.add_embeddings(
+                    collection_name="documents",
+                    ids=[f"{document_id}_{i}" for i in range(len(chunks))],
+                    embeddings=embeddings,
+                    metadatas=[
+                        {
+                            "document_id": document_id,  # Convex ID
+                            "session_id": session_id,    # Convex ID
+                            "chunk_index": i,
+                            "page_number": chunks[i]["page_number"],
+                            "section_heading": chunks[i].get("section_heading") or "",
+                            "document_name": file_name,
+                        }
+                        for i in range(len(chunks))
+                    ],
+                    documents=chunk_texts,
                 )
-                chunk_records.append(chunk_record)
-
-            # Store embeddings in Chroma
-            await self.chroma_client.add_embeddings(
-                collection_name="documents",
-                ids=[f"{document_id}_{i}" for i in range(len(chunks))],
-                embeddings=embeddings,
-                metadatas=[
-                    {
-                        "document_id": str(document_id),
-                        "session_id": str(document.session_id),
-                        "chunk_index": i,
-                        "page_number": chunks[i]["page_number"],
-                        "section_heading": chunks[i].get("section_heading") or "",
-                        "document_name": document.name,
-                    }
-                    for i in range(len(chunks))
-                ],
-                documents=chunk_texts,
-            )
-
-            # Update document as processed
-            await self.document_repo.update_processed(
-                document_id=document_id,
-                page_count=page_count,
-                chunk_count=len(chunks),
-            )
-
-            logger.info(
-                f"Processed document {document_id}: {page_count} pages, {len(chunks)} chunks"
-            )
-
+                
+                logger.info(
+                    f"[ConvexDoc] Successfully processed {document_id}: "
+                    f"{page_count} pages, {len(chunks)} chunks indexed in Pinecone"
+                )
+                
+                return {
+                    "status": "ready",
+                    "page_count": page_count,
+                    "chunk_count": len(chunks),
+                }
+                
+            finally:
+                # Clean up temp file
+                os.unlink(tmp_path)
+                
         except Exception as e:
-            logger.error(f"Failed to process document {document_id}: {e}")
-            await self.document_repo.update_status(
-                document_id=document_id,
-                status=DocumentStatus.ERROR,
-                progress=0,
-                error_message=str(e),
-            )
+            logger.error(f"[ConvexDoc] Failed to process document {document_id}: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+            }
 
     def _extract_text(self, file_path: str) -> list[dict]:
         """Extract text from PDF with page boundaries."""
@@ -392,7 +154,7 @@ class DocumentProcessingService:
                         "text": text.strip(),
                     })
         except Exception as e:
-            logger.error(f"Failed to extract text from PDF: {e}")
+            logger.error(f"[ConvexDoc] Failed to extract text from PDF: {e}")
             raise
 
         return pages
@@ -452,31 +214,24 @@ class DocumentProcessingService:
     def _get_overlap_text(self, text: str) -> str:
         """Get the last ~50 tokens of text for overlap."""
         words = text.split()
-        overlap_words = words[-(self.CHUNK_OVERLAP // 2) :]  # ~2 words per token
+        overlap_words = words[-(self.CHUNK_OVERLAP // 2):]
         return " ".join(overlap_words)
 
     def _detect_heading(self, text: str) -> Optional[str]:
         """Detect section heading from text."""
         lines = text.split("\n")
-        for line in lines[:3]:  # Check first 3 lines
+        for line in lines[:3]:
             line = line.strip()
-            # Heuristic: short lines that look like headings
             if len(line) < 100 and len(line) > 3:
                 if line.isupper() or line.istitle():
-                    return line[:255]  # Truncate to max length
+                    return line[:255]
         return None
 
     def _generate_embeddings(self, texts: list[str]) -> list[list[float]]:
-        """Generate embeddings for texts using local bge-base-en-v1.5 model.
-        
-        Uses sentence-transformers for fast local inference (~10ms per batch).
-        """
+        """Generate embeddings using local bge-base-en-v1.5 model."""
         if not texts:
             return []
         
-        # Local embedding is fast, process all at once
-        # The embedding service handles batching internally
         embeddings = self.embedding_service.create_embeddings(texts)
-        
-        logger.info(f"Generated {len(embeddings)} embeddings with {len(embeddings[0])} dimensions")
+        logger.info(f"[ConvexDoc] Generated {len(embeddings)} embeddings with {len(embeddings[0])} dimensions")
         return embeddings

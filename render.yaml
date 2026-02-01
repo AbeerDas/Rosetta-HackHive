@@ -1,0 +1,36 @@
+# Render Infrastructure-as-Code
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: rosetta-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      # Pinecone Vector Database
+      - key: PINECONE_API_KEY
+        sync: false  # Set manually in Render Dashboard
+      - key: PINECONE_INDEX_NAME
+        value: rosetta-documents
+      
+      # Convex Backend
+      - key: CONVEX_URL
+        sync: false  # Set manually in Render Dashboard
+      
+      # ML Services
+      - key: OPENROUTER_API_KEY
+        sync: false  # Set manually in Render Dashboard
+      
+      # Text-to-Speech
+      - key: ELEVENLABS_API_KEY
+        sync: false  # Set manually in Render Dashboard
+      
+      # App Settings
+      - key: DEBUG
+        value: "false"
+      - key: ENVIRONMENT
+        value: production
